@@ -31,7 +31,7 @@ export async function createTag(formData: FormData) {
       set: { color },
     });
   revalidatePath("/tags");
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 export async function setTagColor(formData: FormData) {
@@ -45,7 +45,7 @@ export async function setTagColor(formData: FormData) {
     .set({ color })
     .where(eq(schema.tags.name, name));
   revalidatePath("/tags");
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 /**
@@ -61,7 +61,7 @@ export async function deleteTag(formData: FormData) {
   `);
   await db.delete(schema.tags).where(eq(schema.tags.name, name));
   revalidatePath("/tags");
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 /**

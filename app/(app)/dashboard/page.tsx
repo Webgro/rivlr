@@ -1,349 +1,307 @@
 import Link from "next/link";
-import { db, schema, type TagColor } from "@/lib/db";
+import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { RunNowButton } from "./run-now-button";
-import { ProductsTable, type DashboardRow } from "./products-table";
-import { InsightsRow } from "./insights-row";
 import { getDashboardInsights } from "@/lib/dashboard-insights";
+import { InsightsRow } from "@/app/(app)/products/insights-row";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 50;
+interface ActivityItem {
+  productId: string;
+  title: string | null;
+  handle: string;
+  storeDomain: string;
+  currency: string;
+  kind: "stock_out" | "stock_in" | "price_drop" | "price_rise";
+  observedAt: Date;
+  // Additional payload depending on kind
+  prevPrice?: number;
+  newPrice?: number;
+  delta?: number;
+  pct?: number;
+}
 
-type SearchParams = Promise<{
-  q?: string;
-  store?: string;
-  tag?: string;
-  sort?: string;
-  page?: string;
-  added?: string;
-  failed?: string;
-  dup?: string;
-}>;
+interface OpportunityItem {
+  productId: string;
+  title: string | null;
+  handle: string;
+  storeDomain: string;
+  currency: string;
+  oosDays: number;
+  lastPrice: number | null;
+}
 
-async function getDashboardData(params: {
-  q?: string;
-  store?: string;
-  tag?: string;
-  sort?: string;
-  page: number;
-}): Promise<{
-  rows: DashboardRow[];
-  stores: string[];
-  tags: string[];
-  tagColors: Record<string, TagColor>;
-  availableTags: Array<{ name: string; color: TagColor }>;
-  hasAnyQuantityData: boolean;
-  totalCount: number;
-  totalPages: number;
-}> {
-  type Row = {
-    id: string;
-    url: string;
-    handle: string;
-    store_domain: string;
-    title: string | null;
-    image_url: string | null;
-    currency: string;
-    active: boolean;
-    notify_stock_changes: boolean;
-    notify_price_drops: boolean;
-    tags: string[];
-    added_at: string;
-    last_crawled_at: string | null;
-    latest_price: string | null;
-    latest_currency: string | null;
-    latest_available: boolean | null;
-    latest_quantity: number | null;
-    price_24h_ago: string | null;
-    sold_30d: number | null;
-    oos_since: string | null;
+interface MoverItem {
+  productId: string;
+  title: string | null;
+  handle: string;
+  storeDomain: string;
+  currency: string;
+  prevPrice: number;
+  newPrice: number;
+  delta: number;
+  pct: number;
+  direction: "drop" | "rise";
+}
+
+interface SummaryStats {
+  totalActive: number;
+  totalStores: number;
+  currentlyOOS: number;
+  totalAlerts7d: number;
+}
+
+async function getOverviewData() {
+  type SummaryRow = {
+    total_active: number;
+    total_stores: number;
+    currently_oos: number;
+    total_alerts_7d: number;
+  };
+  const [summary] = await db.execute<SummaryRow>(sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM tracked_products WHERE active = true) AS total_active,
+      (SELECT COUNT(DISTINCT store_domain)::int FROM tracked_products WHERE active = true) AS total_stores,
+      (SELECT COUNT(*)::int FROM (
+        SELECT DISTINCT ON (product_id) product_id, available
+        FROM stock_observations ORDER BY product_id, observed_at DESC
+      ) latest WHERE latest.available = false) AS currently_oos,
+      (SELECT COUNT(*)::int FROM alert_log WHERE sent_at >= NOW() - INTERVAL '7 days') AS total_alerts_7d
+  `);
+
+  const stats: SummaryStats = {
+    totalActive: summary?.total_active ?? 0,
+    totalStores: summary?.total_stores ?? 0,
+    currentlyOOS: summary?.currently_oos ?? 0,
+    totalAlerts7d: summary?.total_alerts_7d ?? 0,
   };
 
-  const result = await db.execute<Row>(sql`
-    WITH qty_changes AS (
+  // Recent activity — combine price changes + stock changes from last 7 days.
+  type ActivityRow = {
+    product_id: string;
+    title: string | null;
+    handle: string;
+    store_domain: string;
+    currency: string;
+    kind: "stock_out" | "stock_in" | "price_drop" | "price_rise";
+    observed_at: string;
+    prev_price: string | null;
+    new_price: string | null;
+  };
+  const activityRows = await db.execute<ActivityRow>(sql`
+    WITH price_changes AS (
       SELECT
-        product_id,
-        observed_at,
-        quantity,
-        LAG(quantity) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_qty
-      FROM stock_observations
-      WHERE quantity IS NOT NULL
-        AND observed_at >= NOW() - INTERVAL '30 days'
+        po.product_id,
+        po.observed_at,
+        po.price AS new_price,
+        prev.price AS prev_price
+      FROM price_observations po
+      LEFT JOIN LATERAL (
+        SELECT price FROM price_observations
+        WHERE product_id = po.product_id AND observed_at < po.observed_at
+        ORDER BY observed_at DESC LIMIT 1
+      ) prev ON true
+      WHERE po.observed_at >= NOW() - INTERVAL '7 days'
+        AND prev.price IS NOT NULL
+        AND prev.price::numeric != po.price::numeric
     ),
-    sold_30d_calc AS (
+    stock_changes AS (
       SELECT
-        product_id,
-        SUM(
-          CASE
-            WHEN prev_qty IS NOT NULL AND prev_qty > quantity
-            THEN prev_qty - quantity
-            ELSE 0
-          END
-        )::int AS sold_30d
-      FROM qty_changes
-      GROUP BY product_id
-    ),
-    /*
-      Stock-out duration: find the earliest observation in the most recent
-      contiguous 'out of stock' run for each product. If the latest
-      observation is in_stock, this returns null.
-    */
-    oos_runs AS (
+        so.product_id,
+        so.observed_at,
+        so.available AS new_avail,
+        prev.available AS prev_avail
+      FROM stock_observations so
+      LEFT JOIN LATERAL (
+        SELECT available FROM stock_observations
+        WHERE product_id = so.product_id AND observed_at < so.observed_at
+        ORDER BY observed_at DESC LIMIT 1
+      ) prev ON true
+      WHERE so.observed_at >= NOW() - INTERVAL '7 days'
+        AND prev.available IS NOT NULL
+        AND prev.available != so.available
+    )
+    SELECT
+      pc.product_id, p.title, p.handle, p.store_domain, p.currency,
+      CASE WHEN pc.new_price::numeric < pc.prev_price::numeric
+           THEN 'price_drop' ELSE 'price_rise' END AS kind,
+      pc.observed_at,
+      pc.prev_price::text AS prev_price,
+      pc.new_price::text AS new_price
+    FROM price_changes pc
+    JOIN tracked_products p ON p.id = pc.product_id
+    UNION ALL
+    SELECT
+      sc.product_id, p.title, p.handle, p.store_domain, p.currency,
+      CASE WHEN sc.new_avail = false THEN 'stock_out' ELSE 'stock_in' END AS kind,
+      sc.observed_at,
+      NULL AS prev_price,
+      NULL AS new_price
+    FROM stock_changes sc
+    JOIN tracked_products p ON p.id = sc.product_id
+    ORDER BY observed_at DESC
+    LIMIT 30
+  `);
+
+  const activity: ActivityItem[] = Array.from(activityRows).map((r) => {
+    const prev = r.prev_price ? Number(r.prev_price) : undefined;
+    const next = r.new_price ? Number(r.new_price) : undefined;
+    const delta = prev !== undefined && next !== undefined ? next - prev : undefined;
+    const pct =
+      prev !== undefined && next !== undefined && prev !== 0
+        ? ((next - prev) / prev) * 100
+        : undefined;
+    return {
+      productId: r.product_id,
+      title: r.title,
+      handle: r.handle,
+      storeDomain: r.store_domain,
+      currency: r.currency,
+      kind: r.kind,
+      observedAt: new Date(r.observed_at),
+      prevPrice: prev,
+      newPrice: next,
+      delta,
+      pct,
+    };
+  });
+
+  // Opportunities — competitors currently out of stock (longest first), with
+  // their last known price as benchmark.
+  type OppRow = {
+    product_id: string;
+    title: string | null;
+    handle: string;
+    store_domain: string;
+    currency: string;
+    oos_since: string;
+    last_price: string | null;
+  };
+  const oppRows = await db.execute<OppRow>(sql`
+    WITH oos_runs AS (
       SELECT
-        product_id,
-        observed_at,
-        available,
+        product_id, observed_at, available,
         SUM(CASE WHEN available THEN 1 ELSE 0 END)
           OVER (PARTITION BY product_id ORDER BY observed_at DESC) AS run_grp
       FROM stock_observations
     ),
-    oos_since_calc AS (
+    oos_starts AS (
       SELECT product_id, MIN(observed_at) AS oos_since
       FROM oos_runs
       WHERE run_grp = 0 AND available = false
       GROUP BY product_id
     )
     SELECT
-      p.id, p.url, p.handle, p.store_domain, p.title, p.image_url, p.currency,
-      p.active, p.notify_stock_changes, p.notify_price_drops, p.tags,
-      p.added_at, p.last_crawled_at,
-      lp.price AS latest_price,
-      lp.currency AS latest_currency,
-      ls.available AS latest_available,
-      ls.quantity AS latest_quantity,
-      pp.price AS price_24h_ago,
-      s.sold_30d,
-      oos.oos_since
-    FROM tracked_products p
+      p.id AS product_id, p.title, p.handle, p.store_domain, p.currency,
+      o.oos_since,
+      lp.price AS last_price
+    FROM oos_starts o
+    JOIN tracked_products p ON p.id = o.product_id AND p.active = true
     LEFT JOIN LATERAL (
-      SELECT price, currency
-      FROM price_observations
-      WHERE product_id = p.id
-      ORDER BY observed_at DESC
-      LIMIT 1
+      SELECT price FROM price_observations
+      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
     ) lp ON true
-    LEFT JOIN LATERAL (
-      SELECT available, quantity
-      FROM stock_observations
-      WHERE product_id = p.id
-      ORDER BY observed_at DESC
-      LIMIT 1
-    ) ls ON true
-    LEFT JOIN LATERAL (
-      SELECT price
-      FROM price_observations
-      WHERE product_id = p.id AND observed_at < NOW() - INTERVAL '23 hours'
-      ORDER BY observed_at DESC
-      LIMIT 1
-    ) pp ON true
-    LEFT JOIN sold_30d_calc s ON s.product_id = p.id
-    LEFT JOIN oos_since_calc oos ON oos.product_id = p.id
-    ORDER BY p.added_at DESC
+    ORDER BY o.oos_since ASC
+    LIMIT 8
   `);
 
-  const allStores = Array.from(
-    new Set(result.map((r) => r.store_domain)),
-  ).sort();
-  const allTags = Array.from(
-    new Set(result.flatMap((r) => r.tags ?? [])),
-  ).sort();
-  const hasAnyQuantityData = result.some((r) => r.sold_30d !== null);
-
-  let filtered: Row[] = Array.from(result);
-  if (params.store) {
-    filtered = filtered.filter((r) => r.store_domain === params.store);
-  }
-  if (params.tag) {
-    filtered = filtered.filter((r) => (r.tags ?? []).includes(params.tag!));
-  }
-  if (params.q) {
-    const q = params.q.toLowerCase();
-    filtered = filtered.filter(
-      (r) =>
-        (r.title ?? "").toLowerCase().includes(q) ||
-        r.handle.toLowerCase().includes(q) ||
-        r.store_domain.toLowerCase().includes(q),
-    );
-  }
-
-  const rows: DashboardRow[] = filtered.map((r) => {
-    const priceNow = r.latest_price ? Number(r.latest_price) : null;
-    const priceBefore = r.price_24h_ago ? Number(r.price_24h_ago) : null;
-    const priceChange24h =
-      priceNow !== null && priceBefore !== null
-        ? Number((priceNow - priceBefore).toFixed(2))
-        : null;
-
-    const oosSince = r.oos_since ? new Date(r.oos_since) : null;
-    const oosDays = oosSince
-      ? Math.max(
-          0,
-          Math.floor((Date.now() - oosSince.getTime()) / 86_400_000),
-        )
-      : null;
-
+  const opportunities: OpportunityItem[] = Array.from(oppRows).map((r) => {
+    const since = new Date(r.oos_since);
     return {
-      id: r.id,
-      url: r.url,
+      productId: r.product_id,
+      title: r.title,
       handle: r.handle,
       storeDomain: r.store_domain,
-      title: r.title,
-      imageUrl: r.image_url,
       currency: r.currency,
-      active: r.active,
-      notifyStockChanges: r.notify_stock_changes,
-      notifyPriceDrops: r.notify_price_drops,
-      tags: r.tags ?? [],
-      lastCrawledAt: r.last_crawled_at,
-      latestPrice: r.latest_price
-        ? { price: r.latest_price, currency: r.latest_currency ?? r.currency }
-        : null,
-      latestStock:
-        r.latest_available !== null
-          ? { available: r.latest_available, quantity: r.latest_quantity }
-          : null,
-      priceChange24h,
-      sold30d: r.sold_30d,
-      oosDays,
+      oosDays: Math.max(
+        0,
+        Math.floor((Date.now() - since.getTime()) / 86_400_000),
+      ),
+      lastPrice: r.last_price ? Number(r.last_price) : null,
     };
   });
 
-  const sort = params.sort ?? "added_desc";
-  rows.sort((a, b) => {
-    switch (sort) {
-      case "name_asc":
-        return (a.title ?? a.handle).localeCompare(b.title ?? b.handle);
-      case "price_asc":
-        return (
-          (a.latestPrice ? Number(a.latestPrice.price) : Infinity) -
-          (b.latestPrice ? Number(b.latestPrice.price) : Infinity)
-        );
-      case "price_desc":
-        return (
-          (b.latestPrice ? Number(b.latestPrice.price) : -Infinity) -
-          (a.latestPrice ? Number(a.latestPrice.price) : -Infinity)
-        );
-      case "change_desc":
-        return (b.priceChange24h ?? 0) - (a.priceChange24h ?? 0);
-      case "change_asc":
-        return (a.priceChange24h ?? 0) - (b.priceChange24h ?? 0);
-      case "sold_desc":
-        return (b.sold30d ?? -1) - (a.sold30d ?? -1);
-      case "sold_asc":
-        return (a.sold30d ?? Infinity) - (b.sold30d ?? Infinity);
-      case "added_asc":
-      case "added_desc":
-      default:
-        return 0;
-    }
-  });
-  if (sort === "added_asc") rows.reverse();
-
-  const totalCount = rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const start = (params.page - 1) * PAGE_SIZE;
-  const paged = rows.slice(start, start + PAGE_SIZE);
-
-  // Tag colour map + the canonical list of available tags (used by the
-  // bulk-add dropdown — only registered tags can be applied).
-  const tagMeta = await db
-    .select({ name: schema.tags.name, color: schema.tags.color })
-    .from(schema.tags);
-  const tagColors: Record<string, TagColor> = {};
-  const availableTags: Array<{ name: string; color: TagColor }> = [];
-  for (const t of tagMeta) {
-    const color = (t.color as TagColor) ?? "gray";
-    tagColors[t.name] = color;
-    availableTags.push({ name: t.name, color });
-  }
-  availableTags.sort((a, b) => a.name.localeCompare(b.name));
-
-  return {
-    rows: paged,
-    stores: allStores,
-    tags: allTags,
-    tagColors,
-    availableTags,
-    hasAnyQuantityData,
-    totalCount,
-    totalPages,
+  // Top movers (7d) — biggest absolute price changes.
+  type MoverRow = {
+    product_id: string;
+    title: string | null;
+    handle: string;
+    store_domain: string;
+    currency: string;
+    prev_price: string;
+    new_price: string;
   };
+  const moverRows = await db.execute<MoverRow>(sql`
+    WITH latest_prices AS (
+      SELECT DISTINCT ON (product_id)
+        product_id, price, observed_at
+      FROM price_observations
+      ORDER BY product_id, observed_at DESC
+    ),
+    week_ago_prices AS (
+      SELECT DISTINCT ON (product_id)
+        product_id, price
+      FROM price_observations
+      WHERE observed_at <= NOW() - INTERVAL '6 days'
+      ORDER BY product_id, observed_at DESC
+    )
+    SELECT
+      p.id AS product_id, p.title, p.handle, p.store_domain, p.currency,
+      w.price::text AS prev_price,
+      l.price::text AS new_price
+    FROM latest_prices l
+    JOIN week_ago_prices w ON w.product_id = l.product_id
+    JOIN tracked_products p ON p.id = l.product_id AND p.active = true
+    WHERE l.price::numeric != w.price::numeric
+    ORDER BY ABS(l.price::numeric - w.price::numeric) DESC
+    LIMIT 8
+  `);
+
+  const movers: MoverItem[] = Array.from(moverRows).map((r) => {
+    const prev = Number(r.prev_price);
+    const next = Number(r.new_price);
+    const delta = next - prev;
+    return {
+      productId: r.product_id,
+      title: r.title,
+      handle: r.handle,
+      storeDomain: r.store_domain,
+      currency: r.currency,
+      prevPrice: prev,
+      newPrice: next,
+      delta,
+      pct: prev !== 0 ? (delta / prev) * 100 : 0,
+      direction: delta < 0 ? "drop" : "rise",
+    };
+  });
+
+  return { stats, activity, opportunities, movers };
 }
 
-export default async function DashboardPage(props: {
-  searchParams: SearchParams;
-}) {
-  const params = await props.searchParams;
-  const page = Math.max(1, Number(params.page ?? 1) || 1);
-
-  let rows: DashboardRow[] = [];
-  let stores: string[] = [];
-  let tags: string[] = [];
-  let tagColors: Record<string, TagColor> = {};
-  let availableTags: Array<{ name: string; color: TagColor }> = [];
-  let hasAnyQuantityData = false;
-  let totalCount = 0;
-  let totalPages = 1;
+export default async function DashboardPage() {
+  let data: Awaited<ReturnType<typeof getOverviewData>> | null = null;
   let dbError: string | null = null;
 
   try {
-    const data = await getDashboardData({
-      q: params.q,
-      store: params.store,
-      tag: params.tag,
-      sort: params.sort,
-      page,
-    });
-    rows = data.rows;
-    stores = data.stores;
-    tags = data.tags;
-    tagColors = data.tagColors;
-    availableTags = data.availableTags;
-    hasAnyQuantityData = data.hasAnyQuantityData;
-    totalCount = data.totalCount;
-    totalPages = data.totalPages;
+    data = await getOverviewData();
   } catch (err) {
     dbError = err instanceof Error ? err.message : String(err);
   }
 
-  const banner = buildBanner(params);
-
   const insights = await getDashboardInsights().catch(() => null);
-
-  // Build CSV export URL preserving current filters.
-  const exportParams = new URLSearchParams();
-  if (params.q) exportParams.set("q", params.q);
-  if (params.store) exportParams.set("store", params.store);
-  if (params.tag) exportParams.set("tag", params.tag);
-  const exportHref = `/api/dashboard/export${exportParams.toString() ? "?" + exportParams.toString() : ""}`;
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Tracked products
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-sm text-muted">
-            {dbError
-              ? "Database not connected yet."
-              : totalCount === 0 && !params.q && !params.store && !params.tag
-                ? "Nothing tracked yet."
-                : totalPages > 1
-                  ? `${totalCount} product${totalCount === 1 ? "" : "s"} · page ${page} of ${totalPages} · daily crawl at 04:00 GMT`
-                  : `${totalCount} product${totalCount === 1 ? "" : "s"} · daily crawl at 04:00 GMT`}
+            {data
+              ? `Tracking ${data.stats.totalActive} product${data.stats.totalActive === 1 ? "" : "s"} across ${data.stats.totalStores} store${data.stats.totalStores === 1 ? "" : "s"}.`
+              : "Overview"}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <a
-            href={exportHref}
-            className="rounded-md border border-default bg-elevated px-3 py-2 text-sm hover:border-strong"
-            title="Download CSV of the current view"
-          >
-            ↓ CSV
-          </a>
-          <RunNowButton />
           <Link
             href="/products/new"
             className="rounded-md bg-signal px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600"
@@ -353,227 +311,248 @@ export default async function DashboardPage(props: {
         </div>
       </div>
 
-      {banner && (
-        <div className="mt-6 rounded-md border border-default bg-elevated px-4 py-3 text-sm text-muted-strong">
-          {banner}
+      {dbError && (
+        <div className="mt-6 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
+          <div className="text-signal">Database error.</div>
+          <div className="mt-1 text-xs text-muted font-mono">{dbError}</div>
+          <div className="mt-2 text-xs text-muted">
+            If you just deployed, run <code>npm run db:push</code> locally to
+            apply schema changes.
+          </div>
         </div>
       )}
 
       {insights && <InsightsRow insights={insights} />}
 
-      {!dbError && (rows.length > 0 || stores.length > 0) && (
-        <form
-          method="get"
-          // Force form remount when URL params change so the select inputs
-          // reflect the current sort/filter values (defaultValue only applies
-          // on initial mount — without this, soft nav would leave stale
-          // visual state behind even though the URL is correct).
-          key={`${params.q ?? ""}|${params.store ?? ""}|${params.tag ?? ""}|${params.sort ?? ""}`}
-          className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated px-4 py-3"
-        >
-          <input
-            type="search"
-            name="q"
-            defaultValue={params.q ?? ""}
-            placeholder="Search products, handles, stores…"
-            className="flex-1 min-w-[200px] rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
-          />
-          <select
-            name="store"
-            defaultValue={params.store ?? ""}
-            className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-          >
-            <option value="">All stores</option>
-            {stores.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          {tags.length > 0 && (
-            <select
-              name="tag"
-              defaultValue={params.tag ?? ""}
-              className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-            >
-              <option value="">All tags</option>
-              {tags.map((t) => (
-                <option key={t} value={t}>
-                  #{t}
-                </option>
-              ))}
-            </select>
-          )}
-          <select
-            name="sort"
-            defaultValue={params.sort ?? "added_desc"}
-            className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-          >
-            <option value="added_desc">Newest first</option>
-            <option value="added_asc">Oldest first</option>
-            <option value="name_asc">Name A → Z</option>
-            <option value="price_asc">Price low → high</option>
-            <option value="price_desc">Price high → low</option>
-            <option value="change_desc">Biggest price rise (24h)</option>
-            <option value="change_asc">Biggest price drop (24h)</option>
-            {hasAnyQuantityData && (
-              <>
-                <option value="sold_desc">Most sold (30d)</option>
-                <option value="sold_asc">Least sold (30d)</option>
-              </>
-            )}
-          </select>
-          <button
-            type="submit"
-            className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-surface"
-          >
-            Apply
-          </button>
-          {(params.q || params.store || params.tag || params.sort) && (
-            <Link
-              href="/dashboard"
-              className="text-xs text-muted hover:text-foreground"
-            >
-              Clear
-            </Link>
-          )}
-        </form>
-      )}
-
-      {dbError ? (
-        <div className="mt-12 rounded-xl border border-dashed border-default px-8 py-10">
-          <p className="text-sm text-muted-strong">
-            Could not reach the database.
-          </p>
-          <p className="mt-3 text-xs text-muted font-mono">{dbError}</p>
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="mt-12 rounded-xl border border-dashed border-default px-8 py-16 text-center">
-          <p className="text-muted-strong">
-            {params.q || params.store || params.tag
-              ? "No products match those filters."
-              : "No products yet."}
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            Paste one or more Shopify product URLs to start tracking.
-          </p>
-          <Link
-            href="/products/new"
-            className="mt-6 inline-block rounded-md bg-signal px-4 py-2 text-sm font-medium text-white"
-          >
-            Add products
-          </Link>
-        </div>
-      ) : (
+      {data && (
         <>
-          <ProductsTable
-            rows={rows}
-            showSold={hasAnyQuantityData}
-            tagColors={tagColors}
-            availableTags={availableTags}
-            totalCount={totalCount}
-          />
-          {totalPages > 1 && (
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              params={params}
-            />
+          {/* Top wins / opportunities */}
+          {data.opportunities.length > 0 && (
+            <section className="mt-8">
+              <div className="flex items-end justify-between mb-3">
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono">
+                    Opportunities
+                  </h2>
+                  <p className="mt-1 text-xs text-muted">
+                    Competitors currently out of stock — your chance to capture
+                    market.
+                  </p>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-default bg-elevated">
+                {data.opportunities.map((o) => (
+                  <Link
+                    key={o.productId}
+                    href={`/products/${o.productId}`}
+                    className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-default px-4 py-3 last:border-b-0 hover:bg-surface text-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">
+                        {o.title ?? o.handle}
+                      </div>
+                      <div className="truncate text-xs text-muted font-mono">
+                        {o.storeDomain}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-signal text-xs uppercase tracking-wider">
+                        Out for {o.oosDays}d
+                      </div>
+                      {o.lastPrice !== null && (
+                        <div className="mt-0.5 text-xs text-muted font-mono">
+                          last {currencySymbol(o.currency)}
+                          {o.lastPrice.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-muted">→</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
           )}
+
+          {/* Two-column: Top movers + Recent activity */}
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            {/* Top movers (7d) */}
+            <section>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono mb-3">
+                Top movers (7 days)
+              </h2>
+              {data.movers.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-default px-4 py-6 text-center text-xs text-muted">
+                  No price changes in the last 7 days. Run a few crawls to
+                  populate.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-default bg-elevated">
+                  {data.movers.map((m) => {
+                    const symbol = currencySymbol(m.currency);
+                    const colorClass =
+                      m.direction === "drop"
+                        ? "text-green-500"
+                        : "text-signal";
+                    return (
+                      <Link
+                        key={m.productId}
+                        href={`/products/${m.productId}`}
+                        className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-default px-4 py-2.5 last:border-b-0 hover:bg-surface text-sm"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">
+                            {m.title ?? m.handle}
+                          </div>
+                          <div className="truncate text-xs text-muted font-mono">
+                            {m.storeDomain}
+                          </div>
+                        </div>
+                        <div className={`text-right font-mono ${colorClass}`}>
+                          <div>
+                            {m.delta > 0 ? "+" : ""}
+                            {symbol}
+                            {Math.abs(m.delta).toFixed(2)}
+                          </div>
+                          <div className="text-[11px] opacity-80">
+                            {m.pct > 0 ? "+" : ""}
+                            {m.pct.toFixed(1)}%
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Recent activity */}
+            <section>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono mb-3">
+                Recent activity
+              </h2>
+              {data.activity.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-default px-4 py-6 text-center text-xs text-muted">
+                  No recent changes detected. Activity appears here as products
+                  move.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-default bg-elevated">
+                  {data.activity.slice(0, 12).map((a, i) => (
+                    <ActivityRowItem key={i} item={a} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <Link
+              href="/products"
+              className="text-sm text-muted hover:text-foreground font-mono uppercase tracking-wider"
+            >
+              All tracked products →
+            </Link>
+          </div>
         </>
       )}
     </section>
   );
 }
 
-function Pagination({
-  page,
-  totalPages,
-  params,
-}: {
-  page: number;
-  totalPages: number;
-  params: { q?: string; store?: string; tag?: string; sort?: string };
-}) {
-  function pageHref(p: number) {
-    const sp = new URLSearchParams();
-    if (params.q) sp.set("q", params.q);
-    if (params.store) sp.set("store", params.store);
-    if (params.tag) sp.set("tag", params.tag);
-    if (params.sort) sp.set("sort", params.sort);
-    if (p > 1) sp.set("page", String(p));
-    const q = sp.toString();
-    return `/dashboard${q ? "?" + q : ""}`;
-  }
+function ActivityRowItem({ item }: { item: ActivityItem }) {
+  const symbol = currencySymbol(item.currency);
+  const time = formatRelative(item.observedAt);
 
-  // Build a windowed page list: 1, 2, …, current-1, current, current+1, …, last
-  const pages = new Set<number>([1, totalPages, page, page - 1, page + 1]);
-  const visible = Array.from(pages).filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
-  const items: (number | "gap")[] = [];
-  for (let i = 0; i < visible.length; i++) {
-    if (i > 0 && visible[i] - visible[i - 1] > 1) items.push("gap");
-    items.push(visible[i]);
+  let label: React.ReactNode;
+  let icon: string;
+  let iconClass: string;
+  switch (item.kind) {
+    case "stock_out":
+      icon = "⊘";
+      iconClass = "text-signal";
+      label = "Out of stock";
+      break;
+    case "stock_in":
+      icon = "↑";
+      iconClass = "text-green-500";
+      label = "Restocked";
+      break;
+    case "price_drop":
+      icon = "↓";
+      iconClass = "text-green-500";
+      label = (
+        <>
+          Price drop{" "}
+          <span className="font-mono">
+            ({symbol}
+            {item.prevPrice?.toFixed(2)} → {symbol}
+            {item.newPrice?.toFixed(2)})
+          </span>
+        </>
+      );
+      break;
+    case "price_rise":
+      icon = "↑";
+      iconClass = "text-signal";
+      label = (
+        <>
+          Price up{" "}
+          <span className="font-mono">
+            ({symbol}
+            {item.prevPrice?.toFixed(2)} → {symbol}
+            {item.newPrice?.toFixed(2)})
+          </span>
+        </>
+      );
+      break;
   }
 
   return (
-    <nav
-      aria-label="Pagination"
-      className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-default bg-elevated px-4 py-3"
+    <Link
+      href={`/products/${item.productId}`}
+      className="grid grid-cols-[16px_1fr_auto] items-center gap-3 border-b border-default px-4 py-2.5 last:border-b-0 hover:bg-surface text-sm"
     >
-      <Link
-        href={page > 1 ? pageHref(page - 1) : "#"}
-        aria-disabled={page === 1}
-        className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === 1 ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
-      >
-        ← Previous
-      </Link>
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        {items.map((item, i) =>
-          item === "gap" ? (
-            <span key={`gap-${i}`} className="text-muted text-sm">
-              …
-            </span>
-          ) : (
-            <Link
-              key={item}
-              href={pageHref(item)}
-              aria-current={item === page ? "page" : undefined}
-              className={`min-w-[36px] rounded-md px-2 py-1 text-center text-sm font-mono transition ${
-                item === page
-                  ? "bg-foreground text-surface"
-                  : "border border-default hover:border-strong"
-              }`}
-            >
-              {item}
-            </Link>
-          ),
-        )}
+      <span className={`font-mono text-base ${iconClass}`}>{icon}</span>
+      <div className="min-w-0">
+        <div className="truncate text-xs">{label}</div>
+        <div className="truncate font-medium">
+          {item.title ?? item.handle}
+          <span className="text-muted font-mono ml-2 text-xs">
+            {item.storeDomain}
+          </span>
+        </div>
       </div>
-
-      <Link
-        href={page < totalPages ? pageHref(page + 1) : "#"}
-        aria-disabled={page === totalPages}
-        className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === totalPages ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
-      >
-        Next →
-      </Link>
-    </nav>
+      <span className="text-xs text-muted font-mono whitespace-nowrap">
+        {time}
+      </span>
+    </Link>
   );
 }
 
-function buildBanner(params: {
-  added?: string;
-  failed?: string;
-  dup?: string;
-}) {
-  const added = Number(params.added ?? 0);
-  const failed = Number(params.failed ?? 0);
-  const dup = Number(params.dup ?? 0);
-  if (!added && !failed && !dup) return null;
-  const parts: string[] = [];
-  if (added) parts.push(`✓ ${added} added`);
-  if (dup) parts.push(`${dup} duplicate${dup === 1 ? "" : "s"} skipped`);
-  if (failed) parts.push(`${failed} failed`);
-  return parts.join(" · ");
+function currencySymbol(c: string) {
+  switch (c) {
+    case "GBP":
+      return "£";
+    case "USD":
+      return "$";
+    case "EUR":
+      return "€";
+    case "CAD":
+      return "CA$";
+    case "AUD":
+      return "A$";
+    default:
+      return c + " ";
+  }
+}
+
+function formatRelative(date: Date) {
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }

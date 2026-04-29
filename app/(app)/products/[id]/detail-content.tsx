@@ -129,7 +129,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
                     key={t}
                     name={t}
                     color={tagColors[t] ?? "gray"}
-                    href={`/dashboard?tag=${encodeURIComponent(t)}`}
+                    href={`/products?tag=${encodeURIComponent(t)}`}
                     size="md"
                   />
                 ))}

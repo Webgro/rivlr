@@ -19,7 +19,7 @@ type SearchParams = Promise<Record<string, string>>;
 async function addProducts(formData: FormData) {
   "use server";
   const raw = String(formData.get("urls") ?? "").trim();
-  if (!raw) redirect("/dashboard");
+  if (!raw) redirect("/products");
 
   // Split on newlines / commas / spaces, dedupe, drop blanks.
   const urls = Array.from(
@@ -31,7 +31,7 @@ async function addProducts(formData: FormData) {
     ),
   );
 
-  if (urls.length === 0) redirect("/dashboard");
+  if (urls.length === 0) redirect("/products");
 
   // Parse + classify upfront — only valid Shopify URLs go in.
   const parsed = urls
@@ -43,8 +43,8 @@ async function addProducts(formData: FormData) {
   const invalidCount = urls.length - parsed.length;
 
   if (parsed.length === 0) {
-    revalidatePath("/dashboard");
-    redirect(`/dashboard?added=0&failed=${invalidCount}&dup=0`);
+    revalidatePath("/products"); revalidatePath("/dashboard");
+    redirect(`/products?added=0&failed=${invalidCount}&dup=0`);
   }
 
   // Find duplicates already in DB.
@@ -94,9 +94,9 @@ async function addProducts(formData: FormData) {
     }
   });
 
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   redirect(
-    `/dashboard?added=${added}&failed=${invalidCount}&dup=${existingSet.size}`,
+    `/products?added=${added}&failed=${invalidCount}&dup=${existingSet.size}`,
   );
 }
 
@@ -108,10 +108,10 @@ export default async function NewProductPage(props: {
   return (
     <section className="mx-auto max-w-2xl px-6 py-12">
       <a
-        href="/dashboard"
+        href="/products"
         className="text-xs uppercase tracking-wider text-muted font-mono hover:text-foreground"
       >
-        ← Back to dashboard
+        ← Back to products
       </a>
 
       <h1 className="mt-6 text-3xl font-semibold tracking-tight">

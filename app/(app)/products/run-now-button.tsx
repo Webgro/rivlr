@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import { runCrawlNow } from "../products/actions";
+import { runCrawlNow } from "./actions";
 import { useRouter } from "next/navigation";
 
 export function RunNowButton() {

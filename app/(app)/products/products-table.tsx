@@ -10,7 +10,7 @@ import {
   bulkSetStockNotify,
   bulkSetPriceDropNotify,
   bulkAddTags,
-} from "../products/actions";
+} from "./actions";
 import { TagChip } from "@/components/tag-chip";
 import { type TagColor } from "@/lib/db";
 
@@ -336,7 +336,7 @@ export function ProductsTable({
                         key={t}
                         name={t}
                         color={tagColors[t] ?? "gray"}
-                        href={`/dashboard?tag=${encodeURIComponent(t)}`}
+                        href={`/products?tag=${encodeURIComponent(t)}`}
                         onClick={(e) => e.stopPropagation()}
                       />
                     ))}

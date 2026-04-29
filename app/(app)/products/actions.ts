@@ -17,7 +17,7 @@ export async function pauseProduct(formData: FormData) {
     .update(schema.trackedProducts)
     .set({ active: false })
     .where(eq(schema.trackedProducts.id, id));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   revalidatePath(`/products/${id}`);
 }
 
@@ -29,7 +29,7 @@ export async function resumeProduct(formData: FormData) {
     .update(schema.trackedProducts)
     .set({ active: true })
     .where(eq(schema.trackedProducts.id, id));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   revalidatePath(`/products/${id}`);
 }
 
@@ -40,8 +40,8 @@ export async function deleteProduct(formData: FormData) {
   await db
     .delete(schema.trackedProducts)
     .where(eq(schema.trackedProducts.id, id));
-  revalidatePath("/dashboard");
-  redirect("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
+  redirect("/products");
 }
 
 export async function toggleStockNotify(formData: FormData) {
@@ -54,7 +54,7 @@ export async function toggleStockNotify(formData: FormData) {
     .set({ notifyStockChanges: value })
     .where(eq(schema.trackedProducts.id, id));
   revalidatePath(`/products/${id}`);
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 export async function togglePriceDropNotify(formData: FormData) {
@@ -67,7 +67,7 @@ export async function togglePriceDropNotify(formData: FormData) {
     .set({ notifyPriceDrops: value })
     .where(eq(schema.trackedProducts.id, id));
   revalidatePath(`/products/${id}`);
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 // ─── Bulk actions ───────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ export async function bulkPause(ids: string[]) {
     .update(schema.trackedProducts)
     .set({ active: false })
     .where(inArray(schema.trackedProducts.id, ids));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return { ok: true as const, count: ids.length };
 }
 
@@ -90,7 +90,7 @@ export async function bulkResume(ids: string[]) {
     .update(schema.trackedProducts)
     .set({ active: true })
     .where(inArray(schema.trackedProducts.id, ids));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return { ok: true as const, count: ids.length };
 }
 
@@ -100,7 +100,7 @@ export async function bulkDelete(ids: string[]) {
   await db
     .delete(schema.trackedProducts)
     .where(inArray(schema.trackedProducts.id, ids));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return { ok: true as const, count: ids.length };
 }
 
@@ -111,7 +111,7 @@ export async function bulkSetStockNotify(ids: string[], value: boolean) {
     .update(schema.trackedProducts)
     .set({ notifyStockChanges: value })
     .where(inArray(schema.trackedProducts.id, ids));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return { ok: true as const, count: ids.length };
 }
 
@@ -122,7 +122,7 @@ export async function bulkSetPriceDropNotify(ids: string[], value: boolean) {
     .update(schema.trackedProducts)
     .set({ notifyPriceDrops: value })
     .where(inArray(schema.trackedProducts.id, ids));
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return { ok: true as const, count: ids.length };
 }
 
@@ -182,7 +182,7 @@ export async function bulkAddTags(ids: string[], rawTags: string) {
       .where(eq(schema.trackedProducts.id, row.id));
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return {
     ok: true as const,
     count: existing.length,
@@ -211,7 +211,7 @@ export async function bulkRemoveTag(ids: string[], tag: string) {
       .where(eq(schema.trackedProducts.id, row.id));
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
   return { ok: true as const, count: existing.length };
 }
 
@@ -254,7 +254,7 @@ export async function linkProducts(formData: FormData) {
 
   revalidatePath(`/products/${aId}`);
   revalidatePath(`/products/${bId}`);
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 export async function unlinkProduct(formData: FormData) {
@@ -266,7 +266,7 @@ export async function unlinkProduct(formData: FormData) {
     .set({ groupId: null })
     .where(eq(schema.trackedProducts.id, id));
   revalidatePath(`/products/${id}`);
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 // ─── Manual crawl trigger ──────────────────────────────────────────────
@@ -276,7 +276,7 @@ export async function runCrawlNow(force = false) {
 
   try {
     const result = await dispatchCrawl({ force });
-    revalidatePath("/dashboard");
+    revalidatePath("/products"); revalidatePath("/dashboard");
     return {
       ok: true as const,
       scheduled: result.scheduled,

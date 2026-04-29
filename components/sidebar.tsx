@@ -6,7 +6,8 @@ import { ThemeToggle } from "./theme-toggle";
 import { Wordmark } from "./wordmark";
 
 const NAV = [
-  { href: "/dashboard", label: "Products", icon: "◉" },
+  { href: "/dashboard", label: "Dashboard", icon: "◐" },
+  { href: "/products", label: "Products", icon: "◉" },
   { href: "/products/suggestions", label: "Suggestions", icon: "⤧" },
   { href: "/tags", label: "Tags", icon: "▤" },
   { href: "/settings", label: "Settings", icon: "⚙" },
@@ -27,8 +28,18 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4">
         <ul className="space-y-1">
           {NAV.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+            // Pick the longest matching href among siblings as the active one,
+            // so `/products/suggestions` lights up "Suggestions" and not
+            // "Products" (which would also prefix-match).
+            const candidates = NAV.filter(
+              (n) => pathname === n.href || pathname.startsWith(n.href + "/"),
+            );
+            const longest = candidates.reduce<typeof item | null>(
+              (best, n) =>
+                !best || n.href.length > best.href.length ? n : best,
+              null,
+            );
+            const active = longest?.href === item.href;
             return (
               <li key={item.href}>
                 <Link

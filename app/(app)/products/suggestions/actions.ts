@@ -46,7 +46,7 @@ export async function acceptSuggestion(formData: FormData) {
     .where(eq(schema.linkSuggestions.id, id));
 
   revalidatePath("/products/suggestions");
-  revalidatePath("/dashboard");
+  revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
 export async function dismissSuggestion(formData: FormData) {
