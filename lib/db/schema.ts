@@ -8,6 +8,7 @@ import {
   numeric,
   index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Phase 1 schema — single-tenant (one shared password). Phase 2 introduces
@@ -28,6 +29,15 @@ export const trackedProducts = pgTable(
     addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
     lastCrawledAt: timestamp("last_crawled_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
+    /** Email when stock changes (in→out or out→in). Phase 5 actually sends. */
+    notifyStockChanges: boolean("notify_stock_changes").notNull().default(false),
+    /** Email when price drops by any amount. Phase 5 actually sends. */
+    notifyPriceDrops: boolean("notify_price_drops").notNull().default(false),
+    /** User-defined labels for organising / filtering. Lowercase, simple text. */
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
   },
   (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
 );
@@ -88,8 +98,22 @@ export const crawlJobs = pgTable(
   ],
 );
 
+/**
+ * App-wide settings (singleton row, id = 'singleton'). Phase 2 will move these
+ * onto the `users` table as per-user preferences.
+ */
+export const appSettings = pgTable("app_settings", {
+  id: text("id").primaryKey().default("singleton"),
+  notificationEmails: text("notification_emails")
+    .array()
+    .notNull()
+    .default(sql`ARRAY[]::text[]`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;
 export type StockObservation = typeof stockObservations.$inferSelect;
 export type CrawlJob = typeof crawlJobs.$inferSelect;
+export type AppSettings = typeof appSettings.$inferSelect;

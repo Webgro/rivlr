@@ -3,11 +3,13 @@
 /*
  * Rivlr brand tokens — locked 2026-04-27.
  *
- *   ink     #0A0A0A  primary surface (dashboard, hero, footer)
- *   paper   #F5F3EE  primary background (light surfaces, login)
- *   signal  #FF3B30  single accent — alerts, CTAs, "rival" highlights
+ * Theme is selected via `data-theme="dark"` or `data-theme="light"` on <html>.
+ * Default = dark. The semantic tokens below flip per theme; brand accent
+ * (signal red) and base brand colours stay constant across both.
  *
- * Fonts: Geist (UI), Geist Mono (data/prices), Instrument Serif (italic moments).
+ *   ink     #0A0A0A   primary surface in dark mode (logos, headers)
+ *   paper   #F5F3EE   primary surface in light mode
+ *   signal  #FF3B30   single accent — alerts, CTAs, "rival" highlights
  */
 
 :root {
@@ -16,10 +18,41 @@
   --signal: #ff3b30;
 }
 
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
+  --surface: #0a0a0a;
+  --elevated: #141414;
+  --foreground: #f5f3ee;
+  --muted: #8a8a8a;
+  --muted-strong: #b4b4b4;
+  --default-border: #262626;
+  --strong-border: #2e2e2e;
+}
+
+[data-theme="light"] {
+  --surface: #f5f3ee;
+  --elevated: #ffffff;
+  --foreground: #0a0a0a;
+  --muted: #6e6e6e;
+  --muted-strong: #444444;
+  --default-border: #e0ddd6;
+  --strong-border: #c8c4ba;
+}
+
 @theme inline {
   --color-ink: var(--ink);
   --color-paper: var(--paper);
   --color-signal: var(--signal);
+
+  /* Theme-aware semantic colours */
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-strong: var(--muted-strong);
+  --color-default: var(--default-border);
+  --color-strong: var(--strong-border);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -28,6 +61,45 @@
 
 body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-  background: var(--paper);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+/*
+ * Theme override for the legacy hardcoded brand classes.
+ * Old code uses bg-ink / text-paper / bg-neutral-900 etc. directly. In light
+ * mode we want those to remap to the theme's equivalents so the dashboard
+ * doesn't stay black-on-black when toggled.
+ */
+[data-theme="light"] .bg-ink {
+  background-color: var(--paper);
+}
+[data-theme="light"] .text-paper {
   color: var(--ink);
+}
+[data-theme="light"] .bg-neutral-900,
+[data-theme="light"] .bg-neutral-900\/50,
+[data-theme="light"] .bg-neutral-900\/40,
+[data-theme="light"] .bg-neutral-900\/70 {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .border-neutral-800,
+[data-theme="light"] .border-neutral-700 {
+  border-color: var(--default-border);
+}
+[data-theme="light"] .text-neutral-400,
+[data-theme="light"] .text-neutral-500 {
+  color: var(--muted);
+}
+[data-theme="light"] .text-neutral-300 {
+  color: var(--muted-strong);
+}
+[data-theme="light"] .bg-neutral-800,
+[data-theme="light"] .hover\:bg-neutral-800:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Avoid flash of unthemed content — applied by inline script in layout */
+html {
+  color-scheme: light dark;
 }

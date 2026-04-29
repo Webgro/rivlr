@@ -150,18 +150,18 @@ export default async function NewProductPage(props: {
   await props.searchParams;
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <section className="mx-auto max-w-2xl px-6 py-12">
       <a
         href="/dashboard"
-        className="text-xs uppercase tracking-wider text-neutral-500 font-mono hover:text-ink"
+        className="text-xs uppercase tracking-wider text-muted font-mono hover:text-foreground"
       >
         ← Back to dashboard
       </a>
 
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight text-ink">
+      <h1 className="mt-6 text-3xl font-semibold tracking-tight">
         Track competitor products
       </h1>
-      <p className="mt-2 text-sm text-neutral-600">
+      <p className="mt-2 text-sm text-muted">
         Paste one or more Shopify product URLs. One per line, or comma/space
         separated. Each URL is fetched once now to confirm it works, then
         crawled daily from tomorrow. Duplicates are skipped.
@@ -171,7 +171,7 @@ export default async function NewProductPage(props: {
         <div>
           <label
             htmlFor="urls"
-            className="block text-xs uppercase tracking-wider text-neutral-500 font-mono"
+            className="block text-xs uppercase tracking-wider text-muted font-mono"
           >
             Shopify product URLs
           </label>
@@ -184,20 +184,20 @@ export default async function NewProductPage(props: {
             }
             required
             autoFocus
-            className="mt-2 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2.5 text-sm text-ink shadow-sm outline-none font-mono leading-5 focus:border-ink focus:ring-1 focus:ring-ink"
+            className="mt-2 block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground shadow-sm outline-none font-mono leading-5 focus:border-strong"
           />
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-muted">
             Up to ~50 URLs at a time recommended.
           </p>
         </div>
 
         <button
           type="submit"
-          className="rounded-md bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-neutral-800"
+          className="rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-surface transition hover:opacity-90"
         >
           Track products
         </button>
       </form>
-    </main>
+    </section>
   );
 }
