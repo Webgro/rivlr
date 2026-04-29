@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Rivlr
 
-## Getting Started
+Shopify competitor price/inventory tracker. A Webgro Ltd product.
 
-First, run the development server:
+## Status
+
+**Phase 1 — Personal MVP.** Single-password access for the owner. No user accounts, no billing, no public landing yet. See `PROJECT-PLAN.md` (in the design repo) for the full phase plan.
+
+## Stack
+
+- Next.js 16 (App Router, Turbopack default)
+- React 19
+- Tailwind CSS 4
+- Drizzle ORM + Postgres (Neon via Vercel)
+- Vercel Cron for daily scheduling
+- Deployed on Vercel
+
+## Environment variables
+
+Copy `.env.example` to `.env.local` for local development.
+
+| Var | Purpose |
+|---|---|
+| `DATABASE_URL` | Postgres connection. Auto-set by Neon/Vercel integration in prod. Required locally for `drizzle-kit push`. |
+| `APP_PASSWORD` | The password the owner enters at `/login`. |
+| `SESSION_TOKEN` | Long random string used as the session cookie value. Rotate to invalidate all sessions. |
+| `CRON_SECRET` | Long random string. Vercel Cron sends `Authorization: Bearer ${CRON_SECRET}` to `/api/crawl/*`. |
+
+Generate the random tokens with:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## First-time setup (after deploying)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Set the four env vars in the Vercel project settings.
+2. Locally, set `DATABASE_URL` to your Neon connection string and run:
+   ```bash
+   npm run db:push
+   ```
+   This creates the four Phase 1 tables (`tracked_products`, `price_observations`, `stock_observations`, `crawl_jobs`).
+3. Visit `app.rivlr.app/login`, enter `APP_PASSWORD`, and start tracking products.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Development
 
-## Learn More
+```bash
+npm run dev    # http://localhost:3000
+npm run db:studio   # open Drizzle Studio for inspecting the DB
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture — Phase 1
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **`proxy.ts`** — password gate (Next.js 16 renamed `middleware` → `proxy`). Reads `rivlr_session` cookie, validates against `SESSION_TOKEN`, redirects to `/login` if missing.
+- **`/login`** — single password form, sets the session cookie via Server Action.
+- **`/products/new`** — paste a Shopify URL, server validates by fetching `/products/{handle}.js` once, stores the product + initial observations.
+- **`/`** — dashboard listing tracked products with latest price + stock.
+- **`/api/crawl/dispatch`** — called daily by Vercel Cron. Selects products needing a crawl, creates jobs, fans out to `/api/crawl/run` in batches of 20.
+- **`/api/crawl/run`** — worker. Processes a batch of jobs serially with per-store throttling (1 req/sec).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roadmap
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `PROJECT-PLAN.md`. Next phases: real auth (Better Auth), billing (Stripe), admin panel, email alerts (Resend), public landing page.
