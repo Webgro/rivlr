@@ -7,6 +7,7 @@ import {
   integer,
   numeric,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -43,6 +44,24 @@ export const trackedProducts = pgTable(
      * NULL = standalone. All products in a group share this id.
      */
     groupId: uuid("group_id"),
+    /**
+     * Latest variants snapshot from the most recent crawl. Stored as JSON
+     * so we don't have to migrate the schema for new variant fields. We
+     * intentionally don't keep variant history yet (future feature).
+     * Shape: Array<{ id, title, price, available, quantity }>
+     */
+    variantsSnapshot: jsonb("variants_snapshot")
+      .$type<
+        Array<{
+          id: string;
+          title: string;
+          price: number;
+          available: boolean;
+          quantity: number | null;
+        }>
+      >()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
   },
   (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
 );
@@ -138,6 +157,47 @@ export const productGroups = pgTable("product_groups", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Audit/dedupe log for sent email alerts. Used to suppress repeated firings
+ * of the same alert kind for the same product within a short window.
+ */
+export const alertLog = pgTable(
+  "alert_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => trackedProducts.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["stock_in", "stock_out", "price_drop"] }).notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_alerts_product_sent").on(t.productId, t.sentAt)],
+);
+
+/**
+ * Auto-suggested links for products that look like the same item across
+ * stores. Created post-bulk-add by the suggestion engine; user reviews and
+ * accepts/dismisses on /products/suggestions.
+ */
+export const linkSuggestions = pgTable(
+  "link_suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productAId: uuid("product_a_id")
+      .notNull()
+      .references(() => trackedProducts.id, { onDelete: "cascade" }),
+    productBId: uuid("product_b_id")
+      .notNull()
+      .references(() => trackedProducts.id, { onDelete: "cascade" }),
+    score: numeric("score", { precision: 5, scale: 3 }).notNull(),
+    status: text("status", { enum: ["pending", "accepted", "dismissed"] })
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_suggestions_status").on(t.status)],
+);
+
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;
@@ -146,6 +206,8 @@ export type CrawlJob = typeof crawlJobs.$inferSelect;
 export type AppSettings = typeof appSettings.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type ProductGroup = typeof productGroups.$inferSelect;
+export type AlertLog = typeof alertLog.$inferSelect;
+export type LinkSuggestion = typeof linkSuggestions.$inferSelect;
 
 /** Available tag colours. Keep in sync with TAG_COLOURS in components/tag-chip.tsx */
 export const TAG_COLOR_NAMES = [

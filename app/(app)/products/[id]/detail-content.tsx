@@ -337,6 +337,48 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         )}
       </div>
 
+      {/* Variants — only when there's more than one. */}
+      {product.variantsSnapshot && product.variantsSnapshot.length > 1 && (
+        <div className="mt-8">
+          <h2 className="mb-3 text-xs uppercase tracking-wider text-muted font-mono">
+            Variants ({product.variantsSnapshot.length})
+          </h2>
+          <div className="overflow-hidden rounded-lg border border-default">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 border-b border-default bg-elevated px-4 py-2 text-[10px] uppercase tracking-wider text-muted font-mono">
+              <div>Variant</div>
+              <div>Price</div>
+              <div>In stock</div>
+              <div className="text-right">Quantity</div>
+            </div>
+            {product.variantsSnapshot.map((v) => (
+              <div
+                key={v.id}
+                className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center gap-3 border-b border-default px-4 py-2.5 last:border-b-0 text-sm"
+              >
+                <div className="truncate">{v.title}</div>
+                <div className="font-mono">
+                  {symbol}
+                  {v.price.toFixed(2)}
+                </div>
+                <div>
+                  <span
+                    className={`inline-flex items-center gap-1.5 ${v.available ? "text-foreground" : "text-signal"}`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${v.available ? "bg-green-500" : "bg-signal"}`}
+                    />
+                    {v.available ? "Yes" : "No"}
+                  </span>
+                </div>
+                <div className="text-right font-mono text-muted">
+                  {v.quantity !== null ? v.quantity : "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
       <div className="mt-8">
         <h2 className="mb-3 text-xs uppercase tracking-wider text-muted font-mono">

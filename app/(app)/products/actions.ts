@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
+import { dispatchCrawl } from "@/lib/crawler/dispatch";
 
 // ─── Single-product actions ─────────────────────────────────────────────
 
@@ -273,39 +274,20 @@ export async function unlinkProduct(formData: FormData) {
 export async function runCrawlNow(force = false) {
   if (!(await isAuthed())) redirect("/login");
 
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    return { ok: false, error: "CRON_SECRET not set" } as const;
-  }
-
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-
-  const path = force ? "/api/crawl/dispatch?force=1" : "/api/crawl/dispatch";
-
   try {
-    const res = await fetch(`${baseUrl}${path}`, {
-      headers: { Authorization: `Bearer ${cronSecret}` },
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: `dispatch returned ${res.status}`,
-      } as const;
-    }
-    const data = (await res.json()) as { scheduled?: number; batches?: number };
+    const result = await dispatchCrawl({ force });
     revalidatePath("/dashboard");
     return {
-      ok: true,
-      scheduled: data.scheduled ?? 0,
-      batches: data.batches ?? 0,
-    } as const;
+      ok: true as const,
+      scheduled: result.scheduled,
+      batches: 1, // single dispatch call now
+      ok_count: result.ok,
+      failed: result.failed,
+    };
   } catch (err) {
     return {
-      ok: false,
+      ok: false as const,
       error: err instanceof Error ? err.message : String(err),
-    } as const;
+    };
   }
 }

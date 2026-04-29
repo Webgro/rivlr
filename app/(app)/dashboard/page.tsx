@@ -3,6 +3,8 @@ import { db, schema, type TagColor } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import { RunNowButton } from "./run-now-button";
 import { ProductsTable, type DashboardRow } from "./products-table";
+import { InsightsRow } from "./insights-row";
+import { getDashboardInsights } from "@/lib/dashboard-insights";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,7 @@ async function getDashboardData(params: {
     latest_quantity: number | null;
     price_24h_ago: string | null;
     sold_30d: number | null;
+    oos_since: string | null;
   };
 
   const result = await db.execute<Row>(sql`
@@ -80,6 +83,26 @@ async function getDashboardData(params: {
         )::int AS sold_30d
       FROM qty_changes
       GROUP BY product_id
+    ),
+    /*
+      Stock-out duration: find the earliest observation in the most recent
+      contiguous 'out of stock' run for each product. If the latest
+      observation is in_stock, this returns null.
+    */
+    oos_runs AS (
+      SELECT
+        product_id,
+        observed_at,
+        available,
+        SUM(CASE WHEN available THEN 1 ELSE 0 END)
+          OVER (PARTITION BY product_id ORDER BY observed_at DESC) AS run_grp
+      FROM stock_observations
+    ),
+    oos_since_calc AS (
+      SELECT product_id, MIN(observed_at) AS oos_since
+      FROM oos_runs
+      WHERE run_grp = 0 AND available = false
+      GROUP BY product_id
     )
     SELECT
       p.id, p.url, p.handle, p.store_domain, p.title, p.image_url, p.currency,
@@ -90,7 +113,8 @@ async function getDashboardData(params: {
       ls.available AS latest_available,
       ls.quantity AS latest_quantity,
       pp.price AS price_24h_ago,
-      s.sold_30d
+      s.sold_30d,
+      oos.oos_since
     FROM tracked_products p
     LEFT JOIN LATERAL (
       SELECT price, currency
@@ -114,6 +138,7 @@ async function getDashboardData(params: {
       LIMIT 1
     ) pp ON true
     LEFT JOIN sold_30d_calc s ON s.product_id = p.id
+    LEFT JOIN oos_since_calc oos ON oos.product_id = p.id
     ORDER BY p.added_at DESC
   `);
 
@@ -150,6 +175,14 @@ async function getDashboardData(params: {
         ? Number((priceNow - priceBefore).toFixed(2))
         : null;
 
+    const oosSince = r.oos_since ? new Date(r.oos_since) : null;
+    const oosDays = oosSince
+      ? Math.max(
+          0,
+          Math.floor((Date.now() - oosSince.getTime()) / 86_400_000),
+        )
+      : null;
+
     return {
       id: r.id,
       url: r.url,
@@ -172,6 +205,7 @@ async function getDashboardData(params: {
           : null,
       priceChange24h,
       sold30d: r.sold_30d,
+      oosDays,
     };
   });
 
@@ -275,6 +309,15 @@ export default async function DashboardPage(props: {
 
   const banner = buildBanner(params);
 
+  const insights = await getDashboardInsights().catch(() => null);
+
+  // Build CSV export URL preserving current filters.
+  const exportParams = new URLSearchParams();
+  if (params.q) exportParams.set("q", params.q);
+  if (params.store) exportParams.set("store", params.store);
+  if (params.tag) exportParams.set("tag", params.tag);
+  const exportHref = `/api/dashboard/export${exportParams.toString() ? "?" + exportParams.toString() : ""}`;
+
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between">
@@ -293,6 +336,13 @@ export default async function DashboardPage(props: {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <a
+            href={exportHref}
+            className="rounded-md border border-default bg-elevated px-3 py-2 text-sm hover:border-strong"
+            title="Download CSV of the current view"
+          >
+            ↓ CSV
+          </a>
           <RunNowButton />
           <Link
             href="/products/new"
@@ -308,6 +358,8 @@ export default async function DashboardPage(props: {
           {banner}
         </div>
       )}
+
+      {insights && <InsightsRow insights={insights} />}
 
       {!dbError && (rows.length > 0 || stores.length > 0) && (
         <form

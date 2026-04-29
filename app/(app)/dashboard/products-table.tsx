@@ -31,6 +31,7 @@ export interface DashboardRow {
   latestStock: { available: boolean; quantity: number | null } | null;
   priceChange24h: number | null;
   sold30d: number | null;
+  oosDays: number | null;
 }
 
 export function ProductsTable({
@@ -351,16 +352,25 @@ export function ProductsTable({
 
               <div>
                 {r.latestStock ? (
-                  <span className="inline-flex items-center gap-2 text-sm">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${r.latestStock.available ? "bg-green-500" : "bg-signal"}`}
-                    />
-                    {r.latestStock.available
-                      ? r.latestStock.quantity !== null
-                        ? `${r.latestStock.quantity} in stock`
-                        : "In stock"
-                      : "Out of stock"}
-                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="inline-flex items-center gap-2 text-sm">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${r.latestStock.available ? "bg-green-500" : "bg-signal"}`}
+                      />
+                      {r.latestStock.available
+                        ? r.latestStock.quantity !== null
+                          ? `${r.latestStock.quantity} in stock`
+                          : "In stock"
+                        : "Out of stock"}
+                    </span>
+                    {!r.latestStock.available &&
+                      r.oosDays !== null &&
+                      r.oosDays > 0 && (
+                        <span className="text-[10px] font-mono text-muted ml-3.5">
+                          for {r.oosDays}d
+                        </span>
+                      )}
+                  </div>
                 ) : (
                   "—"
                 )}

@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { parseShopifyUrl } from "@/lib/crawler/shopify";
+import { dispatchCrawl } from "@/lib/crawler/dispatch";
+import { generateLinkSuggestions } from "@/lib/crawler/link-suggestions";
 import { inArray } from "drizzle-orm";
 import { SubmitButton } from "./submit-button";
 
@@ -76,26 +78,21 @@ async function addProducts(formData: FormData) {
     added += slice.length;
   }
 
-  // Trigger a background crawl with `after()` so it survives past the
-  // redirect — fire-and-forget HTTP from a Vercel function gets killed when
-  // the function ends, but `after()` is the proper Next.js primitive for
-  // post-response work and keeps the runtime alive.
-  const cronSecret = process.env.CRON_SECRET;
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
-  if (cronSecret) {
-    after(async () => {
-      try {
-        await fetch(`${baseUrl}/api/crawl/dispatch`, {
-          headers: { Authorization: `Bearer ${cronSecret}` },
-          cache: "no-store",
-        });
-      } catch {
-        // Silently swallow — the 5-minute cron will pick these up regardless.
-      }
-    });
-  }
+  // Trigger a background crawl with after() so it runs after the response
+  // is sent. Direct function call — no HTTP fetch-to-self, no auth dance,
+  // no Vercel deployment-protection issues. Also schedule link suggestions.
+  after(async () => {
+    try {
+      await dispatchCrawl({});
+    } catch {
+      /* 5-min cron will pick up regardless */
+    }
+    try {
+      await generateLinkSuggestions();
+    } catch {
+      /* non-critical */
+    }
+  });
 
   revalidatePath("/dashboard");
   redirect(

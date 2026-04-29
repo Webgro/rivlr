@@ -21,4 +21,6 @@ export {
   type TrackedProduct,
   type Tag,
   type ProductGroup,
+  type AlertLog,
+  type LinkSuggestion,
 } from "./schema";
