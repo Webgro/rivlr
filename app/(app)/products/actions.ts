@@ -157,6 +157,12 @@ export async function bulkAddTags(ids: string[], rawTags: string) {
     .from(schema.trackedProducts)
     .where(inArray(schema.trackedProducts.id, ids));
 
+  // Register tag metadata rows so they appear on /tags with default colour.
+  await db
+    .insert(schema.tags)
+    .values(newTags.map((name) => ({ name, color: "gray" })))
+    .onConflictDoNothing();
+
   for (const row of existing) {
     const merged = Array.from(new Set([...(row.tags ?? []), ...newTags]));
     await db
@@ -166,6 +172,7 @@ export async function bulkAddTags(ids: string[], rawTags: string) {
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/tags");
   return {
     ok: true as const,
     count: existing.length,
@@ -196,6 +203,60 @@ export async function bulkRemoveTag(ids: string[], tag: string) {
 
   revalidatePath("/dashboard");
   return { ok: true as const, count: existing.length };
+}
+
+// ─── Linking products ──────────────────────────────────────────────────
+
+/**
+ * Link two tracked products into the same group (creating a group if neither
+ * has one). Used when the same item is sold across multiple stores. After
+ * linking, the detail page shows side-by-side pricing for all members.
+ */
+export async function linkProducts(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const aId = String(formData.get("a") ?? "");
+  const bId = String(formData.get("b") ?? "");
+  if (!aId || !bId || aId === bId) return;
+
+  const both = await db
+    .select()
+    .from(schema.trackedProducts)
+    .where(inArray(schema.trackedProducts.id, [aId, bId]));
+  const a = both.find((p) => p.id === aId);
+  const b = both.find((p) => p.id === bId);
+  if (!a || !b) return;
+
+  // If either already has a group, reuse it. Otherwise create one named
+  // after the first product's title.
+  let groupId = a.groupId ?? b.groupId;
+  if (!groupId) {
+    const [created] = await db
+      .insert(schema.productGroups)
+      .values({ name: a.title ?? a.handle })
+      .returning();
+    groupId = created.id;
+  }
+
+  await db
+    .update(schema.trackedProducts)
+    .set({ groupId })
+    .where(inArray(schema.trackedProducts.id, [aId, bId]));
+
+  revalidatePath(`/products/${aId}`);
+  revalidatePath(`/products/${bId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function unlinkProduct(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await db
+    .update(schema.trackedProducts)
+    .set({ groupId: null })
+    .where(eq(schema.trackedProducts.id, id));
+  revalidatePath(`/products/${id}`);
+  revalidatePath("/dashboard");
 }
 
 // ─── Manual crawl trigger ──────────────────────────────────────────────

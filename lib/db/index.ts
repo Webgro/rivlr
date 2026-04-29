@@ -15,3 +15,10 @@ const client = postgres(connectionString, { max: 1, prepare: false });
 
 export const db = drizzle(client, { schema });
 export { schema };
+export {
+  TAG_COLOR_NAMES,
+  type TagColor,
+  type TrackedProduct,
+  type Tag,
+  type ProductGroup,
+} from "./schema";

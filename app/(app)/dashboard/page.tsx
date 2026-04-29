@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { db, schema, type TagColor } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import { RunNowButton } from "./run-now-button";
 import { ProductsTable, type DashboardRow } from "./products-table";
@@ -29,6 +29,7 @@ async function getDashboardData(params: {
   rows: DashboardRow[];
   stores: string[];
   tags: string[];
+  tagColors: Record<string, TagColor>;
   hasAnyQuantityData: boolean;
   totalCount: number;
   totalPages: number;
@@ -209,10 +210,20 @@ async function getDashboardData(params: {
   const start = (params.page - 1) * PAGE_SIZE;
   const paged = rows.slice(start, start + PAGE_SIZE);
 
+  // Tag colour map — used to colour the chips on each row.
+  const tagMeta = await db
+    .select({ name: schema.tags.name, color: schema.tags.color })
+    .from(schema.tags);
+  const tagColors: Record<string, TagColor> = {};
+  for (const t of tagMeta) {
+    tagColors[t.name] = (t.color as TagColor) ?? "gray";
+  }
+
   return {
     rows: paged,
     stores: allStores,
     tags: allTags,
+    tagColors,
     hasAnyQuantityData,
     totalCount,
     totalPages,
@@ -228,6 +239,7 @@ export default async function DashboardPage(props: {
   let rows: DashboardRow[] = [];
   let stores: string[] = [];
   let tags: string[] = [];
+  let tagColors: Record<string, TagColor> = {};
   let hasAnyQuantityData = false;
   let totalCount = 0;
   let totalPages = 1;
@@ -244,6 +256,7 @@ export default async function DashboardPage(props: {
     rows = data.rows;
     stores = data.stores;
     tags = data.tags;
+    tagColors = data.tagColors;
     hasAnyQuantityData = data.hasAnyQuantityData;
     totalCount = data.totalCount;
     totalPages = data.totalPages;
@@ -387,7 +400,7 @@ export default async function DashboardPage(props: {
         </div>
       ) : (
         <>
-          <ProductsTable rows={rows} showSold={hasAnyQuantityData} />
+          <ProductsTable rows={rows} showSold={hasAnyQuantityData} tagColors={tagColors} />
           {totalPages > 1 && (
             <Pagination
               page={page}

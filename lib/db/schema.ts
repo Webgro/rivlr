@@ -38,6 +38,11 @@ export const trackedProducts = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
+    /**
+     * Group this product belongs to (for linking same-item-different-store).
+     * NULL = standalone. All products in a group share this id.
+     */
+    groupId: uuid("group_id"),
   },
   (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
 );
@@ -111,9 +116,46 @@ export const appSettings = pgTable("app_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Tags metadata. The actual tag-to-product association lives in the
+ * `tracked_products.tags` text[] column (denormalised for cheap reads).
+ * This table just stores per-tag display metadata like colour.
+ */
+export const tags = pgTable("tags", {
+  name: text("name").primaryKey(), // lowercase, trimmed
+  color: text("color").notNull().default("gray"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Product groups. When users link multiple tracked products together
+ * (same item across different stores), they share a group_id. A group's
+ * `name` is human-friendly (defaults to the first product's title).
+ */
+export const productGroups = pgTable("product_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;
 export type StockObservation = typeof stockObservations.$inferSelect;
 export type CrawlJob = typeof crawlJobs.$inferSelect;
 export type AppSettings = typeof appSettings.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type ProductGroup = typeof productGroups.$inferSelect;
+
+/** Available tag colours. Keep in sync with TAG_COLOURS in components/tag-chip.tsx */
+export const TAG_COLOR_NAMES = [
+  "gray",
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+  "pink",
+] as const;
+export type TagColor = (typeof TAG_COLOR_NAMES)[number];

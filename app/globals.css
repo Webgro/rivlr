@@ -125,3 +125,18 @@ body {
 html {
   color-scheme: light dark;
 }
+
+/* Tag chips — use the deeper "light" foreground when in light mode for
+   contrast against cream paper. Dark mode uses the brighter foreground. */
+.tag-chip {
+  background-color: var(--chip-bg);
+  color: var(--chip-fg);
+  border: 1px solid var(--chip-border);
+  transition: filter 0.15s ease;
+}
+.tag-chip:hover {
+  filter: brightness(1.15);
+}
+[data-theme="light"] .tag-chip {
+  color: var(--chip-fg-light);
+}

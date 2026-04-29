@@ -10,8 +10,9 @@ import {
   bulkSetStockNotify,
   bulkSetPriceDropNotify,
   bulkAddTags,
-  bulkRemoveTag,
 } from "../products/actions";
+import { TagChip } from "@/components/tag-chip";
+import { type TagColor } from "@/lib/db";
 
 export interface DashboardRow {
   id: string;
@@ -35,9 +36,11 @@ export interface DashboardRow {
 export function ProductsTable({
   rows,
   showSold,
+  tagColors,
 }: {
   rows: DashboardRow[];
   showSold: boolean;
+  tagColors: Record<string, TagColor>;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -244,14 +247,13 @@ export function ProductsTable({
                       </span>
                     )}
                     {r.tags.map((t) => (
-                      <Link
+                      <TagChip
                         key={t}
+                        name={t}
+                        color={tagColors[t] ?? "gray"}
                         href={`/dashboard?tag=${encodeURIComponent(t)}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-neutral-300 font-mono hover:bg-neutral-700"
-                      >
-                        #{t}
-                      </Link>
+                      />
                     ))}
                   </div>
                 </div>
