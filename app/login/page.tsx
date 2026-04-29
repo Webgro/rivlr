@@ -37,12 +37,11 @@ export default async function LoginPage(props: { searchParams: SearchParams }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper px-6">
       <div className="w-full max-w-sm">
-        <div className="mb-10 flex items-center gap-3">
-          <span className="block h-6 w-6 rounded-md bg-ink relative">
-            <span className="absolute left-[6px] top-[6px] h-3 w-1 bg-paper" />
-            <span className="absolute right-[6px] top-[6px] h-2 w-1 bg-signal" />
+        <div className="mb-10">
+          <span className="inline-flex items-baseline gap-1.5 text-xl font-semibold tracking-tight text-ink">
+            rivlr
+            <span className="h-2 w-2 rounded-full bg-signal inline-block translate-y-[-1px]" aria-hidden />
           </span>
-          <span className="font-semibold tracking-tight text-ink">rivlr</span>
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight text-ink">

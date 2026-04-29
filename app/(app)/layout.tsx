@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { CrawlProgress } from "@/components/crawl-progress";
 
 /**
  * Layout for everything behind the password gate (dashboard, products,
@@ -14,6 +15,7 @@ export default function AppLayout({
     <div className="min-h-screen bg-surface text-foreground">
       <Sidebar />
       <main className="md:ml-56">{children}</main>
+      <CrawlProgress />
     </div>
   );
 }

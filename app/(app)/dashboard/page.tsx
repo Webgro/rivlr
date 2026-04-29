@@ -6,11 +6,14 @@ import { ProductsTable, type DashboardRow } from "./products-table";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 50;
+
 type SearchParams = Promise<{
   q?: string;
   store?: string;
   tag?: string;
   sort?: string;
+  page?: string;
   added?: string;
   failed?: string;
   dup?: string;
@@ -21,11 +24,14 @@ async function getDashboardData(params: {
   store?: string;
   tag?: string;
   sort?: string;
+  page: number;
 }): Promise<{
   rows: DashboardRow[];
   stores: string[];
   tags: string[];
   hasAnyQuantityData: boolean;
+  totalCount: number;
+  totalPages: number;
 }> {
   type Row = {
     id: string;
@@ -198,18 +204,33 @@ async function getDashboardData(params: {
   });
   if (sort === "added_asc") rows.reverse();
 
-  return { rows, stores: allStores, tags: allTags, hasAnyQuantityData };
+  const totalCount = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const start = (params.page - 1) * PAGE_SIZE;
+  const paged = rows.slice(start, start + PAGE_SIZE);
+
+  return {
+    rows: paged,
+    stores: allStores,
+    tags: allTags,
+    hasAnyQuantityData,
+    totalCount,
+    totalPages,
+  };
 }
 
 export default async function DashboardPage(props: {
   searchParams: SearchParams;
 }) {
   const params = await props.searchParams;
+  const page = Math.max(1, Number(params.page ?? 1) || 1);
 
   let rows: DashboardRow[] = [];
   let stores: string[] = [];
   let tags: string[] = [];
   let hasAnyQuantityData = false;
+  let totalCount = 0;
+  let totalPages = 1;
   let dbError: string | null = null;
 
   try {
@@ -218,11 +239,14 @@ export default async function DashboardPage(props: {
       store: params.store,
       tag: params.tag,
       sort: params.sort,
+      page,
     });
     rows = data.rows;
     stores = data.stores;
     tags = data.tags;
     hasAnyQuantityData = data.hasAnyQuantityData;
+    totalCount = data.totalCount;
+    totalPages = data.totalPages;
   } catch (err) {
     dbError = err instanceof Error ? err.message : String(err);
   }
@@ -239,9 +263,11 @@ export default async function DashboardPage(props: {
           <p className="mt-1 text-sm text-muted">
             {dbError
               ? "Database not connected yet."
-              : rows.length === 0 && !params.q && !params.store && !params.tag
+              : totalCount === 0 && !params.q && !params.store && !params.tag
                 ? "Nothing tracked yet."
-                : `${rows.length} product${rows.length === 1 ? "" : "s"} · daily crawl at 04:00 GMT`}
+                : totalPages > 1
+                  ? `${totalCount} product${totalCount === 1 ? "" : "s"} · page ${page} of ${totalPages} · daily crawl at 04:00 GMT`
+                  : `${totalCount} product${totalCount === 1 ? "" : "s"} · daily crawl at 04:00 GMT`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -360,9 +386,94 @@ export default async function DashboardPage(props: {
           </Link>
         </div>
       ) : (
-        <ProductsTable rows={rows} showSold={hasAnyQuantityData} />
+        <>
+          <ProductsTable rows={rows} showSold={hasAnyQuantityData} />
+          {totalPages > 1 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              params={params}
+            />
+          )}
+        </>
       )}
     </section>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  params,
+}: {
+  page: number;
+  totalPages: number;
+  params: { q?: string; store?: string; tag?: string; sort?: string };
+}) {
+  function pageHref(p: number) {
+    const sp = new URLSearchParams();
+    if (params.q) sp.set("q", params.q);
+    if (params.store) sp.set("store", params.store);
+    if (params.tag) sp.set("tag", params.tag);
+    if (params.sort) sp.set("sort", params.sort);
+    if (p > 1) sp.set("page", String(p));
+    const q = sp.toString();
+    return `/dashboard${q ? "?" + q : ""}`;
+  }
+
+  // Build a windowed page list: 1, 2, …, current-1, current, current+1, …, last
+  const pages = new Set<number>([1, totalPages, page, page - 1, page + 1]);
+  const visible = Array.from(pages).filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+  const items: (number | "gap")[] = [];
+  for (let i = 0; i < visible.length; i++) {
+    if (i > 0 && visible[i] - visible[i - 1] > 1) items.push("gap");
+    items.push(visible[i]);
+  }
+
+  return (
+    <nav
+      aria-label="Pagination"
+      className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-default bg-elevated px-4 py-3"
+    >
+      <Link
+        href={page > 1 ? pageHref(page - 1) : "#"}
+        aria-disabled={page === 1}
+        className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === 1 ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
+      >
+        ← Previous
+      </Link>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {items.map((item, i) =>
+          item === "gap" ? (
+            <span key={`gap-${i}`} className="text-muted text-sm">
+              …
+            </span>
+          ) : (
+            <Link
+              key={item}
+              href={pageHref(item)}
+              aria-current={item === page ? "page" : undefined}
+              className={`min-w-[36px] rounded-md px-2 py-1 text-center text-sm font-mono transition ${
+                item === page
+                  ? "bg-foreground text-surface"
+                  : "border border-default hover:border-strong"
+              }`}
+            >
+              {item}
+            </Link>
+          ),
+        )}
+      </div>
+
+      <Link
+        href={page < totalPages ? pageHref(page + 1) : "#"}
+        aria-disabled={page === totalPages}
+        className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === totalPages ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
+      >
+        Next →
+      </Link>
+    </nav>
   );
 }
 

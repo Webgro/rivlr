@@ -16,7 +16,9 @@ import { eq, isNull, lt, or, and } from "drizzle-orm";
  * manual triggering with the same header for testing.
  */
 
-const BATCH_SIZE = 20;
+// Smaller batches stay comfortably under Vercel's 60s function limit even
+// when a worker hits stores with slow response times. 10 × ~2s = ~20s.
+const BATCH_SIZE = 10;
 
 export async function GET(request: Request) {
   // Auth check — Vercel Cron sends this header automatically.

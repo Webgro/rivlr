@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./theme-toggle";
+import { Wordmark } from "./wordmark";
 
 const NAV = [
   { href: "/dashboard", label: "Products", icon: "◉" },
@@ -15,11 +16,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex md:fixed md:left-0 md:top-0 md:h-screen md:w-56 md:flex-col md:border-r md:border-default md:bg-elevated">
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-default">
-        <span className="block h-6 w-6 rounded-md bg-foreground relative flex-shrink-0">
-          <span className="absolute left-[6px] top-[6px] h-3 w-1 bg-surface" />
-          <span className="absolute right-[6px] top-[6px] h-2 w-1 bg-signal" />
-        </span>
-        <span className="font-semibold tracking-tight text-foreground">rivlr</span>
+        <Wordmark />
         <span className="ml-auto rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted font-mono border border-default">
           P1
         </span>

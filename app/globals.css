@@ -99,7 +99,29 @@ body {
   background-color: rgba(0, 0, 0, 0.06);
 }
 
-/* Avoid flash of unthemed content — applied by inline script in layout */
+/* Hover-state overrides for light theme — Tailwind generates separate
+   selectors for hover: variants, so we have to override them explicitly. */
+[data-theme="light"] .hover\:bg-neutral-900:hover,
+[data-theme="light"] .hover\:bg-neutral-900\/50:hover,
+[data-theme="light"] .hover\:bg-neutral-900\/70:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .hover\:border-neutral-500:hover,
+[data-theme="light"] .hover\:border-neutral-700:hover {
+  border-color: var(--strong-border);
+}
+[data-theme="light"] .hover\:text-paper:hover {
+  color: var(--ink);
+}
+
+/* Native form controls — pick the right system rendering per theme so
+   checkboxes, radios, scrollbars don't render dark on a light page. */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  color-scheme: light;
+}
 html {
   color-scheme: light dark;
 }

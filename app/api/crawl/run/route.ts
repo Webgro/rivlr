@@ -122,6 +122,15 @@ export async function POST(request: Request) {
           attempts: job.attempts + 1,
         })
         .where(eq(schema.crawlJobs.id, job.id));
+
+      // Set last_crawled_at to NOW() even on failure so the dispatcher's 23h
+      // cooldown applies — otherwise dead URLs queue up every cron run forever.
+      // Will retry tomorrow; if it fails repeatedly the user can pause/delete.
+      await db
+        .update(schema.trackedProducts)
+        .set({ lastCrawledAt: new Date() })
+        .where(eq(schema.trackedProducts.id, product.id));
+
       results.push({ jobId: job.id, ok: false, error: message });
     }
   }

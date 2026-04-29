@@ -175,7 +175,7 @@ export default async function ProductDetailPage(props: { params: Params }) {
             <input type="hidden" name="id" value={product.id} />
             <button
               type="submit"
-              className="rounded-md border border-red-900 bg-red-950/30 px-3 py-1.5 text-sm text-red-400 hover:border-red-700 hover:text-red-300"
+              className="rounded-md border border-signal/40 bg-signal/5 px-3 py-1.5 text-sm text-signal hover:border-signal hover:bg-signal/10"
             >
               Delete
             </button>

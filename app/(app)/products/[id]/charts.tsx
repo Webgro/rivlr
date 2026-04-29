@@ -25,10 +25,12 @@ interface StockPoint {
 }
 
 const SIGNAL = "#FF3B30";
-const PAPER = "#F5F3EE";
 const NEUTRAL_500 = "#737373";
-const NEUTRAL_700 = "#404040";
 const GREEN = "#22c55e";
+// Theme-aware: SVG inherits via the parent .text-foreground class, so these
+// render correctly in both light and dark mode.
+const FOREGROUND = "currentColor";
+const GRID_STROKE = "rgba(127,127,127,0.28)";
 
 function fmtDate(t: number) {
   const d = new Date(t);
@@ -54,7 +56,7 @@ export function PriceChart({
     <div className="h-64 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke={NEUTRAL_700} strokeDasharray="3 3" />
+          <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" />
           <XAxis
             dataKey="t"
             tickFormatter={fmtDate}
@@ -128,7 +130,7 @@ export function StockChart({
                 <stop offset="100%" stopColor={GREEN} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke={NEUTRAL_700} strokeDasharray="3 3" />
+            <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" />
             <XAxis
               dataKey="t"
               tickFormatter={fmtDate}
@@ -179,7 +181,7 @@ export function StockChart({
     <div className="h-40 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke={NEUTRAL_700} strokeDasharray="3 3" />
+          <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" />
           <XAxis
             dataKey="t"
             tickFormatter={fmtDate}
@@ -214,11 +216,11 @@ export function StockChart({
               );
             }}
           />
-          <ReferenceLine y={0.5} stroke={NEUTRAL_700} strokeDasharray="2 4" />
+          <ReferenceLine y={0.5} stroke={GRID_STROKE} strokeDasharray="2 4" />
           <Line
             type="stepAfter"
             dataKey="available"
-            stroke={PAPER}
+            stroke={FOREGROUND}
             strokeWidth={1.75}
             dot={false}
             isAnimationActive={false}

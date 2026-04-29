@@ -329,7 +329,7 @@ function BulkBtn({
       disabled={disabled}
       className={`rounded border px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${
         variant === "danger"
-          ? "border-red-900 bg-red-950/40 text-red-300 hover:border-red-700"
+          ? "border-signal/40 bg-signal/5 text-signal hover:border-signal hover:bg-signal/10"
           : "border-neutral-700 bg-neutral-800 text-paper hover:border-neutral-500"
       }`}
     >

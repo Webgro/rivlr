@@ -1,30 +1,24 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
-import {
-  parseShopifyUrl,
-  fetchShopifyProduct,
-  fetchShopifyCurrency,
-  summariseProduct,
-  penceToDecimal,
-} from "@/lib/crawler/shopify";
-import { eq, inArray } from "drizzle-orm";
+import { parseShopifyUrl } from "@/lib/crawler/shopify";
+import { inArray } from "drizzle-orm";
 import { SubmitButton } from "./submit-button";
 
-type SearchParams = Promise<{ added?: string; failed?: string; dup?: string }>;
+type SearchParams = Promise<Record<string, string>>;
 
-interface AddOutcome {
-  url: string;
-  status: "added" | "duplicate" | "invalid_url" | "fetch_failed";
-  error?: string;
-}
-
+/**
+ * Fast-path bulk add. Validates URL format, deduplicates, bulk inserts rows
+ * with `last_crawled_at = NULL`, and triggers a background crawl. Returns
+ * almost instantly even for 1000+ URLs — actual price/stock fetching happens
+ * in the crawler. Dashboard shows a floating progress widget while jobs run.
+ */
 async function addProducts(formData: FormData) {
   "use server";
   const raw = String(formData.get("urls") ?? "").trim();
-  if (!raw) redirect("/products/new?failed=0");
+  if (!raw) redirect("/dashboard");
 
-  // Split on newlines, commas, spaces; dedupe; ignore blanks.
+  // Split on newlines / commas / spaces, dedupe, drop blanks.
   const urls = Array.from(
     new Set(
       raw
@@ -34,120 +28,76 @@ async function addProducts(formData: FormData) {
     ),
   );
 
-  if (urls.length === 0) redirect("/products/new?failed=0");
+  if (urls.length === 0) redirect("/dashboard");
 
-  // Parse + classify upfront.
-  const parsed = urls.map((url) => ({ url, parsed: parseShopifyUrl(url) }));
+  // Parse + classify upfront — only valid Shopify URLs go in.
+  const parsed = urls
+    .map((url) => ({ url, parsed: parseShopifyUrl(url) }))
+    .filter((p): p is { url: string; parsed: NonNullable<typeof p.parsed> } =>
+      p.parsed !== null,
+    );
+
+  const invalidCount = urls.length - parsed.length;
+
+  if (parsed.length === 0) {
+    revalidatePath("/dashboard");
+    redirect(`/dashboard?added=0&failed=${invalidCount}&dup=0`);
+  }
 
   // Find duplicates already in DB.
-  const validUrls = parsed.filter((p) => p.parsed).map((p) => p.url);
-  const existing =
-    validUrls.length > 0
-      ? await db
-          .select({ url: schema.trackedProducts.url })
-          .from(schema.trackedProducts)
-          .where(inArray(schema.trackedProducts.url, validUrls))
-      : [];
+  const validUrls = parsed.map((p) => p.url);
+  const existing = await db
+    .select({ url: schema.trackedProducts.url })
+    .from(schema.trackedProducts)
+    .where(inArray(schema.trackedProducts.url, validUrls));
   const existingSet = new Set(existing.map((e) => e.url));
+  const toInsert = parsed.filter((p) => !existingSet.has(p.url));
 
-  // Per-store concurrency cap so we don't hammer one store.
-  // Group by store, run stores in parallel, sequence within a store.
-  const byStore = new Map<string, typeof parsed>();
-  for (const item of parsed) {
-    if (!item.parsed) continue;
-    if (existingSet.has(item.url)) continue;
-    const arr = byStore.get(item.parsed.storeDomain) ?? [];
-    arr.push(item);
-    byStore.set(item.parsed.storeDomain, arr);
+  // Bulk insert in chunks of 500 (Postgres parameter limits — keeps us safe).
+  const chunkSize = 500;
+  let added = 0;
+  for (let i = 0; i < toInsert.length; i += chunkSize) {
+    const slice = toInsert.slice(i, i + chunkSize);
+    await db
+      .insert(schema.trackedProducts)
+      .values(
+        slice.map(({ url, parsed: p }) => ({
+          url,
+          handle: p.handle,
+          storeDomain: p.storeDomain,
+          title: null,
+          imageUrl: null,
+          // Currency defaults to GBP and is re-detected on first crawl.
+          // last_crawled_at = NULL signals "needs first crawl".
+        })),
+      )
+      .onConflictDoNothing();
+    added += slice.length;
   }
 
-  // Detect currency once per store.
-  const currencyByStore = new Map<string, string>();
-  await Promise.all(
-    Array.from(byStore.keys()).map(async (store) => {
-      try {
-        const c = await fetchShopifyCurrency(store);
-        currencyByStore.set(store, c);
-      } catch {
-        currencyByStore.set(store, "GBP");
-      }
-    }),
-  );
-
-  const outcomes: AddOutcome[] = [];
-
-  // Mark unparseable + duplicates upfront.
-  for (const { url, parsed: p } of parsed) {
-    if (!p) outcomes.push({ url, status: "invalid_url" });
-    else if (existingSet.has(url)) outcomes.push({ url, status: "duplicate" });
+  // Fire-and-forget: trigger a background crawl so the new rows pick up
+  // prices ASAP. We don't await — user lands on dashboard immediately and
+  // the progress widget polls for status.
+  const cronSecret = process.env.CRON_SECRET;
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+  if (cronSecret) {
+    fetch(`${baseUrl}/api/crawl/dispatch`, {
+      headers: { Authorization: `Bearer ${cronSecret}` },
+      cache: "no-store",
+    }).catch(() => {});
   }
-
-  // Process per store in parallel; serially within each store.
-  await Promise.all(
-    Array.from(byStore.entries()).map(async ([store, items]) => {
-      const currency = currencyByStore.get(store) ?? "GBP";
-      for (const { url, parsed: p } of items) {
-        if (!p) continue;
-        try {
-          const fetched = await fetchShopifyProduct(p.productJsUrl);
-          const snapshot = summariseProduct(fetched);
-
-          const [inserted] = await db
-            .insert(schema.trackedProducts)
-            .values({
-              url,
-              handle: p.handle,
-              storeDomain: p.storeDomain,
-              title: snapshot.title,
-              imageUrl: snapshot.imageUrl,
-              currency,
-              lastCrawledAt: new Date(),
-            })
-            .onConflictDoNothing()
-            .returning();
-
-          if (inserted) {
-            await db.insert(schema.priceObservations).values({
-              productId: inserted.id,
-              price: penceToDecimal(snapshot.price),
-              currency,
-            });
-            await db.insert(schema.stockObservations).values({
-              productId: inserted.id,
-              available: snapshot.available,
-              quantity: snapshot.quantity,
-            });
-          }
-
-          outcomes.push({ url, status: "added" });
-        } catch (err) {
-          outcomes.push({
-            url,
-            status: "fetch_failed",
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-
-        // 1s polite delay between hits to the same store.
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }),
-  );
-
-  const added = outcomes.filter((o) => o.status === "added").length;
-  const failed = outcomes.filter(
-    (o) => o.status === "invalid_url" || o.status === "fetch_failed",
-  ).length;
-  const dup = outcomes.filter((o) => o.status === "duplicate").length;
 
   revalidatePath("/dashboard");
-  redirect(`/dashboard?added=${added}&failed=${failed}&dup=${dup}`);
+  redirect(
+    `/dashboard?added=${added}&failed=${invalidCount}&dup=${existingSet.size}`,
+  );
 }
 
 export default async function NewProductPage(props: {
   searchParams: SearchParams;
 }) {
-  // Currently unused but kept for future error display.
   await props.searchParams;
 
   return (
@@ -164,8 +114,9 @@ export default async function NewProductPage(props: {
       </h1>
       <p className="mt-2 text-sm text-muted">
         Paste one or more Shopify product URLs. One per line, or comma/space
-        separated. Each URL is fetched once now to confirm it works, then
-        crawled daily from tomorrow. Duplicates are skipped.
+        separated. URLs are added immediately as pending; price and stock are
+        fetched in the background and appear on the dashboard within a few
+        minutes. Duplicates and bad URLs are skipped.
       </p>
 
       <form action={addProducts} className="mt-8 space-y-4">
@@ -179,7 +130,7 @@ export default async function NewProductPage(props: {
           <textarea
             id="urls"
             name="urls"
-            rows={10}
+            rows={12}
             placeholder={
               "https://store-a.com/products/some-handle\nhttps://store-b.com/products/another-handle"
             }
@@ -188,7 +139,8 @@ export default async function NewProductPage(props: {
             className="mt-2 block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground shadow-sm outline-none font-mono leading-5 focus:border-strong"
           />
           <p className="mt-1 text-xs text-muted">
-            Up to ~50 URLs at a time recommended.
+            No upper limit — pasted URLs go straight into the queue. Hundreds
+            or thousands at a time is fine.
           </p>
         </div>
 
