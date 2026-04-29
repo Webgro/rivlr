@@ -24,6 +24,7 @@ export const trackedProducts = pgTable(
     storeDomain: text("store_domain").notNull(), // e.g. example.myshopify.com
     title: text("title"),
     imageUrl: text("image_url"),
+    currency: text("currency").notNull().default("GBP"), // detected via /cart.js on first add
     addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
     lastCrawledAt: timestamp("last_crawled_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
@@ -54,6 +55,12 @@ export const stockObservations = pgTable(
       .references(() => trackedProducts.id, { onDelete: "cascade" }),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
     available: boolean("available").notNull(),
+    /**
+     * Total inventory across variants where the store exposes it.
+     * NULL when the store doesn't have inventory tracking enabled or doesn't
+     * publish quantities in the .js endpoint. Available boolean is always set.
+     */
+    quantity: integer("quantity"),
     variantId: text("variant_id"), // null = product-level snapshot, set = variant-level
   },
   (t) => [index("idx_stock_product_time").on(t.productId, t.observedAt)],

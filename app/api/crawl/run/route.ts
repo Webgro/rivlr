@@ -4,6 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import {
   fetchShopifyProduct,
   penceToDecimal,
+  summariseProduct,
 } from "@/lib/crawler/shopify";
 
 /**
@@ -63,24 +64,26 @@ export async function POST(request: Request) {
 
       const productJsUrl = `https://${product.storeDomain}/products/${product.handle}.js`;
       const fetched = await fetchShopifyProduct(productJsUrl);
+      const snapshot = summariseProduct(fetched);
 
       // Write observations.
       await db.insert(schema.priceObservations).values({
         productId: product.id,
-        price: penceToDecimal(fetched.price),
-        currency: "GBP", // TODO Phase 5: detect currency from store
+        price: penceToDecimal(snapshot.price),
+        currency: product.currency,
       });
       await db.insert(schema.stockObservations).values({
         productId: product.id,
-        available: fetched.available,
+        available: snapshot.available,
+        quantity: snapshot.quantity,
       });
 
       // Update product metadata + last_crawled_at.
       await db
         .update(schema.trackedProducts)
         .set({
-          title: fetched.title,
-          imageUrl: fetched.featured_image,
+          title: snapshot.title,
+          imageUrl: snapshot.imageUrl,
           lastCrawledAt: new Date(),
         })
         .where(eq(schema.trackedProducts.id, product.id));

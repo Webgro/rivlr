@@ -12,9 +12,13 @@
 export interface ShopifyVariant {
   id: number;
   title: string;
-  price: string; // shopify returns price as string in pence/cents
+  price: string | number;
   available: boolean;
   sku: string | null;
+  /** Set when the store has Shopify-managed inventory and exposes qty in .js. */
+  inventory_quantity?: number;
+  inventory_management?: string | null;
+  inventory_policy?: string;
 }
 
 export interface ShopifyProduct {
@@ -28,6 +32,24 @@ export interface ShopifyProduct {
   compare_at_price: number | null;
   featured_image: string | null;
   variants: ShopifyVariant[];
+}
+
+export interface ShopifyCart {
+  token: string;
+  currency: string;
+}
+
+/**
+ * The crawler's view of a single product crawl — derived from the raw
+ * Shopify response with the bits we actually want to store.
+ */
+export interface ProductSnapshot {
+  title: string;
+  imageUrl: string | null;
+  price: number; // pence
+  available: boolean;
+  /** Sum of inventory_quantity across managed variants. NULL if unavailable. */
+  quantity: number | null;
 }
 
 export interface ParsedShopifyUrl {
@@ -61,17 +83,17 @@ export function parseShopifyUrl(input: string): ParsedShopifyUrl | null {
   return { storeDomain, handle, productJsUrl };
 }
 
+const RIVLR_USER_AGENT =
+  "Mozilla/5.0 (compatible; RivlrBot/1.0; +https://rivlr.app/bot)";
+
 export async function fetchShopifyProduct(
   productJsUrl: string,
 ): Promise<ShopifyProduct> {
   const res = await fetch(productJsUrl, {
     headers: {
-      // Realistic UA — don't impersonate Googlebot.
-      "User-Agent":
-        "Mozilla/5.0 (compatible; RivlrBot/1.0; +https://rivlr.app/bot)",
+      "User-Agent": RIVLR_USER_AGENT,
       Accept: "application/json",
     },
-    // Don't cache crawl responses — we want fresh data each time.
     cache: "no-store",
   });
 
@@ -84,6 +106,55 @@ export async function fetchShopifyProduct(
     throw new Error("Shopify response missing required fields");
   }
   return data;
+}
+
+/**
+ * Fetches /cart.js to get the store's currency. Every Shopify store exposes
+ * this endpoint — it returns at minimum `{ currency: "GBP" | "USD" | ... }`.
+ */
+export async function fetchShopifyCurrency(
+  storeDomain: string,
+): Promise<string> {
+  const res = await fetch(`https://${storeDomain}/cart.js`, {
+    headers: {
+      "User-Agent": RIVLR_USER_AGENT,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) return "GBP"; // sensible default
+  const data = (await res.json()) as Partial<ShopifyCart>;
+  return (data.currency ?? "GBP").toUpperCase();
+}
+
+/**
+ * Reduces the raw Shopify product to a snapshot suitable for storage.
+ * Computes total inventory quantity if the store exposes it.
+ */
+export function summariseProduct(product: ShopifyProduct): ProductSnapshot {
+  // Only sum quantities when at least one variant has both managed inventory
+  // AND a numeric quantity. Otherwise the field is meaningless.
+  let quantity: number | null = null;
+  let foundManagedQty = false;
+  let total = 0;
+  for (const v of product.variants) {
+    if (
+      v.inventory_management === "shopify" &&
+      typeof v.inventory_quantity === "number"
+    ) {
+      foundManagedQty = true;
+      total += v.inventory_quantity;
+    }
+  }
+  if (foundManagedQty) quantity = total;
+
+  return {
+    title: product.title,
+    imageUrl: product.featured_image,
+    price: product.price,
+    available: product.available,
+    quantity,
+  };
 }
 
 /**
