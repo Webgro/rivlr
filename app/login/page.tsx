@@ -6,7 +6,7 @@ type SearchParams = Promise<{ next?: string; error?: string }>;
 async function login(formData: FormData) {
   "use server";
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/");
+  const next = String(formData.get("next") ?? "/dashboard");
 
   const expected = process.env.APP_PASSWORD;
   const sessionToken = process.env.SESSION_TOKEN;
@@ -28,11 +28,11 @@ async function login(formData: FormData) {
     maxAge: 60 * 60 * 24 * 30, // 30 days
   });
 
-  redirect(next.startsWith("/") ? next : "/");
+  redirect(next.startsWith("/") ? next : "/dashboard");
 }
 
 export default async function LoginPage(props: { searchParams: SearchParams }) {
-  const { next = "/", error } = await props.searchParams;
+  const { next = "/dashboard", error } = await props.searchParams;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper px-6">

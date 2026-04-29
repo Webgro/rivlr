@@ -59,8 +59,8 @@ async function addProduct(formData: FormData) {
     available: product!.available,
   });
 
-  revalidatePath("/");
-  redirect("/");
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
 
 export default async function NewProductPage(props: {
@@ -79,7 +79,7 @@ export default async function NewProductPage(props: {
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
       <a
-        href="/"
+        href="/dashboard"
         className="text-xs uppercase tracking-wider text-neutral-500 font-mono hover:text-ink"
       >
         ← Back to dashboard

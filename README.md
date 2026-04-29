@@ -40,7 +40,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    npm run db:push
    ```
    This creates the four Phase 1 tables (`tracked_products`, `price_observations`, `stock_observations`, `crawl_jobs`).
-3. Visit `app.rivlr.app/login`, enter `APP_PASSWORD`, and start tracking products.
+3. Visit `rivlr.app/login`, enter `APP_PASSWORD`, and start tracking products. The dashboard lives at `rivlr.app/dashboard`.
 
 ## Development
 
@@ -54,7 +54,7 @@ npm run db:studio   # open Drizzle Studio for inspecting the DB
 - **`proxy.ts`** — password gate (Next.js 16 renamed `middleware` → `proxy`). Reads `rivlr_session` cookie, validates against `SESSION_TOKEN`, redirects to `/login` if missing.
 - **`/login`** — single password form, sets the session cookie via Server Action.
 - **`/products/new`** — paste a Shopify URL, server validates by fetching `/products/{handle}.js` once, stores the product + initial observations.
-- **`/`** — dashboard listing tracked products with latest price + stock.
+- **`/dashboard`** — dashboard listing tracked products with latest price + stock. Root `/` redirects here for now (Phase 5 replaces with public marketing landing).
 - **`/api/crawl/dispatch`** — called daily by Vercel Cron. Selects products needing a crawl, creates jobs, fans out to `/api/crawl/run` in batches of 20.
 - **`/api/crawl/run`** — worker. Processes a batch of jobs serially with per-store throttling (1 req/sec).
 

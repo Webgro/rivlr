@@ -42,13 +42,20 @@ export function proxy(request: NextRequest) {
   // Everything else: must have a valid session cookie.
   const session = request.cookies.get("rivlr_session")?.value;
   const expected = process.env.SESSION_TOKEN;
+  const authed = !!session && !!expected && session === expected;
 
-  if (!session || !expected || session !== expected) {
+  if (!authed) {
     const loginUrl = new URL("/login", request.url);
     if (pathname !== "/") {
       loginUrl.searchParams.set("next", pathname);
     }
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Authed visit to root → take them straight to /dashboard.
+  // Phase 5 will replace this when the marketing landing lands at /.
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
