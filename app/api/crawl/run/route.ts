@@ -3,6 +3,7 @@ import { db, schema } from "@/lib/db";
 import { eq, inArray } from "drizzle-orm";
 import {
   fetchShopifyProduct,
+  fetchShopifyCurrency,
   penceToDecimal,
   summariseProduct,
 } from "@/lib/crawler/shopify";
@@ -52,6 +53,9 @@ export async function POST(request: Request) {
 
   const results: Array<{ jobId: string; ok: boolean; error?: string }> = [];
   const lastHitByStore = new Map<string, number>();
+  // Re-detect currency once per store per batch — Shopify Markets stores
+  // can flip currencies between crawls, so we don't trust the stored value.
+  const currencyByStore = new Map<string, string>();
 
   for (const { job, product } of jobs) {
     try {
@@ -62,6 +66,17 @@ export async function POST(request: Request) {
       if (wait > 0) await sleep(wait);
       lastHitByStore.set(product.storeDomain, Date.now());
 
+      // Refresh currency for this store (cached per-batch).
+      let currency = currencyByStore.get(product.storeDomain);
+      if (!currency) {
+        try {
+          currency = await fetchShopifyCurrency(product.storeDomain);
+        } catch {
+          currency = product.currency; // fall back to stored
+        }
+        currencyByStore.set(product.storeDomain, currency);
+      }
+
       const productJsUrl = `https://${product.storeDomain}/products/${product.handle}.js`;
       const fetched = await fetchShopifyProduct(productJsUrl);
       const snapshot = summariseProduct(fetched);
@@ -70,7 +85,7 @@ export async function POST(request: Request) {
       await db.insert(schema.priceObservations).values({
         productId: product.id,
         price: penceToDecimal(snapshot.price),
-        currency: product.currency,
+        currency,
       });
       await db.insert(schema.stockObservations).values({
         productId: product.id,
@@ -78,12 +93,13 @@ export async function POST(request: Request) {
         quantity: snapshot.quantity,
       });
 
-      // Update product metadata + last_crawled_at.
+      // Update product metadata + last_crawled_at + currency.
       await db
         .update(schema.trackedProducts)
         .set({
           title: snapshot.title,
           imageUrl: snapshot.imageUrl,
+          currency,
           lastCrawledAt: new Date(),
         })
         .where(eq(schema.trackedProducts.id, product.id));

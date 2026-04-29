@@ -86,14 +86,27 @@ export function parseShopifyUrl(input: string): ParsedShopifyUrl | null {
 const RIVLR_USER_AGENT =
   "Mozilla/5.0 (compatible; RivlrBot/1.0; +https://rivlr.app/bot)";
 
+/**
+ * Headers forcing Shopify to route us to the UK / GBP market when a store
+ * has Shopify Markets enabled. Without this, the same store can return
+ * USD prices to one request and GBP to the next based on Shopify's geo
+ * routing decisions for our (Vercel) IP. The two cookies plus
+ * Accept-Language together cover the variants of how stores set the market.
+ *
+ * If we ever support multiple regions per user, this becomes configurable.
+ */
+const RIVLR_HEADERS: HeadersInit = {
+  "User-Agent": RIVLR_USER_AGENT,
+  Accept: "application/json",
+  "Accept-Language": "en-GB,en;q=0.9",
+  Cookie: "localization=GB; cart_currency=GBP",
+};
+
 export async function fetchShopifyProduct(
   productJsUrl: string,
 ): Promise<ShopifyProduct> {
   const res = await fetch(productJsUrl, {
-    headers: {
-      "User-Agent": RIVLR_USER_AGENT,
-      Accept: "application/json",
-    },
+    headers: RIVLR_HEADERS,
     cache: "no-store",
   });
 
@@ -109,20 +122,19 @@ export async function fetchShopifyProduct(
 }
 
 /**
- * Fetches /cart.js to get the store's currency. Every Shopify store exposes
- * this endpoint — it returns at minimum `{ currency: "GBP" | "USD" | ... }`.
+ * Fetches /cart.js to get the store's currency for THIS request's market.
+ * Stores using Shopify Markets can return different currencies based on
+ * geo / cookies — we send UK headers so this should consistently report
+ * the GBP market when the store has one.
  */
 export async function fetchShopifyCurrency(
   storeDomain: string,
 ): Promise<string> {
   const res = await fetch(`https://${storeDomain}/cart.js`, {
-    headers: {
-      "User-Agent": RIVLR_USER_AGENT,
-      Accept: "application/json",
-    },
+    headers: RIVLR_HEADERS,
     cache: "no-store",
   });
-  if (!res.ok) return "GBP"; // sensible default
+  if (!res.ok) return "GBP";
   const data = (await res.json()) as Partial<ShopifyCart>;
   return (data.currency ?? "GBP").toUpperCase();
 }

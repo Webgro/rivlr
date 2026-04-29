@@ -28,19 +28,24 @@ export async function GET(request: Request) {
 
   const now = new Date();
   const cutoff = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23h ago
+  const force = new URL(request.url).searchParams.get("force") === "1";
 
   // Active products needing a crawl.
+  // ?force=1 re-crawls everything regardless of last_crawled_at — used after
+  // schema or crawler changes to refresh stale data.
   const due = await db
     .select({ id: schema.trackedProducts.id })
     .from(schema.trackedProducts)
     .where(
-      and(
-        eq(schema.trackedProducts.active, true),
-        or(
-          isNull(schema.trackedProducts.lastCrawledAt),
-          lt(schema.trackedProducts.lastCrawledAt, cutoff),
-        ),
-      ),
+      force
+        ? eq(schema.trackedProducts.active, true)
+        : and(
+            eq(schema.trackedProducts.active, true),
+            or(
+              isNull(schema.trackedProducts.lastCrawledAt),
+              lt(schema.trackedProducts.lastCrawledAt, cutoff),
+            ),
+          ),
     );
 
   if (due.length === 0) {

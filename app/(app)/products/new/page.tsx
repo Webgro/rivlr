@@ -9,6 +9,7 @@ import {
   penceToDecimal,
 } from "@/lib/crawler/shopify";
 import { eq, inArray } from "drizzle-orm";
+import { SubmitButton } from "./submit-button";
 
 type SearchParams = Promise<{ added?: string; failed?: string; dup?: string }>;
 
@@ -191,12 +192,7 @@ export default async function NewProductPage(props: {
           </p>
         </div>
 
-        <button
-          type="submit"
-          className="rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-surface transition hover:opacity-90"
-        >
-          Track products
-        </button>
+        <SubmitButton />
       </form>
     </section>
   );

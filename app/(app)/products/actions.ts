@@ -126,15 +126,19 @@ export async function bulkSetPriceDropNotify(ids: string[], value: boolean) {
 }
 
 /**
- * Add a tag to multiple products. Tags are normalised to lowercase, trimmed,
- * and de-duplicated against existing tags on each product. Multiple tags can
- * be passed comma-separated in `rawTags`.
+ * Add tag(s) to multiple products. Tags are normalised to lowercase, trimmed,
+ * and de-duplicated. Multiple tags can be passed comma-separated.
+ *
+ * Implementation: read-then-write per product. Avoids the SQL gymnastics of
+ * deduplicating an array merge inside one UPDATE (Postgres can do it but the
+ * subquery against the same UPDATE target was crashing). N+1 queries are
+ * fine at v1 scale.
  */
 export async function bulkAddTags(ids: string[], rawTags: string) {
   if (!(await isAuthed())) return { ok: false as const, error: "unauthorized" };
   if (ids.length === 0) return { ok: true as const, count: 0 };
 
-  const tags = Array.from(
+  const newTags = Array.from(
     new Set(
       rawTags
         .split(/[,]+/)
@@ -143,43 +147,60 @@ export async function bulkAddTags(ids: string[], rawTags: string) {
         .filter((t) => t.length <= 32),
     ),
   );
-  if (tags.length === 0) return { ok: true as const, count: 0 };
+  if (newTags.length === 0) return { ok: true as const, count: 0 };
 
-  // Use array_cat + array_distinct simulated via UNNEST/ARRAY_AGG.
-  await db.execute(sql`
-    UPDATE tracked_products
-    SET tags = (
-      SELECT ARRAY_AGG(DISTINCT tag)
-      FROM UNNEST(tags || ${tags}::text[]) AS tag
-    )
-    WHERE id IN (${sql.join(
-      ids.map((id) => sql`${id}::uuid`),
-      sql`, `,
-    )})
-  `);
+  const existing = await db
+    .select({
+      id: schema.trackedProducts.id,
+      tags: schema.trackedProducts.tags,
+    })
+    .from(schema.trackedProducts)
+    .where(inArray(schema.trackedProducts.id, ids));
+
+  for (const row of existing) {
+    const merged = Array.from(new Set([...(row.tags ?? []), ...newTags]));
+    await db
+      .update(schema.trackedProducts)
+      .set({ tags: merged })
+      .where(eq(schema.trackedProducts.id, row.id));
+  }
+
   revalidatePath("/dashboard");
-  return { ok: true as const, count: ids.length, tagsAdded: tags };
+  return {
+    ok: true as const,
+    count: existing.length,
+    tagsAdded: newTags,
+  };
 }
 
 export async function bulkRemoveTag(ids: string[], tag: string) {
   if (!(await isAuthed())) return { ok: false as const, error: "unauthorized" };
   const cleanTag = tag.trim().toLowerCase();
   if (ids.length === 0 || !cleanTag) return { ok: true as const, count: 0 };
-  await db.execute(sql`
-    UPDATE tracked_products
-    SET tags = ARRAY_REMOVE(tags, ${cleanTag})
-    WHERE id IN (${sql.join(
-      ids.map((id) => sql`${id}::uuid`),
-      sql`, `,
-    )})
-  `);
+
+  const existing = await db
+    .select({
+      id: schema.trackedProducts.id,
+      tags: schema.trackedProducts.tags,
+    })
+    .from(schema.trackedProducts)
+    .where(inArray(schema.trackedProducts.id, ids));
+
+  for (const row of existing) {
+    const filtered = (row.tags ?? []).filter((t) => t !== cleanTag);
+    await db
+      .update(schema.trackedProducts)
+      .set({ tags: filtered })
+      .where(eq(schema.trackedProducts.id, row.id));
+  }
+
   revalidatePath("/dashboard");
-  return { ok: true as const, count: ids.length };
+  return { ok: true as const, count: existing.length };
 }
 
 // ─── Manual crawl trigger ──────────────────────────────────────────────
 
-export async function runCrawlNow() {
+export async function runCrawlNow(force = false) {
   if (!(await isAuthed())) redirect("/login");
 
   const cronSecret = process.env.CRON_SECRET;
@@ -191,8 +212,10 @@ export async function runCrawlNow() {
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
+  const path = force ? "/api/crawl/dispatch?force=1" : "/api/crawl/dispatch";
+
   try {
-    const res = await fetch(`${baseUrl}/api/crawl/dispatch`, {
+    const res = await fetch(`${baseUrl}${path}`, {
       headers: { Authorization: `Bearer ${cronSecret}` },
       cache: "no-store",
     });
