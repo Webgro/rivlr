@@ -3,25 +3,28 @@ import { db, schema } from "@/lib/db";
 import { eq, isNull, lt, or, and } from "drizzle-orm";
 
 /**
- * Vercel Cron entry point. Runs daily at 04:00 GMT.
+ * Cron entry. Triggered every 5 minutes (vercel.json) to drain the crawl
+ * queue gradually. Strategy:
  *
- * Strategy:
- *   1. Find all active products that haven't been crawled in the last 23h
- *      (or never crawled).
+ *   1. Pick up to MAX_PRODUCTS_PER_DISPATCH active products that need a
+ *      crawl (last_crawled_at older than 23h, or never crawled).
  *   2. Insert pending crawl_jobs rows for them.
- *   3. Fan out to /api/crawl/run in batches of 20 via fire-and-forget fetch.
- *      Each batch invocation completes within ~30s.
+ *   3. Fan out to /api/crawl/run in BATCH_SIZE chunks, fired in PARALLEL
+ *      and awaited so all batches complete before the dispatch returns.
+ *      This guarantees the work actually happens — fire-and-forget HTTP
+ *      from a Vercel function does NOT survive past function termination.
  *
- * Auth: Vercel Cron sends Authorization: Bearer $CRON_SECRET. We also accept
- * manual triggering with the same header for testing.
+ * Each cron run processes ~MAX_PRODUCTS_PER_DISPATCH products. With 5-min
+ * cron that's enough headroom for ~14k products/day.
+ *
+ * Auth: Authorization: Bearer ${CRON_SECRET}.
  */
 
-// Smaller batches stay comfortably under Vercel's 60s function limit even
-// when a worker hits stores with slow response times. 10 × ~2s = ~20s.
 const BATCH_SIZE = 10;
+const PARALLEL_BATCHES = 5; // 5 × 10 = 50 products per dispatch invocation
+const MAX_PRODUCTS_PER_DISPATCH = BATCH_SIZE * PARALLEL_BATCHES;
 
 export async function GET(request: Request) {
-  // Auth check — Vercel Cron sends this header automatically.
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
@@ -29,12 +32,11 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  const cutoff = new Date(now.getTime() - 23 * 60 * 60 * 1000); // 23h ago
+  const cutoff = new Date(now.getTime() - 23 * 60 * 60 * 1000);
   const force = new URL(request.url).searchParams.get("force") === "1";
 
-  // Active products needing a crawl.
-  // ?force=1 re-crawls everything regardless of last_crawled_at — used after
-  // schema or crawler changes to refresh stale data.
+  // Pick up to N products needing a crawl. Subsequent cron runs pick up
+  // whatever is left.
   const due = await db
     .select({ id: schema.trackedProducts.id })
     .from(schema.trackedProducts)
@@ -48,13 +50,13 @@ export async function GET(request: Request) {
               lt(schema.trackedProducts.lastCrawledAt, cutoff),
             ),
           ),
-    );
+    )
+    .limit(MAX_PRODUCTS_PER_DISPATCH);
 
   if (due.length === 0) {
-    return NextResponse.json({ scheduled: 0, batches: 0 });
+    return NextResponse.json({ scheduled: 0, batches: 0, processed: 0 });
   }
 
-  // Insert pending jobs.
   const jobs = await db
     .insert(schema.crawlJobs)
     .values(
@@ -66,34 +68,38 @@ export async function GET(request: Request) {
     )
     .returning({ id: schema.crawlJobs.id });
 
-  // Batch up + fan out.
   const batches: string[][] = [];
   for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
     batches.push(jobs.slice(i, i + BATCH_SIZE).map((j) => j.id));
   }
 
-  const baseUrl =
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : new URL(request.url).origin;
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : new URL(request.url).origin;
 
-  // Fire and forget. We don't await — each batch runs as its own invocation.
-  for (const jobIds of batches) {
-    fetch(`${baseUrl}/api/crawl/run`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${cronSecret}`,
-      },
-      body: JSON.stringify({ jobIds }),
-    }).catch(() => {
-      // Swallow — failed batches are detected via stale 'pending' jobs in
-      // the next cron run.
-    });
-  }
+  // Run all batches in parallel. Each batch is its own /api/crawl/run
+  // invocation (separate function on Vercel) so they execute concurrently.
+  // We AWAIT so dispatch only returns once they're done — no fire-and-forget.
+  const results = await Promise.allSettled(
+    batches.map((jobIds) =>
+      fetch(`${baseUrl}/api/crawl/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cronSecret}`,
+        },
+        body: JSON.stringify({ jobIds }),
+      }).then((r) => r.json()),
+    ),
+  );
+
+  const ok = results.filter((r) => r.status === "fulfilled").length;
+  const failed = results.length - ok;
 
   return NextResponse.json({
     scheduled: jobs.length,
     batches: batches.length,
+    processed: ok,
+    failed,
   });
 }

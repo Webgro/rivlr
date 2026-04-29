@@ -157,14 +157,24 @@ export async function bulkAddTags(ids: string[], rawTags: string) {
     .from(schema.trackedProducts)
     .where(inArray(schema.trackedProducts.id, ids));
 
-  // Register tag metadata rows so they appear on /tags with default colour.
-  await db
-    .insert(schema.tags)
-    .values(newTags.map((name) => ({ name, color: "gray" })))
-    .onConflictDoNothing();
+  // Tags must be pre-registered in the tags metadata table — refuse names
+  // that don't exist there. Forces users to create + colour tags via /tags
+  // first, which keeps the tag taxonomy clean.
+  const registered = await db
+    .select({ name: schema.tags.name })
+    .from(schema.tags);
+  const registeredNames = new Set(registered.map((r) => r.name));
+  const validTags = newTags.filter((t) => registeredNames.has(t));
+
+  if (validTags.length === 0) {
+    return {
+      ok: false as const,
+      error: "Tag does not exist. Create it on /tags first.",
+    };
+  }
 
   for (const row of existing) {
-    const merged = Array.from(new Set([...(row.tags ?? []), ...newTags]));
+    const merged = Array.from(new Set([...(row.tags ?? []), ...validTags]));
     await db
       .update(schema.trackedProducts)
       .set({ tags: merged })
@@ -172,11 +182,10 @@ export async function bulkAddTags(ids: string[], rawTags: string) {
   }
 
   revalidatePath("/dashboard");
-  revalidatePath("/tags");
   return {
     ok: true as const,
     count: existing.length,
-    tagsAdded: newTags,
+    tagsAdded: validTags,
   };
 }
 

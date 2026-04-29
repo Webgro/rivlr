@@ -37,15 +37,17 @@ export function ProductsTable({
   rows,
   showSold,
   tagColors,
+  availableTags,
 }: {
   rows: DashboardRow[];
   showSold: boolean;
   tagColors: Record<string, TagColor>;
+  availableTags: Array<{ name: string; color: TagColor }>;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const [tagInput, setTagInput] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const allSelected = rows.length > 0 && selected.size === rows.length;
@@ -85,11 +87,10 @@ export function ProductsTable({
     });
   }
 
-  function handleAddTags() {
-    const tag = tagInput.trim();
-    if (!tag) return;
-    run("Tags added", () => bulkAddTags(ids, tag));
-    setTagInput("");
+  function handleAddTag() {
+    if (!selectedTag) return;
+    run("Tag added", () => bulkAddTags(ids, selectedTag));
+    setSelectedTag("");
   }
 
   return (
@@ -126,22 +127,35 @@ export function ProductsTable({
 
           <Divider />
 
-          <input
-            type="text"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            placeholder="add tag…"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleAddTags();
-              }
-            }}
-            className="h-7 w-32 rounded border border-neutral-700 bg-ink px-2 text-xs text-paper outline-none focus:border-neutral-500"
-          />
-          <BulkBtn disabled={pending || !tagInput.trim()} onClick={handleAddTags}>
-            Add tag
-          </BulkBtn>
+          {availableTags.length === 0 ? (
+            <span className="text-xs text-muted">
+              No tags yet —{" "}
+              <Link href="/tags" className="underline hover:text-foreground">
+                create one
+              </Link>
+            </span>
+          ) : (
+            <>
+              <select
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
+                className="h-7 rounded border border-default bg-surface px-2 text-xs text-foreground outline-none focus:border-strong"
+              >
+                <option value="">— pick tag —</option>
+                {availableTags.map((t) => (
+                  <option key={t.name} value={t.name}>
+                    #{t.name}
+                  </option>
+                ))}
+              </select>
+              <BulkBtn
+                disabled={pending || !selectedTag}
+                onClick={handleAddTag}
+              >
+                Apply tag
+              </BulkBtn>
+            </>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             {feedback && (

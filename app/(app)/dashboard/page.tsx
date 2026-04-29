@@ -30,6 +30,7 @@ async function getDashboardData(params: {
   stores: string[];
   tags: string[];
   tagColors: Record<string, TagColor>;
+  availableTags: Array<{ name: string; color: TagColor }>;
   hasAnyQuantityData: boolean;
   totalCount: number;
   totalPages: number;
@@ -210,20 +211,26 @@ async function getDashboardData(params: {
   const start = (params.page - 1) * PAGE_SIZE;
   const paged = rows.slice(start, start + PAGE_SIZE);
 
-  // Tag colour map — used to colour the chips on each row.
+  // Tag colour map + the canonical list of available tags (used by the
+  // bulk-add dropdown — only registered tags can be applied).
   const tagMeta = await db
     .select({ name: schema.tags.name, color: schema.tags.color })
     .from(schema.tags);
   const tagColors: Record<string, TagColor> = {};
+  const availableTags: Array<{ name: string; color: TagColor }> = [];
   for (const t of tagMeta) {
-    tagColors[t.name] = (t.color as TagColor) ?? "gray";
+    const color = (t.color as TagColor) ?? "gray";
+    tagColors[t.name] = color;
+    availableTags.push({ name: t.name, color });
   }
+  availableTags.sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     rows: paged,
     stores: allStores,
     tags: allTags,
     tagColors,
+    availableTags,
     hasAnyQuantityData,
     totalCount,
     totalPages,
@@ -240,6 +247,7 @@ export default async function DashboardPage(props: {
   let stores: string[] = [];
   let tags: string[] = [];
   let tagColors: Record<string, TagColor> = {};
+  let availableTags: Array<{ name: string; color: TagColor }> = [];
   let hasAnyQuantityData = false;
   let totalCount = 0;
   let totalPages = 1;
@@ -257,6 +265,7 @@ export default async function DashboardPage(props: {
     stores = data.stores;
     tags = data.tags;
     tagColors = data.tagColors;
+    availableTags = data.availableTags;
     hasAnyQuantityData = data.hasAnyQuantityData;
     totalCount = data.totalCount;
     totalPages = data.totalPages;
@@ -303,6 +312,11 @@ export default async function DashboardPage(props: {
       {!dbError && (rows.length > 0 || stores.length > 0) && (
         <form
           method="get"
+          // Force form remount when URL params change so the select inputs
+          // reflect the current sort/filter values (defaultValue only applies
+          // on initial mount — without this, soft nav would leave stale
+          // visual state behind even though the URL is correct).
+          key={`${params.q ?? ""}|${params.store ?? ""}|${params.tag ?? ""}|${params.sort ?? ""}`}
           className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated px-4 py-3"
         >
           <input
@@ -400,7 +414,12 @@ export default async function DashboardPage(props: {
         </div>
       ) : (
         <>
-          <ProductsTable rows={rows} showSold={hasAnyQuantityData} tagColors={tagColors} />
+          <ProductsTable
+            rows={rows}
+            showSold={hasAnyQuantityData}
+            tagColors={tagColors}
+            availableTags={availableTags}
+          />
           {totalPages > 1 && (
             <Pagination
               page={page}

@@ -293,13 +293,17 @@ export function DetailContent({ data, variant }: DetailContentProps) {
                   <div className="font-mono text-sm flex-shrink-0">
                     {lp.price ? `${lpSymbol}${Number(lp.price).toFixed(2)}` : "—"}
                   </div>
-                  <div className="text-xs flex-shrink-0 w-24 text-right">
+                  <div className="text-xs flex-shrink-0 w-32 text-right">
                     {lp.available !== null ? (
                       <span className="inline-flex items-center gap-1.5">
                         <span
                           className={`h-1.5 w-1.5 rounded-full ${lp.available ? "bg-green-500" : "bg-signal"}`}
                         />
-                        {lp.available ? "In stock" : "Out"}
+                        {lp.available
+                          ? lp.quantity !== null
+                            ? `${lp.quantity} in stock`
+                            : "In stock"
+                          : "Out"}
                       </span>
                     ) : (
                       "—"

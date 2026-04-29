@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { parseShopifyUrl } from "@/lib/crawler/shopify";
 import { inArray } from "drizzle-orm";
@@ -75,18 +76,25 @@ async function addProducts(formData: FormData) {
     added += slice.length;
   }
 
-  // Fire-and-forget: trigger a background crawl so the new rows pick up
-  // prices ASAP. We don't await — user lands on dashboard immediately and
-  // the progress widget polls for status.
+  // Trigger a background crawl with `after()` so it survives past the
+  // redirect — fire-and-forget HTTP from a Vercel function gets killed when
+  // the function ends, but `after()` is the proper Next.js primitive for
+  // post-response work and keeps the runtime alive.
   const cronSecret = process.env.CRON_SECRET;
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : "http://localhost:3000";
   if (cronSecret) {
-    fetch(`${baseUrl}/api/crawl/dispatch`, {
-      headers: { Authorization: `Bearer ${cronSecret}` },
-      cache: "no-store",
-    }).catch(() => {});
+    after(async () => {
+      try {
+        await fetch(`${baseUrl}/api/crawl/dispatch`, {
+          headers: { Authorization: `Bearer ${cronSecret}` },
+          cache: "no-store",
+        });
+      } catch {
+        // Silently swallow — the 5-minute cron will pick these up regardless.
+      }
+    });
   }
 
   revalidatePath("/dashboard");
