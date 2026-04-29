@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, useMemo } from "react";
 import {
   bulkPause,
@@ -38,26 +38,74 @@ export function ProductsTable({
   showSold,
   tagColors,
   availableTags,
+  totalCount,
 }: {
   rows: DashboardRow[];
   showSold: boolean;
   tagColors: Record<string, TagColor>;
   availableTags: Array<{ name: string; color: TagColor }>;
+  totalCount: number;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [selectedTag, setSelectedTag] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [expanding, setExpanding] = useState(false);
 
-  const allSelected = rows.length > 0 && selected.size === rows.length;
-  const someSelected = selected.size > 0 && selected.size < rows.length;
+  // Page-level state — how many rows on this page are selected.
+  const allOnPageSelected =
+    rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const someOnPageSelected =
+    rows.some((r) => selected.has(r.id)) && !allOnPageSelected;
+  // Once the user expands selection beyond the page, totalCount > rows.length
+  // and selected.size > rows.length tells us we're in "all-pages" mode.
+  const hasMorePages = totalCount > rows.length;
+  const allMatchingSelected = selected.size === totalCount;
+  const showExpandBanner =
+    allOnPageSelected && hasMorePages && !allMatchingSelected;
 
   function toggleAll() {
-    if (selected.size === rows.length) {
-      setSelected(new Set());
+    if (allOnPageSelected) {
+      // Deselect just this page's rows.
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const r of rows) next.delete(r.id);
+        return next;
+      });
     } else {
-      setSelected(new Set(rows.map((r) => r.id)));
+      // Select all rows on this page (additive — doesn't clear other pages).
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const r of rows) next.add(r.id);
+        return next;
+      });
+    }
+  }
+
+  async function expandToAllPages() {
+    setExpanding(true);
+    try {
+      const params = new URLSearchParams();
+      const q = searchParams.get("q");
+      const store = searchParams.get("store");
+      const tag = searchParams.get("tag");
+      if (q) params.set("q", q);
+      if (store) params.set("store", store);
+      if (tag) params.set("tag", tag);
+      const res = await fetch(`/api/dashboard/all-ids?${params}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = (await res.json()) as { ids: string[] };
+      setSelected(new Set(data.ids));
+    } catch (err) {
+      setFeedback(
+        `Couldn't expand selection: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setExpanding(false);
     }
   }
 
@@ -95,10 +143,32 @@ export function ProductsTable({
 
   return (
     <div>
+      {showExpandBanner && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-md border border-default bg-elevated px-4 py-2 text-sm">
+          <span className="text-muted-strong">
+            All {rows.length} on this page selected.
+          </span>
+          <button
+            type="button"
+            disabled={expanding}
+            onClick={expandToAllPages}
+            className="text-foreground underline underline-offset-2 hover:opacity-70 disabled:opacity-50 font-medium"
+          >
+            {expanding
+              ? "Loading…"
+              : `Select all ${totalCount} across all pages`}
+          </button>
+        </div>
+      )}
+
       {selected.size > 0 && (
-        <div className="sticky top-2 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-signal/40 bg-neutral-900 px-4 py-2.5 shadow-lg">
-          <span className="text-sm font-medium">{selected.size} selected</span>
-          <span className="text-neutral-700">·</span>
+        <div className="sticky top-2 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-signal/40 bg-elevated px-4 py-2.5 shadow-lg">
+          <span className="text-sm font-medium">
+            {selected.size === totalCount && totalCount > rows.length
+              ? `All ${totalCount} selected`
+              : `${selected.size} selected`}
+          </span>
+          <span className="text-muted">·</span>
 
           <BulkBtn disabled={pending} onClick={() => run("Paused", () => bulkPause(ids))}>
             Pause
@@ -191,10 +261,10 @@ export function ProductsTable({
         <div className="grid grid-cols-[28px_2.4fr_1fr_1.2fr_0.8fr_1fr_1fr] items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-5 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-mono">
           <input
             type="checkbox"
-            aria-label="Select all"
-            checked={allSelected}
+            aria-label="Select all on this page"
+            checked={allOnPageSelected}
             ref={(el) => {
-              if (el) el.indeterminate = someSelected;
+              if (el) el.indeterminate = someOnPageSelected;
             }}
             onChange={toggleAll}
             className="accent-signal"

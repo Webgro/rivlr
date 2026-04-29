@@ -419,6 +419,7 @@ export default async function DashboardPage(props: {
             showSold={hasAnyQuantityData}
             tagColors={tagColors}
             availableTags={availableTags}
+            totalCount={totalCount}
           />
           {totalPages > 1 && (
             <Pagination
