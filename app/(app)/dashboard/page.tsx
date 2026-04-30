@@ -322,6 +322,20 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {insights && insights.staleCount > 5 && (
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
+          <div>
+            <span className="text-signal font-medium">
+              ⚠ {insights.staleCount} products haven&apos;t been crawled in 2+ hours
+            </span>
+            <div className="text-xs text-muted mt-0.5">
+              Crawler may be lagging or some URLs are failing. Click{" "}
+              <strong>Run crawl now</strong> on the products page to drain the queue.
+            </div>
+          </div>
+        </div>
+      )}
+
       {insights && <InsightsRow insights={insights} />}
 
       {data && (

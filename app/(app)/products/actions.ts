@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
@@ -269,25 +270,61 @@ export async function unlinkProduct(formData: FormData) {
   revalidatePath("/products"); revalidatePath("/dashboard");
 }
 
+// ─── Per-product notes ─────────────────────────────────────────────────
+
+export async function saveProductNotes(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const id = String(formData.get("id") ?? "");
+  const notesRaw = String(formData.get("notes") ?? "");
+  const notes = notesRaw.trim().slice(0, 10_000) || null;
+  if (!id) return;
+  await db
+    .update(schema.trackedProducts)
+    .set({ notes })
+    .where(eq(schema.trackedProducts.id, id));
+  revalidatePath(`/products/${id}`);
+}
+
+// ─── Single-product crawl trigger ─────────────────────────────────────
+
+export async function runCrawlForProduct(productId: string) {
+  if (!(await isAuthed())) redirect("/login");
+  // Background — same reasoning as runCrawlNow: don't block navigation. The
+  // client should refresh after a delay to pick up the new observation.
+  after(async () => {
+    try {
+      const { crawlProductOnce } = await import("@/lib/crawler/dispatch");
+      await crawlProductOnce(productId);
+    } catch {
+      /* surfaced via product's lastError column on next render */
+    }
+  });
+  revalidatePath(`/products/${productId}`);
+  revalidatePath("/products");
+  return { ok: true as const };
+}
+
 // ─── Manual crawl trigger ──────────────────────────────────────────────
 
-export async function runCrawlNow(force = false) {
+/**
+ * Trigger a crawl. Uses after() so the actual work runs after this server
+ * action returns — the client gets an immediate ack and can navigate, the
+ * CrawlProgress widget picks up the activity within 3s.
+ *
+ * Without after(), Next.js holds the navigation behind the in-flight action
+ * (server actions block soft nav until they resolve), which made clicking
+ * 'Run crawl now' feel like a freeze for 30s.
+ */
+export async function runCrawlNow(_force = false) {
   if (!(await isAuthed())) redirect("/login");
-
-  try {
-    const result = await dispatchCrawl({ force });
-    revalidatePath("/products"); revalidatePath("/dashboard");
-    return {
-      ok: true as const,
-      scheduled: result.scheduled,
-      batches: 1, // single dispatch call now
-      ok_count: result.ok,
-      failed: result.failed,
-    };
-  } catch (err) {
-    return {
-      ok: false as const,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
+  after(async () => {
+    try {
+      await dispatchCrawl({});
+    } catch {
+      /* widget will surface the failure indirectly */
+    }
+  });
+  revalidatePath("/products");
+  revalidatePath("/dashboard");
+  return { ok: true as const, scheduled: 0, batches: 0, ok_count: 0, failed: 0 };
 }

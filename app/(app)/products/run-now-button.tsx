@@ -14,14 +14,12 @@ export function RunNowButton() {
     startTransition(async () => {
       const result = await runCrawlNow(false);
       if (result.ok) {
-        setMsg(
-          result.scheduled > 0
-            ? `Queued ${result.scheduled} · refreshing in 30s`
-            : "Nothing due",
-        );
-        setTimeout(() => router.refresh(), 4000);
+        setMsg("Crawl queued · watch the bottom-right widget");
+        // Refresh after a delay so the dashboard picks up new observations.
+        setTimeout(() => router.refresh(), 8000);
+        setTimeout(() => setMsg(null), 6000);
       } else {
-        setMsg(`Error: ${result.error}`);
+        setMsg(`Error: ${"error" in result ? result.error : "unknown"}`);
       }
     });
   }

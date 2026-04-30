@@ -140,3 +140,109 @@ html {
 [data-theme="light"] .tag-chip {
   color: var(--chip-fg-light);
 }
+
+/* Long-form prose styling for /legal/* and /help/* pages. Keeps the
+   typography consistent without pulling in a dependency. */
+.prose-rivlr {
+  line-height: 1.6;
+}
+.prose-rivlr h1 {
+  font-size: 32px;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.prose-rivlr p.lead {
+  color: var(--muted);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  margin-bottom: 32px;
+}
+.prose-rivlr h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 32px;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.prose-rivlr h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 20px;
+  margin-bottom: 4px;
+}
+.prose-rivlr p {
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: var(--foreground);
+}
+.prose-rivlr ul,
+.prose-rivlr ol {
+  margin: 12px 0 12px 24px;
+  font-size: 15px;
+}
+.prose-rivlr ul {
+  list-style: disc;
+}
+.prose-rivlr ol {
+  list-style: decimal;
+}
+.prose-rivlr li {
+  margin-bottom: 6px;
+}
+.prose-rivlr a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-rivlr a:hover {
+  color: var(--signal);
+}
+.prose-rivlr code {
+  background: var(--elevated);
+  border: 1px solid var(--default-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.prose-rivlr table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 24px;
+  font-size: 14px;
+}
+.prose-rivlr th,
+.prose-rivlr td {
+  border: 1px solid var(--default-border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.prose-rivlr th {
+  background: var(--elevated);
+  font-weight: 600;
+}
+.prose-rivlr blockquote {
+  border-left: 3px solid var(--signal);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--muted-strong);
+}
+.prose-rivlr img {
+  border-radius: 8px;
+  border: 1px solid var(--default-border);
+  margin: 16px 0;
+  max-width: 100%;
+}
+.prose-rivlr .screenshot-placeholder {
+  border: 1px dashed var(--default-border);
+  background: var(--elevated);
+  border-radius: 8px;
+  padding: 36px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin: 16px 0;
+}

@@ -75,6 +75,8 @@ export const trackedProducts = pgTable(
     autoPausedAt: timestamp("auto_paused_at", { withTimezone: true }),
     /** Last error message recorded for this product, for diagnostics. */
     lastError: text("last_error"),
+    /** Free-text user notes about the product (markdown-ish, no length cap). */
+    notes: text("notes"),
   },
   (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
 );

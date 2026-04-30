@@ -198,6 +198,17 @@ export function ProductsTable({
 
           <Divider />
 
+          <BulkBtn
+            disabled={pending || ids.length < 2 || ids.length > 5}
+            onClick={() =>
+              router.push(`/products/compare?ids=${ids.slice(0, 5).join(",")}`)
+            }
+          >
+            Compare {ids.length > 1 && ids.length <= 5 ? `(${ids.length})` : ids.length > 5 ? "(max 5)" : ""}
+          </BulkBtn>
+
+          <Divider />
+
           {availableTags.length === 0 ? (
             <span className="text-xs text-muted">
               No tags yet —{" "}

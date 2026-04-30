@@ -8,9 +8,11 @@ import { Wordmark } from "./wordmark";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "◐" },
   { href: "/products", label: "Products", icon: "◉" },
+  { href: "/activity", label: "Activity", icon: "≡" },
   { href: "/products/suggestions", label: "Suggestions", icon: "⤧" },
   { href: "/tags", label: "Tags", icon: "▤" },
   { href: "/settings", label: "Settings", icon: "⚙" },
+  { href: "/help", label: "Help", icon: "?" },
 ];
 
 export function Sidebar() {

@@ -103,6 +103,28 @@ export async function dispatchCrawl(opts: {
 }
 
 /**
+ * Crawl a single product right now, ignoring the cooldown. Used by the
+ * per-product 'Crawl now' button on the detail page. Reuses the same
+ * processBatch logic so observations, alerts, and variant snapshots all
+ * fire correctly.
+ */
+export async function crawlProductOnce(
+  productId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const [job] = await db
+    .insert(schema.crawlJobs)
+    .values({
+      productId,
+      scheduledFor: new Date(),
+      status: "pending",
+    })
+    .returning({ id: schema.crawlJobs.id });
+  const result = await processBatch([job.id]);
+  if (result.ok > 0) return { ok: true };
+  return { ok: false, error: "Crawl failed — see product detail for the last error message" };
+}
+
+/**
  * Process one batch of crawl_jobs. Hits each product's /products/{handle}.js
  * endpoint with per-store throttling, writes observations, fires email alerts
  * for stock changes / price drops.

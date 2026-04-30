@@ -39,6 +39,17 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public-facing pages (legal, help) don't require auth — they need to be
+  // shareable externally and crawlable by search engines.
+  if (
+    pathname.startsWith("/legal/") ||
+    pathname === "/legal" ||
+    pathname.startsWith("/help/") ||
+    pathname === "/help"
+  ) {
+    return NextResponse.next();
+  }
+
   // Everything else: must have a valid session cookie.
   const session = request.cookies.get("rivlr_session")?.value;
   const expected = process.env.SESSION_TOKEN;

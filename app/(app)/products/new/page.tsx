@@ -11,6 +11,7 @@ import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { generateLinkSuggestions } from "@/lib/crawler/link-suggestions";
 import { inArray } from "drizzle-orm";
 import { SubmitButton } from "./submit-button";
+import { CsvUploadButton } from "./csv-upload";
 
 type SearchParams = Promise<Record<string, string>>;
 
@@ -223,7 +224,10 @@ export default async function NewProductPage(props: {
           </p>
         </div>
 
-        <SubmitButton />
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          <CsvUploadButton textareaId="urls" />
+          <SubmitButton />
+        </div>
       </form>
     </section>
   );

@@ -11,6 +11,8 @@ import {
 } from "../actions";
 import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
+import { NotesEditor } from "./notes-editor";
+import { CrawlNowButton } from "./crawl-now-button";
 
 interface DetailContentProps {
   data: ProductDetailData;
@@ -139,6 +141,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         </div>
 
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <CrawlNowButton productId={product.id} />
           {product.active ? (
             <form action={pauseProduct}>
               <input type="hidden" name="id" value={product.id} />
@@ -335,6 +338,11 @@ export function DetailContent({ data, variant }: DetailContentProps) {
             )}
           </div>
         )}
+      </div>
+
+      {/* Notes */}
+      <div className="mt-6">
+        <NotesEditor productId={product.id} initial={product.notes} />
       </div>
 
       {/* Variants — only when there's more than one. */}

@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/sidebar";
 import { CrawlProgress } from "@/components/crawl-progress";
+import { CookieBanner } from "@/components/cookie-banner";
 
 /**
  * Layout for everything behind the password gate. Login lives outside this
@@ -23,6 +24,7 @@ export default function AppLayout({
       <main className="md:ml-56">{children}</main>
       {panel}
       <CrawlProgress />
+      <CookieBanner />
     </div>
   );
 }

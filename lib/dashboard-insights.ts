@@ -7,6 +7,9 @@ export interface DashboardInsights {
   newStockOuts24h: number;
   newRestocks24h: number;
   pendingSuggestions: number;
+  /** Active products whose latest crawl is older than 2 hours. Indicator of
+   * crawler health — should be near zero on hourly cadence. */
+  staleCount: number;
   biggestDrop: {
     productId: string;
     title: string | null;
@@ -36,6 +39,7 @@ export async function getDashboardInsights(): Promise<DashboardInsights> {
     new_stock_outs_24h: number;
     new_restocks_24h: number;
     pending_suggestions: number;
+    stale_count: number;
   };
 
   const [counts] = await db.execute<R>(sql`
@@ -72,7 +76,10 @@ export async function getDashboardInsights(): Promise<DashboardInsights> {
       (SELECT COUNT(DISTINCT product_id)::int FROM price_pairs WHERE new_price < prev_price) AS price_dropped_24h,
       (SELECT COUNT(DISTINCT product_id)::int FROM stock_pairs WHERE prev_avail = true AND new_avail = false) AS new_stock_outs_24h,
       (SELECT COUNT(DISTINCT product_id)::int FROM stock_pairs WHERE prev_avail = false AND new_avail = true) AS new_restocks_24h,
-      (SELECT COUNT(*)::int FROM link_suggestions WHERE status = 'pending') AS pending_suggestions
+      (SELECT COUNT(*)::int FROM link_suggestions WHERE status = 'pending') AS pending_suggestions,
+      (SELECT COUNT(*)::int FROM tracked_products
+       WHERE active = true
+         AND (last_crawled_at IS NULL OR last_crawled_at < NOW() - INTERVAL '2 hours')) AS stale_count
   `);
 
   // Biggest movers — pick the single biggest drop and biggest rise in 24h.
@@ -127,6 +134,7 @@ export async function getDashboardInsights(): Promise<DashboardInsights> {
     newStockOuts24h: counts?.new_stock_outs_24h ?? 0,
     newRestocks24h: counts?.new_restocks_24h ?? 0,
     pendingSuggestions: counts?.pending_suggestions ?? 0,
+    staleCount: counts?.stale_count ?? 0,
     biggestDrop:
       drops.length > 0
         ? {
