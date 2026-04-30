@@ -230,6 +230,37 @@ export type ProductGroup = typeof productGroups.$inferSelect;
 export type AlertLog = typeof alertLog.$inferSelect;
 export type LinkSuggestion = typeof linkSuggestions.$inferSelect;
 export type WaitlistEntry = typeof waitlist.$inferSelect;
+export type DiscoveredProduct = typeof discoveredProducts.$inferSelect;
+
+/**
+ * Products discovered on stores the user already tracks but not yet in
+ * their watchlist. Populated by a daily catalogue crawl that lists every
+ * Shopify product on each store-domain with at least one active tracked
+ * product. Surfaced on the /discover page with one-click 'Track' /
+ * 'Dismiss' actions.
+ */
+export const discoveredProducts = pgTable(
+  "discovered_products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeDomain: text("store_domain").notNull(),
+    handle: text("handle").notNull(),
+    title: text("title"),
+    imageUrl: text("image_url"),
+    /** Full canonical product URL (constructed from store_domain + handle). */
+    url: text("url").notNull().unique(),
+    firstSeen: timestamp("first_seen", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    status: text("status", { enum: ["new", "dismissed"] })
+      .notNull()
+      .default("new"),
+  },
+  (t) => [
+    index("idx_discovered_status").on(t.status),
+    index("idx_discovered_store").on(t.storeDomain),
+  ],
+);
 
 /**
  * Pre-launch waitlist. Phase 3 (Stripe billing) replaces this with a real

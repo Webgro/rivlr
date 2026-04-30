@@ -4,6 +4,10 @@
     {
       "path": "/api/crawl/dispatch",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/crawl/discover",
+      "schedule": "0 5 * * *"
     }
   ]
 }

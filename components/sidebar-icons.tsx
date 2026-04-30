@@ -84,6 +84,15 @@ export function HelpIcon({ className, size = 20 }: IconProps) {
   );
 }
 
+export function DiscoverIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M16.24 7.76 L13.5 13.5 L7.76 16.24 L10.5 10.5 z" />
+    </svg>
+  );
+}
+
 export function SignOutIcon({ className, size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
