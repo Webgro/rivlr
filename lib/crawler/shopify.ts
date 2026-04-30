@@ -31,6 +31,9 @@ export interface ShopifyProduct {
   price_max: number;
   compare_at_price: number | null;
   featured_image: string | null;
+  /** HTML description as the merchant wrote it. Often contains the product
+   * specifications / details. Empty string when omitted. */
+  description?: string;
   variants: ShopifyVariant[];
 }
 
@@ -50,6 +53,8 @@ export interface ProductSnapshot {
   available: boolean;
   /** Sum of inventory_quantity across managed variants. NULL if unavailable. */
   quantity: number | null;
+  /** HTML description from Shopify, or null if absent. */
+  description: string | null;
 }
 
 export interface ParsedShopifyUrl {
@@ -246,6 +251,7 @@ export function summariseProduct(product: ShopifyProduct): ProductSnapshot {
   return {
     title: product.title,
     imageUrl: product.featured_image,
+    description: product.description?.trim() || null,
     price: product.price,
     available: product.available,
     quantity,

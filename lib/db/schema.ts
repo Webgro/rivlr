@@ -77,6 +77,12 @@ export const trackedProducts = pgTable(
     lastError: text("last_error"),
     /** Free-text user notes about the product (markdown-ish, no length cap). */
     notes: text("notes"),
+    /**
+     * Product description from the Shopify .js endpoint. HTML — usually the
+     * spec / details content the merchant wrote. Updated on each crawl.
+     * Useful for spotting changes the merchant made to copy or specs.
+     */
+    description: text("description"),
   },
   (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
 );

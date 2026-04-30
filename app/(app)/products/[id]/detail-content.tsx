@@ -13,6 +13,7 @@ import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
 import { NotesEditor } from "./notes-editor";
 import { CrawlNowButton } from "./crawl-now-button";
+import { DescriptionSection } from "./description-section";
 
 interface DetailContentProps {
   data: ProductDetailData;
@@ -339,6 +340,9 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           </div>
         )}
       </div>
+
+      {/* Description (collapsible — from Shopify) */}
+      <DescriptionSection description={product.description} />
 
       {/* Notes */}
       <div className="mt-6">

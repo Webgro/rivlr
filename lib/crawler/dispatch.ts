@@ -229,6 +229,7 @@ async function processBatch(
         .set({
           title: snapshot.title,
           imageUrl: snapshot.imageUrl,
+          description: snapshot.description,
           currency,
           variantsSnapshot,
           lastCrawledAt: new Date(),
