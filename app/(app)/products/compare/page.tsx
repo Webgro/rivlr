@@ -13,29 +13,113 @@ const COMPARE_COLOURS = [
   "#f59e0b", // amber
 ];
 
+const UUID_RX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type SearchParams = Promise<{ ids?: string }>;
 
 export default async function ComparePage(props: {
   searchParams: SearchParams;
 }) {
   const params = await props.searchParams;
-  const ids = (params.ids ?? "")
+
+  // Parse + validate IDs strictly. Anything that's not a UUID is dropped —
+  // an invalid UUID in inArray would crash the whole query at Postgres level.
+  const allIds = (params.ids ?? "")
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 5);
+    .filter(Boolean);
+  const ids = allIds.filter((s) => UUID_RX.test(s)).slice(0, 5);
+  const droppedInvalid = allIds.length - ids.length;
 
   if (ids.length === 0) {
+    return <EmptyState droppedInvalid={droppedInvalid} />;
+  }
+
+  // Defensive load — if the query fails, show a clear error UI instead of
+  // throwing a Vercel runtime error.
+  let products: Awaited<
+    ReturnType<typeof db.select.prototype.from>
+  > = [];
+  let series: Array<{
+    id: string;
+    title: string;
+    storeDomain: string;
+    currency: string;
+    colour: string;
+    data: { t: number; price: number }[];
+  }> = [];
+  let loadError: string | null = null;
+
+  try {
+    products = (await db
+      .select()
+      .from(schema.trackedProducts)
+      .where(inArray(schema.trackedProducts.id, ids))) as never;
+
+    series = await Promise.all(
+      (products as Array<{
+        id: string;
+        title: string | null;
+        handle: string;
+        storeDomain: string;
+        currency: string;
+      }>).map(async (p, i) => {
+        const obs = await db
+          .select({
+            observedAt: schema.priceObservations.observedAt,
+            price: schema.priceObservations.price,
+          })
+          .from(schema.priceObservations)
+          .where(eq(schema.priceObservations.productId, p.id))
+          .orderBy(asc(schema.priceObservations.observedAt));
+        return {
+          id: p.id,
+          title: p.title ?? p.handle,
+          storeDomain: p.storeDomain,
+          currency: p.currency,
+          colour: COMPARE_COLOURS[i % COMPARE_COLOURS.length],
+          data: obs.map((o) => ({
+            t: new Date(o.observedAt).getTime(),
+            price: Number(o.price),
+          })),
+        };
+      }),
+    );
+  } catch (err) {
+    loadError = err instanceof Error ? err.message : String(err);
+  }
+
+  if (loadError) {
     return (
-      <section className="mx-auto max-w-4xl px-6 py-12">
+      <section className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
-        <p className="mt-1 text-sm text-muted">
-          Select 2–5 products from the products page (tick the checkboxes,
-          then use the &ldquo;Compare&rdquo; bulk action) to overlay their
-          price history.
-        </p>
-        <div className="mt-8 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
-          No products selected.
+        <div className="mt-6 rounded-md border border-signal/40 bg-signal/5 px-4 py-4 text-sm">
+          <div className="text-signal font-medium">Couldn&apos;t load this comparison.</div>
+          <p className="mt-2 text-muted">
+            One or more of the selected products could not be loaded. Try
+            selecting a different set on the products page.
+          </p>
+          <p className="mt-3 text-xs text-muted font-mono">{loadError}</p>
+        </div>
+        <div className="mt-6">
+          <Link
+            href="/products"
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+          >
+            ← Back to products
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <section className="mx-auto max-w-3xl px-6 py-12">
+        <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+        <div className="mt-6 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
+          None of the selected products were found.
           <div className="mt-4">
             <Link
               href="/products"
@@ -49,43 +133,12 @@ export default async function ComparePage(props: {
     );
   }
 
-  // Load each product + its full price history.
-  const products = await db
-    .select()
-    .from(schema.trackedProducts)
-    .where(inArray(schema.trackedProducts.id, ids));
-
-  const series = await Promise.all(
-    products.map(async (p, i) => {
-      const obs = await db
-        .select({
-          observedAt: schema.priceObservations.observedAt,
-          price: schema.priceObservations.price,
-        })
-        .from(schema.priceObservations)
-        .where(eq(schema.priceObservations.productId, p.id))
-        .orderBy(asc(schema.priceObservations.observedAt));
-      return {
-        id: p.id,
-        title: p.title ?? p.handle,
-        storeDomain: p.storeDomain,
-        currency: p.currency,
-        colour: COMPARE_COLOURS[i % COMPARE_COLOURS.length],
-        data: obs.map((o) => ({
-          t: new Date(o.observedAt).getTime(),
-          price: Number(o.price),
-        })),
-      };
-    }),
-  );
-
-  // Currency consistency check — display a warning if products span more
-  // than one currency since y-axis values aren't directly comparable.
   const currencies = Array.from(new Set(series.map((s) => s.currency)));
+  const productsWithObs = series.filter((s) => s.data.length > 0);
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-12">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Compare {products.length} product{products.length === 1 ? "" : "s"}
@@ -103,6 +156,12 @@ export default async function ComparePage(props: {
         </Link>
       </div>
 
+      {droppedInvalid > 0 && (
+        <div className="mt-6 rounded-md border border-default bg-elevated px-4 py-3 text-xs text-muted font-mono">
+          {droppedInvalid} invalid product{droppedInvalid === 1 ? "" : "s"} ignored.
+        </div>
+      )}
+
       {currencies.length > 1 && (
         <div className="mt-6 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
           <span className="text-signal font-medium">⚠ Mixed currencies.</span>{" "}
@@ -114,19 +173,26 @@ export default async function ComparePage(props: {
         </div>
       )}
 
-      <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
-        <CompareChart
-          series={series.map((s) => ({
-            id: s.id,
-            title: s.title,
-            colour: s.colour,
-            data: s.data,
-          }))}
-          currencySymbol={
-            currencies.length === 1 ? currencySymbol(currencies[0]) : ""
-          }
-        />
-      </div>
+      {productsWithObs.length === 0 ? (
+        <div className="mt-6 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
+          None of the selected products have any price history yet. Wait for
+          the first crawl to populate, then try again.
+        </div>
+      ) : (
+        <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
+          <CompareChart
+            series={series.map((s) => ({
+              id: s.id,
+              title: s.title,
+              colour: s.colour,
+              data: s.data,
+            }))}
+            currencySymbol={
+              currencies.length === 1 ? currencySymbol(currencies[0]) : ""
+            }
+          />
+        </div>
+      )}
 
       <div className="mt-6 grid gap-3 md:grid-cols-2">
         {series.map((s) => {
@@ -168,6 +234,32 @@ export default async function ComparePage(props: {
             </Link>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function EmptyState({ droppedInvalid }: { droppedInvalid: number }) {
+  return (
+    <section className="mx-auto max-w-4xl px-6 py-12">
+      <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+      <p className="mt-1 text-sm text-muted">
+        Select 2–5 products from the products page (tick the checkboxes,
+        then use the &ldquo;Compare&rdquo; bulk action) to overlay their
+        price history.
+      </p>
+      <div className="mt-8 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
+        {droppedInvalid > 0
+          ? `${droppedInvalid} invalid product ID${droppedInvalid === 1 ? "" : "s"} in the URL. Pick products from the list instead.`
+          : "No products selected."}
+        <div className="mt-4">
+          <Link
+            href="/products"
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+          >
+            ← Back to products
+          </Link>
+        </div>
       </div>
     </section>
   );
