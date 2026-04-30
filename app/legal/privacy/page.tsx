@@ -74,16 +74,16 @@ export default function PrivacyPage() {
       <p>We rely on the following sub-processors to deliver the Service:</p>
       <ul>
         <li>
-          <strong>Vercel Inc.</strong> — application hosting (US/EU)
+          <strong>Vercel Inc.</strong> · application hosting (US/EU)
         </li>
         <li>
-          <strong>Neon Inc.</strong> — database hosting (EU-West)
+          <strong>Neon Inc.</strong> · database hosting (EU-West)
         </li>
         <li>
-          <strong>Stripe Payments UK Ltd</strong> — payment processing (UK)
+          <strong>Stripe Payments UK Ltd</strong> · payment processing (UK)
         </li>
         <li>
-          <strong>Resend Inc.</strong> — transactional email delivery (US)
+          <strong>Resend Inc.</strong> · transactional email delivery (US)
         </li>
       </ul>
       <p>
@@ -97,7 +97,7 @@ export default function PrivacyPage() {
         <li>
           <strong>Account data</strong>: kept while your account is active,
           plus 30 days after termination, then deleted (except where
-          retention is required by law — e.g. tax records).
+          retention is required by law, e.g. tax records).
         </li>
         <li>
           <strong>Tracked URLs and observation history</strong>: kept while

@@ -39,7 +39,7 @@ export function DemoWidget() {
         setResult(data);
       }
     } catch {
-      setError("Network error — try again");
+      setError("Network error. Try again.");
     } finally {
       setLoading(false);
     }

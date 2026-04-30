@@ -121,7 +121,7 @@ export async function crawlProductOnce(
     .returning({ id: schema.crawlJobs.id });
   const result = await processBatch([job.id]);
   if (result.ok > 0) return { ok: true };
-  return { ok: false, error: "Crawl failed — see product detail for the last error message" };
+  return { ok: false, error: "Crawl failed. See product detail for the last error message." };
 }
 
 /**

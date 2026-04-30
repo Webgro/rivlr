@@ -41,7 +41,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
           <strong>+ Add products</strong>.
         </li>
         <li>
-          Paste any Shopify product URL — for example{" "}
+          Paste any Shopify product URL. for example{" "}
           <code>https://example.com/products/dog-food</code>.
         </li>
         <li>
@@ -56,15 +56,15 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
       <h2>Where to look next</h2>
       <ul>
         <li>
-          <a href="/help/adding-products">Adding more products</a> — single
+          <a href="/help/adding-products">Adding more products</a>. single
           URLs, mixed with collections, anything Shopify.
         </li>
         <li>
-          <a href="/help/reading-the-dashboard">Reading the dashboard</a> —
+          <a href="/help/reading-the-dashboard">Reading the dashboard</a>:
           insights, opportunities, and the activity feed.
         </li>
         <li>
-          <a href="/help/notifications">Setting up alerts</a> — get an
+          <a href="/help/notifications">Setting up alerts</a>: get an
           email when something matters.
         </li>
       </ul>
@@ -94,7 +94,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
 
       <h2>Many at once</h2>
       <p>
-        Paste a list — one URL per line, or comma-separated. Rivlr handles
+        Paste a list. one URL per line, or comma-separated. Rivlr handles
         any number; we've tested with thousands. Each URL is validated for
         format only at submit time, then queued for background crawling.
       </p>
@@ -105,7 +105,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
       <p>
         You're redirected to the products list with a banner showing how
         many were added, deduplicated, or rejected as invalid. The new
-        products appear with no price or stock data yet — that's normal,
+        products appear with no price or stock data yet. that's normal,
         they're queued. Within a few minutes the first crawl populates
         them. The bottom-right progress widget shows live status.
       </p>
@@ -113,7 +113,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
       <h2>Limits</h2>
       <ul>
         <li>Duplicate URLs (same product already tracked) are skipped silently.</li>
-        <li>Non-Shopify URLs are rejected — counted as "failed" in the banner.</li>
+        <li>Non-Shopify URLs are rejected. counted as "failed" in the banner.</li>
         <li>
           Each plan has a maximum number of products. The system blocks
           adds that would exceed your plan limit and tells you why.
@@ -143,7 +143,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
       <h2>Mixing collections and individual products</h2>
       <p>
         You can mix both freely in the same paste. After submit, the
-        confirmation banner tells you what happened — for example:
+        confirmation banner tells you what happened. for example:
       </p>
       <blockquote>
         2 collections expanded → 412 products · ✓ 408 added · 4 duplicates
@@ -174,14 +174,14 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
       <h2>For when you live in spreadsheets</h2>
       <p>
         On the <strong>+ Add products</strong> page, click{" "}
-        <strong>↑ Upload CSV / text file</strong>. Pick any file —{" "}
+        <strong>↑ Upload CSV / text file</strong>. Pick any file: {" "}
         <code>.csv</code>, <code>.tsv</code>, or plain <code>.txt</code>.
       </p>
 
       <h2>Format</h2>
       <p>
         We don't care about column structure. The parser extracts every
-        URL it can find by splitting on whitespace, commas, semicolons —
+        URL it can find by splitting on whitespace, commas, semicolons,
         any of those work. Headers, comments, extra columns are all
         ignored.
       </p>
@@ -230,7 +230,7 @@ https://store-c.com/products/another-widget`}
 
       <h3>3. Top movers (7 days)</h3>
       <p>
-        The biggest absolute price changes — drops in green, rises in red,
+        The biggest absolute price changes. drops in green, rises in red,
         with the percentage shown alongside. Click any row to open the
         product detail.
       </p>
@@ -246,7 +246,7 @@ https://store-c.com/products/another-widget`}
       <p>
         If more than five products haven't been crawled in the last two
         hours, a warning banner appears at the top. This usually means the
-        crawl queue is backed up — clicking{" "}
+        crawl queue is backed up. clicking{" "}
         <strong>Run crawl now</strong> on the products page kicks off
         immediate processing.
       </p>
@@ -258,7 +258,7 @@ https://store-c.com/products/another-widget`}
       <h2>What tags are for</h2>
       <p>
         Tags are colour-coded labels you apply to products to organise
-        them — by category, by competitor relationship, by tracking
+        them. by category, by competitor relationship, by tracking
         intent. They're filterable from the products page and from
         anywhere a tag chip is shown.
       </p>
@@ -266,7 +266,7 @@ https://store-c.com/products/another-widget`}
       <h2>Creating a tag</h2>
       <p>
         Click <strong>Tags</strong> in the sidebar, then enter a name and
-        pick from the eight available colours. Tags are global — anyone on
+        pick from the eight available colours. Tags are global. anyone on
         your team will see and use the same set.
       </p>
 
@@ -276,8 +276,8 @@ https://store-c.com/products/another-widget`}
       <p>
         From the products page: tick the rows you want to tag, and use the{" "}
         <strong>Apply tag</strong> dropdown in the bulk action bar. Only
-        tags you've already created in <strong>/tags</strong> appear here
-        — this prevents typos creating ghost tags.
+        tags you've already created in <strong>/tags</strong> appear here,
+       this prevents typos creating ghost tags.
       </p>
 
       <h2>Filtering by tag</h2>
@@ -302,14 +302,14 @@ https://store-c.com/products/another-widget`}
       <p>
         The same item is often sold by multiple competitors. Linking puts
         them in the same group, so on each product's detail page you see
-        the others' current price and stock side by side — perfect for
+        the others' current price and stock side by side. perfect for
         spotting which competitor is undercutting whom.
       </p>
 
       <h2>Manual linking</h2>
       <p>
         On any product detail page, click <strong>+ Link product</strong>.
-        A modal opens with fuzzy-matched candidates based on the title —
+        A modal opens with fuzzy-matched candidates based on the title.
         you can type to search across all tracked products. Click one to
         link them. If either side already has a group, the new product
         joins it.
@@ -359,13 +359,13 @@ https://store-c.com/products/another-widget`}
         comma-separated.
       </p>
 
-      <Screenshot caption="Settings — notification emails" />
+      <Screenshot caption="Settings. notification emails" />
 
       <h2>Per-product toggles</h2>
       <p>
         On each product's detail page, two toggle switches enable or
         disable each kind of alert <em>for that product</em>. By default
-        both are off — turn them on for the products you actually want to
+        both are off. turn them on for the products you actually want to
         be notified about.
       </p>
 
@@ -401,7 +401,7 @@ https://store-c.com/products/another-widget`}
       <h2>What notes are for</h2>
       <p>
         Free-text per-product context. Use it to record anything you want
-        to remember — competitor restocking patterns, pricing tactics
+        to remember. competitor restocking patterns, pricing tactics
         you've tried, deal anniversaries, links to internal docs.
       </p>
 
@@ -417,7 +417,7 @@ https://store-c.com/products/another-widget`}
       <h2>Format</h2>
       <p>
         Plain text. Line breaks are preserved. There's no length cap up to
-        10,000 characters per product. We don't render markdown — what
+        10,000 characters per product. We don't render markdown. what
         you type is what you see.
       </p>
     </>
@@ -454,7 +454,7 @@ https://store-c.com/products/another-widget`}
       <p>
         If the products you're comparing aren't all in the same currency,
         a warning appears above the chart. Raw values aren't directly
-        comparable — but the shapes still tell you something about
+        comparable. but the shapes still tell you something about
         relative trends.
       </p>
 
@@ -472,7 +472,7 @@ https://store-c.com/products/another-widget`}
 
       <h3>1. Has the first crawl run yet?</h3>
       <p>
-        New products show "pending" until the first crawl completes — that
+        New products show "pending" until the first crawl completes. that
         usually happens within 5–10 minutes of being added. Check the
         bottom-right progress widget; if there's nothing in flight,
         click <strong>Run crawl now</strong> on the products page.
@@ -497,7 +497,7 @@ https://store-c.com/products/another-widget`}
       <p>
         For multi-currency stores, the customer-facing price you see in
         the browser may differ from what we crawl (we pin to the UK / GBP
-        market). Check the variants table on the detail page — sometimes
+        market). Check the variants table on the detail page. sometimes
         the visible price is one variant while we report another.
       </p>
 

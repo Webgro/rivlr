@@ -211,7 +211,7 @@ export function ProductsTable({
 
           {availableTags.length === 0 ? (
             <span className="text-xs text-muted">
-              No tags yet —{" "}
+              No tags yet.{" "}
               <Link href="/tags" className="underline hover:text-foreground">
                 create one
               </Link>
@@ -223,7 +223,7 @@ export function ProductsTable({
                 onChange={(e) => setSelectedTag(e.target.value)}
                 className="h-7 rounded border border-default bg-surface px-2 text-xs text-foreground outline-none focus:border-strong"
               >
-                <option value="">— pick tag —</option>
+                <option value="">pick tag</option>
                 {availableTags.map((t) => (
                   <option key={t.name} value={t.name}>
                     #{t.name}

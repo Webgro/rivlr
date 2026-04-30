@@ -14,7 +14,7 @@ export function CrawlNowButton({ productId }: { productId: string }) {
     startTransition(async () => {
       const res = await runCrawlForProduct(productId);
       if (res.ok) {
-        setMsg("Queued — refreshing in a few seconds");
+        setMsg("Queued. Refreshing in a few seconds.");
         // Wait for the crawl to actually finish in the background, then refresh.
         setTimeout(() => router.refresh(), 8000);
         setTimeout(() => setMsg(null), 12000);

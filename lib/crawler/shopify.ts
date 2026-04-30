@@ -181,9 +181,15 @@ export async function fetchShopifyCollection(
   storeDomain: string,
   handle: string,
   opts: { maxProducts?: number } = {},
-): Promise<Array<{ handle: string; title: string }>> {
+): Promise<
+  Array<{ handle: string; title: string; imageUrl: string | null }>
+> {
   const { maxProducts = 1000 } = opts;
-  const results: Array<{ handle: string; title: string }> = [];
+  const results: Array<{
+    handle: string;
+    title: string;
+    imageUrl: string | null;
+  }> = [];
   const PER_PAGE = 250;
   const MAX_PAGES = Math.ceil(maxProducts / PER_PAGE);
 
@@ -197,10 +203,20 @@ export async function fetchShopifyCollection(
       throw new Error(`Collection fetch failed: ${res.status} ${res.statusText}`);
     }
     const data = (await res.json()) as {
-      products: Array<{ handle: string; title: string }>;
+      products: Array<{
+        handle: string;
+        title: string;
+        images?: Array<{ src?: string }>;
+      }>;
     };
     if (!data.products || data.products.length === 0) break;
-    results.push(...data.products.map((p) => ({ handle: p.handle, title: p.title })));
+    results.push(
+      ...data.products.map((p) => ({
+        handle: p.handle,
+        title: p.title,
+        imageUrl: p.images && p.images.length > 0 ? p.images[0].src ?? null : null,
+      })),
+    );
     if (data.products.length < PER_PAGE) break;
     if (results.length >= maxProducts) break;
     await new Promise((r) => setTimeout(r, 1000)); // polite delay

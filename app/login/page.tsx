@@ -89,7 +89,7 @@ export default async function LoginPage(props: { searchParams: SearchParams }) {
         </form>
 
         <p className="mt-10 text-xs text-neutral-500">
-          rivlr — a Webgro product
+          rivlr · a Webgro product
         </p>
       </div>
     </main>

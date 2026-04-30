@@ -20,7 +20,7 @@ export default function TermsPage() {
         Rivlr is a competitive-intelligence tool for ecommerce merchants
         that periodically retrieves publicly available product information
         from Shopify-powered storefronts and presents it in a dashboard.
-        We crawl public endpoints only — no authentication, no scraping
+        We crawl public endpoints only. No authentication, no scraping
         of private data, no bypass of access controls.
       </p>
 

@@ -349,7 +349,7 @@ export default async function DashboardPage() {
                     Opportunities
                   </h2>
                   <p className="mt-1 text-xs text-muted">
-                    Competitors currently out of stock — your chance to capture
+                    Competitors currently out of stock. Your chance to capture
                     market.
                   </p>
                 </div>

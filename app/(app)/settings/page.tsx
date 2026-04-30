@@ -11,7 +11,7 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted">
-          Phase 1 — only notification emails for now. More settings coming as
+          Phase 1 ships with notification emails only. More settings coming as
           features land.
         </p>
       </div>
@@ -23,7 +23,7 @@ export default async function SettingsPage() {
         <p className="mt-2 text-sm text-muted">
           Where to send stock-change and price-drop alerts. Add multiple
           addresses comma-separated. Emails actually start sending once Phase 5
-          (Resend integration) lands — for now this just persists the list.
+          (Resend integration) lands. For now this just persists the list.
         </p>
 
         <form action={saveNotificationEmails} className="mt-5 space-y-3">

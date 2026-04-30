@@ -9,7 +9,7 @@ import { IntelTicker } from "./(marketing)/intel-ticker";
 import { SectionIndex, DotDivider } from "./(marketing)/section-index";
 
 export const metadata = {
-  title: "Rivlr — competitive intel for Shopify",
+  title: "Rivlr · competitive intel for Shopify",
   description:
     "Track competitor prices, stock levels, and sales velocity across Shopify stores. Hourly checks, instant alerts, no spreadsheet babysitting.",
 };
@@ -83,7 +83,7 @@ export default async function MarketingPage() {
 
           <p className="mt-8 text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed">
             Rivlr surveils your competitors&apos; Shopify stores. Prices,
-            stock, sales velocity — checked every hour, surfaced
+            stock, sales velocity, checked every hour and surfaced
             instantly. You act on signal, not feelings.
           </p>
 
@@ -123,18 +123,18 @@ export default async function MarketingPage() {
           </span>
           .
         </h2>
-        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Capability
             num="01"
             eyebrow="Cadence"
             title="Hourly sweep"
-            body="Every product, every hour. The faster you see a price drop, the faster you can match — or hold the line confidently."
+            body="Every product, every hour. The faster you see a price drop, the faster you can match, or hold the line confidently."
           />
           <Capability
             num="02"
             eyebrow="Alerts"
             title="Mail when it lands"
-            body="Per-product opt-in, deduped within 24h. No notification fatigue — just the moves you care about."
+            body="Per-product opt-in, deduped within 24h. No notification fatigue, just the moves you care about."
           />
           <Capability
             num="03"
@@ -147,6 +147,74 @@ export default async function MarketingPage() {
             eyebrow="Scale"
             title="1,000 in one paste"
             body="Product URLs, collection URLs, CSV upload. We expand, dedupe, and start watching in the background."
+          />
+          <Capability
+            num="05"
+            eyebrow="Discover"
+            title="Catch new launches"
+            body="Daily catalogue scan finds products competitors quietly add. Track them with one click before anyone else notices."
+          />
+          <Capability
+            num="06"
+            eyebrow="Compare"
+            title="Stack rivals"
+            body="Pick 2 to 5 products. Their full price history, overlaid on one chart. See who leads the market and who follows."
+          />
+        </div>
+      </section>
+
+      <DotDivider />
+
+      {/* The seven tools the sidebar surfaces. Light visual map between
+          marketing copy and what the user actually sees once inside. */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-12">
+        <SectionIndex num="·" label="What you get inside" />
+        <h2 className="mt-5 text-3xl md:text-4xl font-semibold tracking-tight max-w-3xl">
+          Seven tools.{" "}
+          <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400 }}>
+            One sidebar.
+          </span>
+        </h2>
+        <div className="mt-10 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <SidebarTeaser
+            iconShape="dashboard"
+            label="Dashboard"
+            body="The morning scan. Insights cards, opportunities, activity feed."
+          />
+          <SidebarTeaser
+            iconShape="products"
+            label="Products"
+            body="Your full watchlist. Filters, search, bulk actions, CSV export."
+          />
+          <SidebarTeaser
+            iconShape="discover"
+            label="Discover"
+            body="New products on stores you watch. One-click track or dismiss."
+          />
+          <SidebarTeaser
+            iconShape="activity"
+            label="Activity"
+            body="Every detected change in the last 30 days. Filter by store or kind."
+          />
+          <SidebarTeaser
+            iconShape="suggestions"
+            label="Suggestions"
+            body="Auto-detected matches across stores. Approve to link them."
+          />
+          <SidebarTeaser
+            iconShape="tags"
+            label="Tags"
+            body="Colour-coded labels. Apply in bulk, filter from anywhere."
+          />
+          <SidebarTeaser
+            iconShape="settings"
+            label="Settings"
+            body="Notification emails. Per-product alerts you control."
+          />
+          <SidebarTeaser
+            iconShape="help"
+            label="Help"
+            body="The articles that answer the things people actually ask."
           />
         </div>
       </section>
@@ -198,7 +266,7 @@ export default async function MarketingPage() {
           eyebrow="Linked products"
           title="Same item."
           italic="Every store."
-          body="Rivlr auto-detects when you're tracking the same product on multiple stores. Approve the link and see all of them in one row — perfect for category benchmarks."
+          body="Rivlr auto-detects when you're tracking the same product on multiple stores. Approve the link and see all of them in one row. Perfect for category benchmarks."
           reverse
         >
           <LinkedMockup />
@@ -265,7 +333,7 @@ export default async function MarketingPage() {
           </h2>
           <p className="mt-5 text-neutral-400 max-w-xl mx-auto">
             Tiered by how many products you watch and how often. Same
-            features at every paid level — only crawl frequency and
+            features at every paid level. Only crawl frequency and
             volume change.
           </p>
         </div>
@@ -355,8 +423,8 @@ export default async function MarketingPage() {
         </h2>
         <div className="mt-12 space-y-3">
           <Faq q="Is this only for Shopify stores?">
-            For now, yes. We crawl public Shopify product endpoints —
-            something like 30% of DTC ecommerce — and we&apos;ve focused on
+            For now, yes. We crawl public Shopify product endpoints,
+            something like 30% of DTC ecommerce, and we&apos;ve focused on
             doing one platform brilliantly first. WooCommerce and
             BigCommerce are on the roadmap.
           </Faq>
@@ -622,6 +690,113 @@ function PricingCard({
       </div>
     </div>
   );
+}
+
+function SidebarTeaser({
+  iconShape,
+  label,
+  body,
+}: {
+  iconShape:
+    | "dashboard"
+    | "products"
+    | "discover"
+    | "activity"
+    | "suggestions"
+    | "tags"
+    | "settings"
+    | "help";
+  label: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-lg border border-neutral-800 bg-[#0d0d0d] p-4 hover:border-neutral-700 transition group">
+      <div className="flex items-center gap-3">
+        <div className="rounded-md border border-neutral-800 bg-[#141414] p-2 text-signal/80 group-hover:text-signal transition">
+          <SidebarIconRender shape={iconShape} />
+        </div>
+        <div className="text-base font-semibold tracking-tight">{label}</div>
+      </div>
+      <p className="mt-3 text-xs text-neutral-400 leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function SidebarIconRender({ shape }: { shape: string }) {
+  const props = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  switch (shape) {
+    case "dashboard":
+      return (
+        <svg {...props}>
+          <rect x="3" y="3" width="7" height="9" rx="1.5" />
+          <rect x="14" y="3" width="7" height="5" rx="1.5" />
+          <rect x="14" y="12" width="7" height="9" rx="1.5" />
+          <rect x="3" y="16" width="7" height="5" rx="1.5" />
+        </svg>
+      );
+    case "products":
+      return (
+        <svg {...props}>
+          <path d="M3 7 L12 3 L21 7 L12 11 L3 7 Z" />
+          <path d="M3 7 V17 L12 21 V11" />
+          <path d="M21 7 V17 L12 21" />
+        </svg>
+      );
+    case "discover":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M16.24 7.76 L13.5 13.5 L7.76 16.24 L10.5 10.5 z" />
+        </svg>
+      );
+    case "activity":
+      return (
+        <svg {...props}>
+          <path d="M3 12 H7 L9 6 L13 18 L15 12 H21" />
+        </svg>
+      );
+    case "suggestions":
+      return (
+        <svg {...props}>
+          <path d="M9 12 H4 a3 3 0 0 1 0 -6 h2 a3 3 0 0 1 3 3 v0" />
+          <path d="M15 12 h5 a3 3 0 0 1 0 6 h-2 a3 3 0 0 1 -3 -3 v0" />
+          <path d="M9 12 L15 12" />
+        </svg>
+      );
+    case "tags":
+      return (
+        <svg {...props}>
+          <path d="M20.59 13.41 L13.42 20.58 a2 2 0 0 1 -2.83 0 L3 13 V3 h10 l7.59 7.59 a2 2 0 0 1 0 2.82 z" />
+          <circle cx="7" cy="7" r="1.25" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      );
+    case "help":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.5 9.5 a2.5 2.5 0 0 1 5 0 c0 1.5 -2 2 -2.5 3" />
+          <circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    default:
+      return null;
+  }
 }
 
 function CornerBracket({

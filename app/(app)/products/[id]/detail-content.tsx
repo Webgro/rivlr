@@ -407,7 +407,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         {!hasQuantity && (
           <p className="mt-2 text-xs text-muted">
             This store doesn't expose inventory quantities in its public data
-            — we're tracking in/out only.
+            so we're tracking in/out only.
           </p>
         )}
       </div>

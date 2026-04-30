@@ -21,7 +21,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Rivlr — competitive intel for Shopify",
+  title: "Rivlr · competitive intel for Shopify",
   description:
     "Track competitor prices, stock levels and sales velocity across Shopify stores.",
 };

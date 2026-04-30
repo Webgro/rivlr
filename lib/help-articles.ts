@@ -49,7 +49,7 @@ export const ARTICLES: Article[] = [
   {
     slug: "reading-the-dashboard",
     title: "Reading the dashboard",
-    summary: "Insights cards, opportunities, activity feed — what each shows.",
+    summary: "Insights cards, opportunities, activity feed. What each shows.",
     category: "Features",
   content: () => null,
   },

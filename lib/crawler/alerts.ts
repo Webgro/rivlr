@@ -133,7 +133,7 @@ function shell(productUrl: string, dashboardUrl: string, body: string) {
     </div>
   </td></tr>
   <tr><td style="padding-top:16px;font-size:12px;color:#888;text-align:center;">
-    Rivlr — a Webgro product. <a href="${dashboardUrl}/settings" style="color:#888;">Manage notifications</a>
+    Rivlr · a Webgro product. <a href="${dashboardUrl}/settings" style="color:#888;">Manage notifications</a>
   </td></tr>
 </table>
 </body></html>`;

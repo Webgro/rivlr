@@ -16,7 +16,7 @@ export default function CookiesPage() {
       <p>
         A cookie is a small text file stored by your browser when you visit
         a website. It allows the site to remember information across page
-        loads — for example, that you're signed in.
+        loads. For example, that you're signed in.
       </p>
 
       <h2>Cookies We Use</h2>

@@ -144,7 +144,7 @@ export default async function ComparePage(props: {
             Compare {products.length} product{products.length === 1 ? "" : "s"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Price history side-by-side. Charts share the same y-axis — use
+            Price history side-by-side. Charts share the same y-axis. Use
             the legend to spot which competitor is more aggressive.
           </p>
         </div>
@@ -167,7 +167,7 @@ export default async function ComparePage(props: {
           <span className="text-signal font-medium">⚠ Mixed currencies.</span>{" "}
           <span className="text-muted-strong">
             These products use different currencies ({currencies.join(", ")}).
-            The chart shows raw prices — they&apos;re not directly comparable
+            The chart shows raw prices. They&apos;re not directly comparable
             without FX conversion.
           </span>
         </div>

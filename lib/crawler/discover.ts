@@ -72,7 +72,8 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
 
       if (fresh.length > 0) {
         // Bulk insert. URL has a unique constraint to prevent duplicates
-        // even under race conditions.
+        // even under race conditions. Image URL points to Shopify's CDN
+        // so we don't store the binary, just the link.
         await db
           .insert(schema.discoveredProducts)
           .values(
@@ -80,6 +81,7 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
               storeDomain,
               handle: p.handle,
               title: p.title,
+              imageUrl: p.imageUrl,
               url: `https://${storeDomain}/products/${p.handle}`,
               status: "new" as const,
             })),

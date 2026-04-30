@@ -97,7 +97,7 @@ export function LinkProductButton({ productId }: { productId: string }) {
                 className="w-full rounded-md border border-default bg-elevated px-3 py-2 text-sm outline-none focus:border-strong"
               />
               <p className="mt-2 text-xs text-muted">
-                Showing products with similar names. Pick one to link them — both
+                Showing products with similar names. Pick one to link them. Both
                 will share a group, with prices side-by-side on each detail page.
               </p>
             </div>

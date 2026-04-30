@@ -18,7 +18,13 @@ interface Item {
   firstSeen: string;
 }
 
-export function DiscoverList({ items }: { items: Item[] }) {
+export function DiscoverList({
+  items,
+  lockedFromIndex,
+}: {
+  items: Item[];
+  lockedFromIndex?: number;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -150,17 +156,20 @@ export function DiscoverList({ items }: { items: Item[] }) {
           <div>First seen</div>
           <div></div>
         </div>
-        {items.map((item) => {
+        {items.map((item, idx) => {
           const isSelected = selected.has(item.id);
+          const locked =
+            lockedFromIndex !== undefined && idx >= lockedFromIndex;
           return (
             <div
               key={item.id}
-              className={`grid grid-cols-[28px_2fr_1fr_1fr_auto] items-center gap-3 border-b border-default px-5 py-3 last:border-b-0 text-sm transition ${isSelected ? "bg-signal/5" : "hover:bg-elevated"}`}
+              className={`grid grid-cols-[28px_2fr_1fr_1fr_auto] items-center gap-3 border-b border-default px-5 py-3 last:border-b-0 text-sm transition ${isSelected ? "bg-signal/5" : "hover:bg-elevated"} ${locked ? "blur-sm select-none pointer-events-none opacity-70" : ""}`}
             >
               <input
                 type="checkbox"
                 checked={isSelected}
-                onChange={() => toggleOne(item.id)}
+                onChange={() => locked ? null : toggleOne(item.id)}
+                disabled={locked}
                 aria-label={`Select ${item.title}`}
                 className="accent-signal"
               />
@@ -170,12 +179,22 @@ export function DiscoverList({ items }: { items: Item[] }) {
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 min-w-0"
               >
-                <div
-                  className="h-10 w-10 rounded-md flex-shrink-0"
-                  style={{
-                    background: `linear-gradient(135deg, hsl(${(item.id.charCodeAt(0) * 13) % 360},20%,18%), hsl(${(item.id.charCodeAt(0) * 13 + 30) % 360},25%,28%))`,
-                  }}
-                />
+                {item.imageUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="h-10 w-10 rounded-md bg-elevated object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="h-10 w-10 rounded-md flex-shrink-0"
+                    style={{
+                      background: `linear-gradient(135deg, hsl(${(item.id.charCodeAt(0) * 13) % 360},20%,18%), hsl(${(item.id.charCodeAt(0) * 13 + 30) % 360},25%,28%))`,
+                    }}
+                  />
+                )}
                 <div className="min-w-0">
                   <div className="truncate font-medium hover:underline">
                     {item.title ?? "(untitled)"}

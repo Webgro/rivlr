@@ -47,7 +47,7 @@ export function PriceChart({
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-neutral-800 text-sm text-neutral-500">
-        No price history yet — first crawl is the next reading.
+        No price history yet. First crawl is the next reading.
       </div>
     );
   }
