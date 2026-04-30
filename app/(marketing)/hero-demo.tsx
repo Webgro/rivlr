@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SampleUrls } from "./sample-urls";
 
 interface PreviewSuccess {
   ok: true;
@@ -83,6 +84,7 @@ export function HeroDemo() {
             {loading ? "Checking…" : "Check it →"}
           </button>
         </div>
+        {!result && !error && <SampleUrls />}
       </form>
 
       {error && (

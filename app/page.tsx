@@ -7,6 +7,8 @@ import { RadarBackground } from "./(marketing)/radar-bg";
 import { LivePill } from "./(marketing)/live-pill";
 import { IntelTicker } from "./(marketing)/intel-ticker";
 import { SectionIndex, DotDivider } from "./(marketing)/section-index";
+import { HowItWorks } from "./(marketing)/how-it-works";
+import { ComparisonTable } from "./(marketing)/comparison-table";
 
 export const metadata = {
   title: "Shopify Competitor Price & Stock Tracker | Rivlr",
@@ -194,6 +196,11 @@ export default async function MarketingPage() {
       {/* Live ticker — fake intel feed */}
       <IntelTicker />
 
+      {/* How it works — 3-step explainer right after the ticker */}
+      <HowItWorks />
+
+      <DotDivider />
+
       {/* USPs — reframed as ops capabilities */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
         <SectionIndex num="01" label="Capabilities" />
@@ -329,6 +336,11 @@ export default async function MarketingPage() {
           </div>
         </div>
       </section>
+
+      <DotDivider />
+
+      {/* Comparison table — Rivlr vs Prisync vs spreadsheet */}
+      <ComparisonTable />
 
       {/* Feature rows */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-12">

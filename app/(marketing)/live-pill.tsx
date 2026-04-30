@@ -1,11 +1,12 @@
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { CountUp } from "./count-up";
 
 /**
  * Live status pill rendered into the hero. Pulls REAL counts from the DB:
  * how many products Rivlr is currently tracking and how many distinct
- * stores. Makes the marketing page feel alive — and proves the product
- * works at scale before the visitor signs up.
+ * stores. Numbers count up from 0 on first paint via the CountUp client
+ * component.
  */
 export async function LivePill() {
   let trackedCount = 0;
@@ -33,9 +34,8 @@ export async function LivePill() {
       {trackedCount > 0 ? (
         <>
           Tracking{" "}
-          <span className="text-paper">{trackedCount.toLocaleString()}</span>{" "}
-          products across{" "}
-          <span className="text-paper">{storeCount}</span> stores · right now
+          <CountUp to={trackedCount} className="text-paper" /> products across{" "}
+          <CountUp to={storeCount} className="text-paper" /> stores · right now
         </>
       ) : (
         <>Intel online</>
