@@ -8,10 +8,12 @@ export async function GET(request: Request) {
   if (!(await isAuthed())) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const id = new URL(request.url).searchParams.get("id");
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  const q = url.searchParams.get("q") ?? undefined;
   if (!id) {
     return NextResponse.json({ error: "missing id" }, { status: 400 });
   }
-  const candidates = await getLinkCandidates(id, 30);
+  const candidates = await getLinkCandidates(id, 30, q);
   return NextResponse.json({ candidates });
 }

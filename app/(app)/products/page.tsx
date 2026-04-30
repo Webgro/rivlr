@@ -10,10 +10,13 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
+type StockFilter = "in" | "out" | "low" | undefined;
+
 type SearchParams = Promise<{
   q?: string;
   store?: string;
   tag?: string;
+  stock?: string;
   sort?: string;
   page?: string;
   added?: string;
@@ -25,6 +28,7 @@ async function getDashboardData(params: {
   q?: string;
   store?: string;
   tag?: string;
+  stock?: StockFilter;
   sort?: string;
   page: number;
 }): Promise<{
@@ -157,6 +161,21 @@ async function getDashboardData(params: {
   if (params.tag) {
     filtered = filtered.filter((r) => (r.tags ?? []).includes(params.tag!));
   }
+  if (params.stock === "in") {
+    filtered = filtered.filter((r) => r.latest_available === true);
+  } else if (params.stock === "out") {
+    filtered = filtered.filter((r) => r.latest_available === false);
+  } else if (params.stock === "low") {
+    // Low stock = available but quantity is exposed and < 10. Excludes products
+    // where the store doesn't publish quantities (we can't tell).
+    filtered = filtered.filter(
+      (r) =>
+        r.latest_available === true &&
+        r.latest_quantity !== null &&
+        r.latest_quantity > 0 &&
+        r.latest_quantity < 10,
+    );
+  }
   if (params.q) {
     const q = params.q.toLowerCase();
     filtered = filtered.filter(
@@ -232,6 +251,15 @@ async function getDashboardData(params: {
         return (b.sold30d ?? -1) - (a.sold30d ?? -1);
       case "sold_asc":
         return (a.sold30d ?? Infinity) - (b.sold30d ?? Infinity);
+      case "qty_desc":
+        return (
+          (b.latestStock?.quantity ?? -1) - (a.latestStock?.quantity ?? -1)
+        );
+      case "qty_asc":
+        return (
+          (a.latestStock?.quantity ?? Infinity) -
+          (b.latestStock?.quantity ?? Infinity)
+        );
       case "added_asc":
       case "added_desc":
       default:
@@ -292,6 +320,7 @@ export default async function DashboardPage(props: {
       q: params.q,
       store: params.store,
       tag: params.tag,
+      stock: parseStockFilter(params.stock),
       sort: params.sort,
       page,
     });
@@ -316,6 +345,7 @@ export default async function DashboardPage(props: {
   if (params.q) exportParams.set("q", params.q);
   if (params.store) exportParams.set("store", params.store);
   if (params.tag) exportParams.set("tag", params.tag);
+  if (params.stock) exportParams.set("stock", params.stock);
   const exportHref = `/api/dashboard/export${exportParams.toString() ? "?" + exportParams.toString() : ""}`;
 
   return (
@@ -368,7 +398,7 @@ export default async function DashboardPage(props: {
           // reflect the current sort/filter values (defaultValue only applies
           // on initial mount — without this, soft nav would leave stale
           // visual state behind even though the URL is correct).
-          key={`${params.q ?? ""}|${params.store ?? ""}|${params.tag ?? ""}|${params.sort ?? ""}`}
+          key={`${params.q ?? ""}|${params.store ?? ""}|${params.tag ?? ""}|${params.stock ?? ""}|${params.sort ?? ""}`}
           className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated px-4 py-3"
         >
           <input
@@ -405,6 +435,18 @@ export default async function DashboardPage(props: {
             </select>
           )}
           <select
+            name="stock"
+            defaultValue={params.stock ?? ""}
+            className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
+          >
+            <option value="">All stock</option>
+            <option value="in">In stock</option>
+            <option value="out">Out of stock</option>
+            {hasAnyQuantityData && (
+              <option value="low">Low stock (&lt;10)</option>
+            )}
+          </select>
+          <select
             name="sort"
             defaultValue={params.sort ?? "added_desc"}
             className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
@@ -418,6 +460,8 @@ export default async function DashboardPage(props: {
             <option value="change_asc">Biggest price drop (24h)</option>
             {hasAnyQuantityData && (
               <>
+                <option value="qty_desc">Quantity high → low</option>
+                <option value="qty_asc">Quantity low → high</option>
                 <option value="sold_desc">Most sold (30d)</option>
                 <option value="sold_asc">Least sold (30d)</option>
               </>
@@ -429,7 +473,11 @@ export default async function DashboardPage(props: {
           >
             Apply
           </button>
-          {(params.q || params.store || params.tag || params.sort) && (
+          {(params.q ||
+            params.store ||
+            params.tag ||
+            params.stock ||
+            params.sort) && (
             <Link
               href="/products"
               className="text-xs text-muted hover:text-foreground"
@@ -560,6 +608,11 @@ function Pagination({
       </Link>
     </nav>
   );
+}
+
+function parseStockFilter(s: string | undefined): StockFilter {
+  if (s === "in" || s === "out" || s === "low") return s;
+  return undefined;
 }
 
 function buildBanner(params: {

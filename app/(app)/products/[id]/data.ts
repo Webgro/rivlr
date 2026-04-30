@@ -98,11 +98,21 @@ export async function getProductData(id: string) {
 }
 
 /**
- * Fuzzy-search candidates for linking — same word in the title is a strong
- * signal. Returns up to N other tracked products that don't already share
- * a group with this one.
+ * Candidates for linking. Two modes:
+ *
+ *  - No `query` arg: return fuzzy auto-suggestions based on the product's own
+ *    title (longest tokens). Good as a "smart default" when the modal opens.
+ *  - With `query`: return substring matches against title, handle, and store
+ *    domain — same behaviour as the dashboard search. Lets users type short
+ *    strings like "A5" or "v1" that wouldn't survive token filtering.
+ *
+ * Either way, products already in the same group are excluded.
  */
-export async function getLinkCandidates(productId: string, limit = 20) {
+export async function getLinkCandidates(
+  productId: string,
+  limit = 20,
+  query?: string,
+) {
   const [self] = await db
     .select()
     .from(schema.trackedProducts)
@@ -110,7 +120,34 @@ export async function getLinkCandidates(productId: string, limit = 20) {
     .limit(1);
   if (!self) return [];
 
-  // Use the longest word from the title as a search signal.
+  const trimmedQuery = query?.trim().toLowerCase() ?? "";
+
+  type Row = {
+    id: string;
+    title: string | null;
+    store_domain: string;
+    image_url: string | null;
+  };
+
+  // Substring search mode — used when the modal's input has any text.
+  if (trimmedQuery.length > 0) {
+    const pattern = `%${trimmedQuery}%`;
+    const candidates = await db.execute<Row>(sql`
+      SELECT id, title, store_domain, image_url
+      FROM tracked_products p
+      WHERE p.id != ${productId}::uuid
+        AND (p.group_id IS NULL OR p.group_id != COALESCE(${self.groupId}::uuid, '00000000-0000-0000-0000-000000000000'::uuid))
+        AND (
+          LOWER(COALESCE(title, '')) LIKE ${pattern}
+          OR LOWER(handle) LIKE ${pattern}
+          OR LOWER(store_domain) LIKE ${pattern}
+        )
+      LIMIT ${limit}
+    `);
+    return Array.from(candidates);
+  }
+
+  // Auto-suggest mode — match on the product's own longest tokens.
   const title = (self.title ?? self.handle).toLowerCase();
   const tokens = title
     .split(/[^a-z0-9]+/)
@@ -120,15 +157,11 @@ export async function getLinkCandidates(productId: string, limit = 20) {
 
   if (tokens.length === 0) return [];
 
-  // ILIKE any of the tokens — already-linked products are excluded server-side.
-  const orClauses = tokens.map((t) => `LOWER(p.title) LIKE '%${t.replace(/'/g, "''")}%'`).join(" OR ");
+  const orClauses = tokens
+    .map((t) => `LOWER(p.title) LIKE '%${t.replace(/'/g, "''")}%'`)
+    .join(" OR ");
 
-  const candidates = await db.execute<{
-    id: string;
-    title: string | null;
-    store_domain: string;
-    image_url: string | null;
-  }>(sql`
+  const candidates = await db.execute<Row>(sql`
     SELECT id, title, store_domain, image_url
     FROM tracked_products p
     WHERE p.id != ${productId}::uuid

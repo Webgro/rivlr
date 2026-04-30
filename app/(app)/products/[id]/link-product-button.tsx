@@ -19,24 +19,38 @@ export function LinkProductButton({ productId }: { productId: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  // Load candidates when opening.
+  // Server-side search: refetch on every input change (debounced) so short
+  // strings like 'A5' or 'v1' work — they wouldn't survive client-side
+  // token filtering.
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch(`/api/products/link-candidates?id=${productId}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data: { candidates: Candidate[] }) => setCandidates(data.candidates ?? []))
-      .catch(() => setCandidates([]))
-      .finally(() => setLoading(false));
-  }, [open, productId]);
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ id: productId });
+      const q = query.trim();
+      if (q) params.set("q", q);
+      fetch(`/api/products/link-candidates?${params}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      })
+        .then((r) => r.json())
+        .then((data: { candidates: Candidate[] }) =>
+          setCandidates(data.candidates ?? []),
+        )
+        .catch(() => {
+          // Ignore — likely abort from the next keystroke.
+        })
+        .finally(() => setLoading(false));
+    }, 200); // small debounce
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [open, productId, query]);
 
-  const filtered = query.trim()
-    ? candidates.filter(
-        (c) =>
-          (c.title ?? "").toLowerCase().includes(query.toLowerCase()) ||
-          c.store_domain.toLowerCase().includes(query.toLowerCase()),
-      )
-    : candidates;
+  // No client-side filtering anymore — the server returns the right set.
+  const filtered = candidates;
 
   function handleLink(otherId: string) {
     const fd = new FormData();
