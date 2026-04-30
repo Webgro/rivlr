@@ -229,6 +229,24 @@ export type Tag = typeof tags.$inferSelect;
 export type ProductGroup = typeof productGroups.$inferSelect;
 export type AlertLog = typeof alertLog.$inferSelect;
 export type LinkSuggestion = typeof linkSuggestions.$inferSelect;
+export type WaitlistEntry = typeof waitlist.$inferSelect;
+
+/**
+ * Pre-launch waitlist. Phase 3 (Stripe billing) replaces this with a real
+ * signup flow; until then we just collect email + optional store/URL so
+ * we can email people when launch is ready.
+ */
+export const waitlist = pgTable(
+  "waitlist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    storeUrl: text("store_url"),
+    source: text("source"), // 'hero' | 'demo' | 'pricing' | 'footer'
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_waitlist_email").on(t.email)],
+);
 
 /** Available tag colours. Keep in sync with TAG_COLOURS in components/tag-chip.tsx */
 export const TAG_COLOR_NAMES = [

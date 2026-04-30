@@ -39,9 +39,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Public-facing pages (legal, help) don't require auth — they need to be
-  // shareable externally and crawlable by search engines.
+  // Public-facing pages (legal, help, marketing landing, signup, preview API)
+  // don't require auth — shareable externally and crawlable by search engines.
   if (
+    pathname === "/" ||
+    pathname === "/signup" ||
+    pathname.startsWith("/api/preview") ||
+    pathname.startsWith("/api/waitlist") ||
     pathname.startsWith("/legal/") ||
     pathname === "/legal" ||
     pathname.startsWith("/help/") ||
@@ -61,12 +65,6 @@ export function proxy(request: NextRequest) {
       loginUrl.searchParams.set("next", pathname);
     }
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Authed visit to root → take them straight to /dashboard.
-  // Phase 5 will replace this when the marketing landing lands at /.
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
