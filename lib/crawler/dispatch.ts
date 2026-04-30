@@ -27,10 +27,22 @@ import { sendAlertsForChange } from "./alerts";
  * limits, not CPU. Comfortably under the 60s function budget.
  */
 
+// Tuned for Vercel Pro (300s function budget, more concurrent invocations).
+// 20 parallel batches × 10 products = 200 products per dispatch invocation.
+// Combined with the every-5-min cron in vercel.json, that's ~57k crawls/day
+// of capacity — comfortably above an hourly cadence on a few thousand
+// products.
 const BATCH_SIZE = 10;
-const PARALLEL_BATCHES = 5;
+const PARALLEL_BATCHES = 20;
 const MAX_PRODUCTS_PER_DISPATCH = BATCH_SIZE * PARALLEL_BATCHES;
 const PER_STORE_MS = 1000;
+// Re-crawl any product older than this. 55min so the every-5-min cron will
+// pick each product up at least once per hour.
+const COOLDOWN_MS = 55 * 60 * 1000;
+// Auto-pause a product after this many consecutive crawl failures so dead
+// URLs (deleted competitor products) don't infinite-retry. User can manually
+// resume from the detail page if it was a transient issue.
+const AUTO_PAUSE_THRESHOLD = 3;
 
 interface DispatchResult {
   scheduled: number;
@@ -44,7 +56,7 @@ export async function dispatchCrawl(opts: {
 }): Promise<DispatchResult> {
   const { force = false } = opts;
   const now = new Date();
-  const cutoff = new Date(now.getTime() - 23 * 60 * 60 * 1000);
+  const cutoff = new Date(now.getTime() - COOLDOWN_MS);
 
   const due = await db
     .select({ id: schema.trackedProducts.id })
@@ -198,6 +210,10 @@ async function processBatch(
           currency,
           variantsSnapshot,
           lastCrawledAt: new Date(),
+          // Reset failure counter on success.
+          consecutiveFailures: 0,
+          autoPausedAt: null,
+          lastError: null,
         })
         .where(eq(schema.trackedProducts.id, product.id));
 
@@ -233,11 +249,19 @@ async function processBatch(
         })
         .where(eq(schema.crawlJobs.id, job.id));
 
-      // Even on failure, set last_crawled_at so the 23h cooldown applies and
-      // dead URLs don't infinite-retry.
+      // Increment consecutive_failures; auto-pause if we've hit the threshold.
+      const newFailures = product.consecutiveFailures + 1;
+      const shouldPause = newFailures >= AUTO_PAUSE_THRESHOLD;
       await db
         .update(schema.trackedProducts)
-        .set({ lastCrawledAt: new Date() })
+        .set({
+          lastCrawledAt: new Date(),
+          consecutiveFailures: newFailures,
+          lastError: message.slice(0, 500),
+          ...(shouldPause
+            ? { active: false, autoPausedAt: new Date() }
+            : {}),
+        })
         .where(eq(schema.trackedProducts.id, product.id));
 
       failed += 1;

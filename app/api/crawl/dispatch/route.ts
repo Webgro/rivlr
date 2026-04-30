@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Pro plan allows up to 800s; 300 is plenty for a 200-product dispatch even
+// with stores that respond slowly.
+export const maxDuration = 300;
 
 /**
  * Cron entry — Vercel Cron sends Authorization: Bearer ${CRON_SECRET}.

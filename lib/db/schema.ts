@@ -62,6 +62,19 @@ export const trackedProducts = pgTable(
       >()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /**
+     * Consecutive crawl failures. Reset to 0 on success, incremented on
+     * failure. When this hits AUTO_PAUSE_THRESHOLD the crawler sets
+     * `active = false` so dead URLs stop infinite-retrying.
+     */
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    /**
+     * Set when the product was auto-paused due to repeated crawl failures
+     * (vs manually paused). Lets us show a different UI badge.
+     */
+    autoPausedAt: timestamp("auto_paused_at", { withTimezone: true }),
+    /** Last error message recorded for this product, for diagnostics. */
+    lastError: text("last_error"),
   },
   (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
 );
