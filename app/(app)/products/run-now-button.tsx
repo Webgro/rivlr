@@ -9,10 +9,10 @@ export function RunNowButton() {
   const [msg, setMsg] = useState<string | null>(null);
   const router = useRouter();
 
-  function trigger(force: boolean) {
+  function trigger() {
     setMsg(null);
     startTransition(async () => {
-      const result = await runCrawlNow(force);
+      const result = await runCrawlNow(false);
       if (result.ok) {
         setMsg(
           result.scheduled > 0
@@ -32,27 +32,10 @@ export function RunNowButton() {
       <button
         type="button"
         disabled={pending}
-        onClick={() => trigger(false)}
+        onClick={trigger}
         className="rounded-md border border-default bg-elevated px-3 py-2 text-sm font-medium transition hover:border-strong disabled:opacity-50"
       >
         {pending ? "Running…" : "Run crawl now"}
-      </button>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => {
-          if (
-            confirm(
-              "Force re-crawl all active products (ignores 23h cooldown)? Use this after pricing/currency fixes to refresh stale data.",
-            )
-          ) {
-            trigger(true);
-          }
-        }}
-        title="Force re-crawl every product, ignoring the 23h cooldown"
-        className="rounded-md border border-default bg-elevated px-2 py-2 text-xs text-muted transition hover:border-strong hover:text-foreground disabled:opacity-50"
-      >
-        ↻ Force all
       </button>
     </div>
   );

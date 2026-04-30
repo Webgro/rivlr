@@ -83,6 +83,46 @@ export function parseShopifyUrl(input: string): ParsedShopifyUrl | null {
   return { storeDomain, handle, productJsUrl };
 }
 
+export interface ParsedShopifyCollectionUrl {
+  storeDomain: string;
+  handle: string;
+}
+
+/**
+ * Parses a Shopify collection URL. Accepts:
+ *  https://store.com/collections/dog-food
+ *  https://store.com/collections/dog-food?page=2
+ *  https://store.com/en-gb/collections/dog-food
+ *
+ * Note: a collection URL that ALSO has /products/x in it (e.g.
+ * /collections/dog-food/products/widget) parses as a product URL via
+ * parseShopifyUrl — try product parsing first.
+ */
+export function parseShopifyCollectionUrl(
+  input: string,
+): ParsedShopifyCollectionUrl | null {
+  let url: URL;
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+
+  // Reject if this is also a product URL — caller should use parseShopifyUrl.
+  if (/\/products\/[a-z0-9-]+/i.test(url.pathname)) return null;
+
+  // Match /collections/<handle> (with optional locale prefix).
+  const match = url.pathname.match(
+    /(?:^|\/)collections\/([a-z0-9][a-z0-9-]*)(?:\/|$|\?)/i,
+  );
+  if (!match) return null;
+
+  const handle = match[1].toLowerCase();
+  const storeDomain = url.hostname.toLowerCase();
+  return { storeDomain, handle };
+}
+
 const RIVLR_USER_AGENT =
   "Mozilla/5.0 (compatible; RivlrBot/1.0; +https://rivlr.app/bot)";
 
@@ -119,6 +159,49 @@ export async function fetchShopifyProduct(
     throw new Error("Shopify response missing required fields");
   }
   return data;
+}
+
+/**
+ * Fetches all products in a Shopify collection by paginating through the
+ * /collections/{handle}/products.json endpoint. Returns the list of product
+ * handles (which we turn into tracked URLs in the add flow).
+ *
+ * The endpoint is publicly available on every Shopify store and returns up
+ * to 250 products per page. We cap at MAX_PAGES to avoid runaway adds — a
+ * single collection of 5000+ items is rarely the right thing to bulk-track.
+ *
+ * Politeness: 1s delay between page fetches.
+ */
+export async function fetchShopifyCollection(
+  storeDomain: string,
+  handle: string,
+  opts: { maxProducts?: number } = {},
+): Promise<Array<{ handle: string; title: string }>> {
+  const { maxProducts = 1000 } = opts;
+  const results: Array<{ handle: string; title: string }> = [];
+  const PER_PAGE = 250;
+  const MAX_PAGES = Math.ceil(maxProducts / PER_PAGE);
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const url = `https://${storeDomain}/collections/${handle}/products.json?limit=${PER_PAGE}&page=${page}`;
+    const res = await fetch(url, {
+      headers: RIVLR_HEADERS,
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      throw new Error(`Collection fetch failed: ${res.status} ${res.statusText}`);
+    }
+    const data = (await res.json()) as {
+      products: Array<{ handle: string; title: string }>;
+    };
+    if (!data.products || data.products.length === 0) break;
+    results.push(...data.products.map((p) => ({ handle: p.handle, title: p.title })));
+    if (data.products.length < PER_PAGE) break;
+    if (results.length >= maxProducts) break;
+    await new Promise((r) => setTimeout(r, 1000)); // polite delay
+  }
+
+  return results.slice(0, maxProducts);
 }
 
 /**

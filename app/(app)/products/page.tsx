@@ -22,6 +22,8 @@ type SearchParams = Promise<{
   added?: string;
   failed?: string;
   dup?: string;
+  col?: string;
+  exp?: string;
 }>;
 
 async function getDashboardData(params: {
@@ -361,8 +363,8 @@ export default async function DashboardPage(props: {
               : totalCount === 0 && !params.q && !params.store && !params.tag
                 ? "Nothing tracked yet."
                 : totalPages > 1
-                  ? `${totalCount} product${totalCount === 1 ? "" : "s"} · page ${page} of ${totalPages} · daily crawl at 04:00 GMT`
-                  : `${totalCount} product${totalCount === 1 ? "" : "s"} · daily crawl at 04:00 GMT`}
+                  ? `${totalCount} product${totalCount === 1 ? "" : "s"} · page ${page} of ${totalPages}`
+                  : `${totalCount} product${totalCount === 1 ? "" : "s"}`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -619,12 +621,20 @@ function buildBanner(params: {
   added?: string;
   failed?: string;
   dup?: string;
+  col?: string;
+  exp?: string;
 }) {
   const added = Number(params.added ?? 0);
   const failed = Number(params.failed ?? 0);
   const dup = Number(params.dup ?? 0);
-  if (!added && !failed && !dup) return null;
+  const col = Number(params.col ?? 0);
+  const exp = Number(params.exp ?? 0);
+  if (!added && !failed && !dup && !col) return null;
   const parts: string[] = [];
+  if (col > 0)
+    parts.push(
+      `${col} collection${col === 1 ? "" : "s"} expanded → ${exp} product${exp === 1 ? "" : "s"}`,
+    );
   if (added) parts.push(`✓ ${added} added`);
   if (dup) parts.push(`${dup} duplicate${dup === 1 ? "" : "s"} skipped`);
   if (failed) parts.push(`${failed} failed`);
