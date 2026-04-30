@@ -1,81 +1,101 @@
 /**
- * Subtle radar-grid background. Dots arranged on a coordinate grid with a
- * single 'live' dot pulsing in red — implies an ongoing sweep without
- * being noisy. Pure SVG + CSS keyframes; no JS.
+ * Hero background. Replaced the busy radar dot-grid with a cleaner two-glow
+ * gradient mesh + a slow vertical scan line. Higher contrast for the
+ * foreground text, more cinematic for the brand.
  */
 export function RadarBackground() {
-  // Build the dot grid procedurally so we don't have to hand-position
-  // hundreds of circles.
-  const cols = 28;
-  const rows = 18;
-  const spacing = 60;
-  const dots: { x: number; y: number; key: string }[] = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      dots.push({ x: c * spacing, y: r * spacing, key: `${r}-${c}` });
-    }
-  }
-  // Pick a few "active" dots that pulse red.
-  const activeKeys = new Set(["3-7", "9-19", "13-3", "5-22", "11-13"]);
-
   return (
     <div
       aria-hidden
       className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
     >
+      {/* Top-right red signal glow — establishes the brand accent */}
+      <div
+        style={{
+          position: "absolute",
+          top: "-15%",
+          right: "-10%",
+          width: "70vw",
+          height: "70vh",
+          background:
+            "radial-gradient(closest-side, rgba(255,59,48,0.18), rgba(255,59,48,0))",
+          filter: "blur(60px)",
+        }}
+      />
+      {/* Bottom-left cooler glow — depth without competing */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-20%",
+          left: "-15%",
+          width: "60vw",
+          height: "60vh",
+          background:
+            "radial-gradient(closest-side, rgba(40,40,80,0.4), rgba(0,0,0,0))",
+          filter: "blur(80px)",
+        }}
+      />
+      {/* Subtle constellation lines — fixed positions, low opacity, only
+          implies network/intel without the dot-grid noise */}
       <svg
         width="100%"
         height="100%"
-        viewBox={`0 0 ${cols * spacing} ${rows * spacing}`}
+        viewBox="0 0 1600 900"
         preserveAspectRatio="xMidYMid slice"
-        className="opacity-[0.5]"
+        className="absolute inset-0"
+        style={{ opacity: 0.35 }}
       >
         <defs>
-          <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+          <linearGradient id="line-fade" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-            <stop offset="100%" stopColor="rgba(0,0,0,1)" />
-          </radialGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
+            <stop offset="50%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+          </linearGradient>
         </defs>
-        {dots.map((d) => {
-          const active = activeKeys.has(d.key);
-          return (
-            <circle
-              key={d.key}
-              cx={d.x}
-              cy={d.y}
-              r={active ? 2 : 1}
-              fill={active ? "#ff3b30" : "rgba(255,255,255,0.16)"}
-              filter={active ? "url(#glow)" : undefined}
-              className={active ? "radar-pulse" : undefined}
-            />
-          );
-        })}
-        <rect
-          width={cols * spacing}
-          height={rows * spacing}
-          fill="url(#vignette)"
-        />
+        {/* A few hand-placed constellation segments — too few to feel busy,
+            enough to feel like there's something being plotted */}
+        <line x1="120" y1="80" x2="380" y2="180" stroke="url(#line-fade)" strokeWidth="1" />
+        <line x1="380" y1="180" x2="620" y2="120" stroke="url(#line-fade)" strokeWidth="1" />
+        <line x1="1100" y1="200" x2="1380" y2="160" stroke="url(#line-fade)" strokeWidth="1" />
+        <line x1="180" y1="700" x2="440" y2="780" stroke="url(#line-fade)" strokeWidth="1" />
+        <line x1="980" y1="720" x2="1240" y2="640" stroke="url(#line-fade)" strokeWidth="1" />
+        {/* Small node points at line vertices */}
+        {[
+          [120, 80], [380, 180], [620, 120], [1100, 200], [1380, 160],
+          [180, 700], [440, 780], [980, 720], [1240, 640],
+        ].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={1.5} fill="rgba(255,255,255,0.5)" />
+        ))}
       </svg>
+
+      {/* Slow vertical scan line — gives the "live monitoring" feel */}
+      <div className="scan-line" />
+
       <style>{`
-        @keyframes radar-pulse {
-          0%, 100% { opacity: 0.3; r: 1.5; }
-          50% { opacity: 1; r: 3; }
+        .scan-line {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 240px;
+          background: linear-gradient(
+            to bottom,
+            transparent 0%,
+            rgba(255, 59, 48, 0.04) 45%,
+            rgba(255, 59, 48, 0.08) 50%,
+            rgba(255, 59, 48, 0.04) 55%,
+            transparent 100%
+          );
+          animation: scan 9s ease-in-out infinite;
+          pointer-events: none;
         }
-        .radar-pulse {
-          animation: radar-pulse 3s ease-in-out infinite;
-          transform-origin: center;
+        @keyframes scan {
+          0% { transform: translateY(-30vh); }
+          100% { transform: translateY(140vh); }
         }
-        .radar-pulse:nth-of-type(2) { animation-delay: 0.4s; }
-        .radar-pulse:nth-of-type(3) { animation-delay: 1.1s; }
-        .radar-pulse:nth-of-type(4) { animation-delay: 1.8s; }
-        .radar-pulse:nth-of-type(5) { animation-delay: 2.5s; }
+        @media (prefers-reduced-motion: reduce) {
+          .scan-line { display: none; }
+        }
       `}</style>
     </div>
   );

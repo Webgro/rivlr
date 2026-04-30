@@ -1,22 +1,45 @@
+import { db } from "@/lib/db";
+import { sql } from "drizzle-orm";
+
 /**
- * Live status pill — small green-on-near-black indicator that adds the
- * "we're watching right now" texture. The dot pulses, the text shows a
- * recent sweep timestamp.
+ * Live status pill rendered into the hero. Pulls REAL counts from the DB:
+ * how many products Rivlr is currently tracking and how many distinct
+ * stores. Makes the marketing page feel alive — and proves the product
+ * works at scale before the visitor signs up.
  */
-export function LivePill() {
-  // Format current time as HH:MM in GMT — same on server + client because
-  // we use UTC. Renders consistent without hydration mismatch.
-  const now = new Date();
-  const hh = String(now.getUTCHours()).padStart(2, "0");
-  const mm = String(now.getUTCMinutes()).padStart(2, "0");
+export async function LivePill() {
+  let trackedCount = 0;
+  let storeCount = 0;
+  try {
+    const [row] = await db.execute<{ products: number; stores: number }>(sql`
+      SELECT
+        COUNT(*)::int AS products,
+        COUNT(DISTINCT store_domain)::int AS stores
+      FROM tracked_products
+      WHERE active = true
+    `);
+    trackedCount = row?.products ?? 0;
+    storeCount = row?.stores ?? 0;
+  } catch {
+    // Silent fall-through to generic pill.
+  }
 
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-[#0d0d0d] pl-2.5 pr-3 py-1 text-[10px] uppercase tracking-[0.18em] font-mono text-neutral-400">
+    <span className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-[#0d0d0d] pl-2.5 pr-3 py-1 text-[10px] uppercase tracking-[0.18em] font-mono text-neutral-300">
       <span className="relative flex h-1.5 w-1.5">
         <span className="absolute inline-flex h-full w-full rounded-full bg-signal opacity-75 animate-ping" />
         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal" />
       </span>
-      Intel online · last sweep {hh}:{mm} GMT
+      {trackedCount > 0 ? (
+        <>
+          Tracking{" "}
+          <span className="text-paper">{trackedCount.toLocaleString()}</span>{" "}
+          products across{" "}
+          <span className="text-paper">{storeCount}</span> stores · right now
+        </>
+      ) : (
+        <>Intel online</>
+      )}
     </span>
   );
 }

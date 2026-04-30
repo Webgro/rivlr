@@ -135,13 +135,13 @@ export default async function MarketingPage() {
         <div className="max-w-4xl">
           <LivePill />
 
-          <h1 className="mt-8 text-5xl md:text-7xl lg:text-[88px] font-semibold tracking-tight leading-[0.94]">
-            Watch your{" "}
+          <h1 className="mt-8 text-5xl md:text-7xl lg:text-[88px] font-semibold tracking-tight leading-[0.94] text-paper">
+            Track any{" "}
             <span
               className="relative inline-block"
               style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400 }}
             >
-              rivals
+              competitor
               {/* Target dot above the word */}
               <span
                 className="absolute -top-3 left-1/2 -translate-x-1/2 h-2.5 w-2.5 rounded-full bg-signal"
@@ -151,41 +151,41 @@ export default async function MarketingPage() {
                 className="absolute -top-3 left-1/2 -translate-x-1/2 h-2.5 w-2.5 rounded-full bg-signal animate-ping opacity-50"
                 aria-hidden
               />
-            </span>
+            </span>{" "}
+            product.
             <br />
-            move first.
+            <span className="text-neutral-400">In real time.</span>
           </h1>
 
           {/* SEO-loaded subhead — picked up by search engines but still on-tone. */}
-          <h2 className="mt-6 text-base md:text-lg text-neutral-500 font-mono uppercase tracking-[0.15em]">
-            The Shopify competitor price &amp; stock tracker, built for
-            operators.
+          <h2 className="mt-6 text-base md:text-lg text-neutral-300 font-mono uppercase tracking-[0.15em]">
+            The Shopify competitor price &amp; stock tracker.
           </h2>
 
-          <p className="mt-8 text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed">
-            Rivlr surveils your competitors&apos; Shopify stores. Prices,
-            stock, sales velocity, checked every hour and surfaced
-            instantly. You act on signal, not feelings.
+          <p className="mt-8 text-lg md:text-xl text-neutral-300 max-w-2xl leading-relaxed">
+            Paste a competitor product URL. We&apos;ll show you the live
+            price, stock and variant count right now. One click, you
+            track it forever.
           </p>
 
           {/* Embedded demo — the URL field IS the CTA */}
           <div className="mt-10 max-w-3xl">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 font-mono">
-                Try it on a real product
+              <span className="text-[11px] uppercase tracking-[0.2em] text-paper font-mono">
+                ↓ Paste a competitor URL
               </span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600 font-mono">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 font-mono">
                 No signup · live data
               </span>
             </div>
             <HeroDemo />
           </div>
 
-          <div className="mt-8 flex items-center gap-6 text-xs text-neutral-500 font-mono">
+          <div className="mt-8 flex items-center gap-6 text-xs text-neutral-400 font-mono">
             <span>Free up to 5 products</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-700" />
+            <span className="h-1 w-1 rounded-full bg-neutral-600" />
             <span>No credit card</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-700" />
+            <span className="h-1 w-1 rounded-full bg-neutral-600" />
             <span>Cancel anytime</span>
           </div>
         </div>
