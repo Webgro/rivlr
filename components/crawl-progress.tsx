@@ -11,16 +11,42 @@ interface Status {
   pendingFirstCrawl: number;
 }
 
+const STORAGE_KEY = "rivlr-crawl-widget-min";
+
 /**
  * Floating bottom-right widget that polls /api/crawl/status while there's
- * work in flight. Auto-hides when the queue empties (with a brief 'done'
- * confirmation). Refreshes the dashboard once everything settles so new
- * data appears without a manual reload.
+ * work in flight. Two display modes:
+ *   - Expanded: full card with progress bar and per-status counts
+ *   - Minimised: small pill showing just '◐ 47%' — click to expand again
+ *
+ * Minimisation is persisted to localStorage so the user's preference
+ * sticks across navigation and reloads.
  */
 export function CrawlProgress() {
   const [status, setStatus] = useState<Status | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [minimised, setMinimised] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const router = useRouter();
+
+  // Hydrate the minimised preference from localStorage on mount.
+  useEffect(() => {
+    try {
+      setMinimised(localStorage.getItem(STORAGE_KEY) === "1");
+    } catch {
+      // ignore
+    }
+    setHydrated(true);
+  }, []);
+
+  function setMin(value: boolean) {
+    setMinimised(value);
+    try {
+      localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     let stopped = false;
@@ -37,7 +63,6 @@ export function CrawlProgress() {
         const active =
           data.pending > 0 || data.running > 0 || data.pendingFirstCrawl > 0;
 
-        // Transitioned active → idle: refresh dashboard, flash 'done'.
         if (lastActive && !active) {
           setShowDone(true);
           router.refresh();
@@ -45,7 +70,7 @@ export function CrawlProgress() {
         }
         lastActive = active;
       } catch {
-        // ignore — next tick will try again
+        // ignore
       }
     }
 
@@ -57,11 +82,14 @@ export function CrawlProgress() {
     };
   }, [router]);
 
+  if (!hydrated) return null;
   if (!status) return null;
 
   const active = status.pending + status.running + status.pendingFirstCrawl;
   if (active === 0 && !showDone) return null;
 
+  // 'Done' confirmation always shows even when minimised (it auto-disappears
+  // after 4s anyway).
   if (showDone && active === 0) {
     return (
       <div className="fixed bottom-5 right-5 z-50 rounded-lg border border-default bg-elevated px-4 py-3 shadow-lg flex items-center gap-3">
@@ -80,13 +108,50 @@ export function CrawlProgress() {
   const done = status.ok + status.failed;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
+  if (minimised) {
+    return (
+      <button
+        type="button"
+        onClick={() => setMin(false)}
+        title="Expand crawl progress"
+        className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 rounded-full border border-default bg-elevated pl-2 pr-3.5 py-1.5 shadow-lg hover:border-strong transition"
+      >
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-signal opacity-75 animate-ping" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
+        </span>
+        <span className="text-xs font-mono text-muted-strong">
+          Crawl {pct}%
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-5 right-5 z-50 w-80 rounded-lg border border-default bg-elevated p-4 shadow-xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="text-xs uppercase tracking-wider text-muted font-mono">
           Crawling
         </div>
-        <div className="text-xs font-mono text-muted">{pct}%</div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-muted">{pct}%</span>
+          <button
+            type="button"
+            onClick={() => setMin(true)}
+            title="Minimise"
+            aria-label="Minimise"
+            className="rounded p-0.5 text-muted hover:text-foreground hover:bg-surface"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M2 6h8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 h-1.5 w-full rounded-full bg-surface overflow-hidden">
