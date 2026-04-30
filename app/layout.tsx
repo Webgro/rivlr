@@ -21,9 +21,19 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rivlr.app"),
   title: "Rivlr · competitive intel for Shopify",
   description:
     "Track competitor prices, stock levels and sales velocity across Shopify stores.",
+  // Add a Google Search Console verification token by setting
+  // GOOGLE_SITE_VERIFICATION in Vercel env vars.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? {
+        verification: {
+          google: process.env.GOOGLE_SITE_VERIFICATION,
+        },
+      }
+    : {}),
 };
 
 export default function RootLayout({
