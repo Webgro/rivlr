@@ -46,6 +46,7 @@ export function proxy(request: NextRequest) {
     pathname === "/signup" ||
     pathname.startsWith("/api/preview") ||
     pathname.startsWith("/api/waitlist") ||
+    pathname.startsWith("/api/public/") ||
     pathname.startsWith("/legal/") ||
     pathname === "/legal" ||
     pathname.startsWith("/help/") ||
