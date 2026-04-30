@@ -21,7 +21,7 @@ export default function AppLayout({
   return (
     <div className="min-h-screen bg-surface text-foreground">
       <Sidebar />
-      <main className="md:ml-56">{children}</main>
+      <main className="md:ml-60">{children}</main>
       {panel}
       <CrawlProgress />
       <CookieBanner />
