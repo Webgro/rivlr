@@ -76,7 +76,7 @@ export async function IntelTicker() {
       </div>
       <style>{`
         .ticker-track {
-          animation: ticker-scroll 90s linear infinite;
+          animation: ticker-scroll 240s linear infinite;
           width: max-content;
         }
         @keyframes ticker-scroll {
@@ -85,7 +85,7 @@ export async function IntelTicker() {
         }
         @media (prefers-reduced-motion: reduce) {
           .ticker-track {
-            animation-duration: 360s;
+            animation-duration: 600s;
           }
         }
       `}</style>

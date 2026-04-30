@@ -9,9 +9,80 @@ import { IntelTicker } from "./(marketing)/intel-ticker";
 import { SectionIndex, DotDivider } from "./(marketing)/section-index";
 
 export const metadata = {
-  title: "Rivlr · competitive intel for Shopify",
+  title: "Shopify Competitor Price & Stock Tracker | Rivlr",
   description:
-    "Track competitor prices, stock levels, and sales velocity across Shopify stores. Hourly checks, instant alerts, no spreadsheet babysitting.",
+    "Track competitor product prices, stock levels, and sales velocity across Shopify stores. Hourly updates, instant alerts, no spreadsheet babysitting. Try free.",
+  keywords: [
+    "shopify competitor price tracker",
+    "competitor price tracker",
+    "shopify price monitoring",
+    "competitor stock tracker",
+    "competitor inventory tracker",
+    "ecommerce competitor analysis",
+    "track competitor prices",
+    "shopify stock monitoring",
+  ],
+  openGraph: {
+    title: "Shopify Competitor Price & Stock Tracker | Rivlr",
+    description:
+      "Track competitor product prices, stock levels, and sales velocity across Shopify stores. Hourly updates, instant alerts.",
+    url: "https://rivlr.app",
+    siteName: "Rivlr",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shopify Competitor Price & Stock Tracker | Rivlr",
+    description:
+      "Hourly competitor price and stock tracking for Shopify operators. Try free.",
+  },
+};
+
+const SOFTWARE_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Rivlr",
+  applicationCategory: "BusinessApplication",
+  applicationSubCategory: "CompetitiveIntelligence",
+  operatingSystem: "Web",
+  description:
+    "Shopify competitor price and stock tracker. Hourly updates on prices, inventory levels, and sales velocity, with instant email alerts when something changes.",
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Free",
+      price: "0",
+      priceCurrency: "GBP",
+      description: "5 tracked products, daily crawl",
+    },
+    {
+      "@type": "Offer",
+      name: "Starter",
+      price: "14.99",
+      priceCurrency: "GBP",
+      description: "50 tracked products, daily crawl",
+    },
+    {
+      "@type": "Offer",
+      name: "Growth",
+      price: "29.99",
+      priceCurrency: "GBP",
+      description: "150 tracked products, every 6 hours",
+    },
+    {
+      "@type": "Offer",
+      name: "Pro",
+      price: "59.99",
+      priceCurrency: "GBP",
+      description: "400 tracked products, hourly crawl",
+    },
+  ],
+  publisher: {
+    "@type": "Organization",
+    name: "Webgro Ltd",
+    url: "https://rivlr.app",
+  },
+  url: "https://rivlr.app",
 };
 
 export default async function MarketingPage() {
@@ -21,6 +92,10 @@ export default async function MarketingPage() {
 
   return (
     <div className="relative min-h-screen bg-[#0a0a0a] text-paper overflow-hidden" data-theme="dark">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_LD) }}
+      />
       <RadarBackground />
 
       {/* Sticky nav with bigger wordmark */}
@@ -80,6 +155,12 @@ export default async function MarketingPage() {
             <br />
             move first.
           </h1>
+
+          {/* SEO-loaded subhead — picked up by search engines but still on-tone. */}
+          <h2 className="mt-6 text-base md:text-lg text-neutral-500 font-mono uppercase tracking-[0.15em]">
+            The Shopify competitor price &amp; stock tracker, built for
+            operators.
+          </h2>
 
           <p className="mt-8 text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed">
             Rivlr surveils your competitors&apos; Shopify stores. Prices,

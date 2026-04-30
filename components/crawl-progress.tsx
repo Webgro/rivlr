@@ -50,35 +50,71 @@ export function CrawlProgress() {
 
   useEffect(() => {
     let stopped = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let lastActive = false;
 
+    /**
+     * Adaptive polling: fast (3s) when there's work in flight, slow (30s)
+     * when idle, even slower (60s) when also out of view. Cuts idle
+     * /api/crawl/status invocations by ~10x — used to be 20/min while a
+     * dashboard was open with nothing happening.
+     */
     async function poll() {
+      if (stopped) return;
+      let nextDelay = 30_000; // assume idle
       try {
         const res = await fetch("/api/crawl/status", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as Status;
-        if (stopped) return;
-        setStatus(data);
+        if (res.ok) {
+          const data = (await res.json()) as Status;
+          if (!stopped) {
+            setStatus(data);
+            const active =
+              data.pending > 0 ||
+              data.running > 0 ||
+              data.pendingFirstCrawl > 0;
 
-        const active =
-          data.pending > 0 || data.running > 0 || data.pendingFirstCrawl > 0;
-
-        if (lastActive && !active) {
-          setShowDone(true);
-          router.refresh();
-          setTimeout(() => setShowDone(false), 4000);
+            if (lastActive && !active) {
+              setShowDone(true);
+              router.refresh();
+              setTimeout(() => setShowDone(false), 4000);
+            }
+            lastActive = active;
+            nextDelay = active ? 3_000 : 30_000;
+          }
         }
-        lastActive = active;
       } catch {
-        // ignore
+        nextDelay = 60_000; // back off on error
+      }
+
+      // Pause polling while the tab is hidden — saves invocations when the
+      // user has the dashboard open in a background tab.
+      if (typeof document !== "undefined" && document.hidden) {
+        nextDelay = 120_000;
+      }
+
+      if (!stopped) {
+        timeoutId = setTimeout(poll, nextDelay);
+      }
+    }
+
+    function onVisibility() {
+      // When the tab becomes visible again, do an immediate poll so users
+      // see fresh data without waiting up to 2 min.
+      if (typeof document !== "undefined" && !document.hidden) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        poll();
       }
     }
 
     poll();
-    const interval = setInterval(poll, 3000);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       stopped = true;
-      clearInterval(interval);
+      if (timeoutId) clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [router]);
 
