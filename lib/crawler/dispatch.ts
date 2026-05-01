@@ -5,6 +5,7 @@ import {
   fetchShopifyCurrency,
   fetchShopifyProductMeta,
   normaliseShopifyTags,
+  inferMarketFromDomain,
   scrapePdp,
   summariseProduct,
   penceToDecimal,
@@ -174,18 +175,27 @@ async function processBatch(
       if (wait > 0) await sleep(wait);
       lastHitByStore.set(product.storeDomain, Date.now());
 
-      let currency = currencyByStore.get(product.storeDomain);
+      // Resolve the market for this product. Per-product override wins;
+      // otherwise infer from the store TLD (.ie → IE/EUR, .co.uk → GB/GBP).
+      const market =
+        product.marketCountry && product.marketCurrency
+          ? { country: product.marketCountry, currency: product.marketCurrency }
+          : inferMarketFromDomain(product.storeDomain);
+
+      // Currency cache key includes market so .ie EUR doesn't share with GB.
+      const currencyKey = `${product.storeDomain}|${market.country}`;
+      let currency = currencyByStore.get(currencyKey);
       if (!currency) {
         try {
-          currency = await fetchShopifyCurrency(product.storeDomain);
+          currency = await fetchShopifyCurrency(product.storeDomain, market);
         } catch {
-          currency = product.currency;
+          currency = product.currency || market.currency;
         }
-        currencyByStore.set(product.storeDomain, currency);
+        currencyByStore.set(currencyKey, currency);
       }
 
       const productJsUrl = `https://${product.storeDomain}/products/${product.handle}.js`;
-      const fetched = await fetchShopifyProduct(productJsUrl);
+      const fetched = await fetchShopifyProduct(productJsUrl, market);
       const snapshot = summariseProduct(fetched);
 
       // Tier 1: refresh meta JSON if >24h stale (vendor, tags, type, etc.)
@@ -194,7 +204,7 @@ async function processBatch(
         Date.now() - new Date(product.lastMetaCrawledAt).getTime() >
           META_COOLDOWN_MS;
       const meta = metaStale
-        ? await fetchShopifyProductMeta(product.storeDomain, product.handle)
+        ? await fetchShopifyProductMeta(product.storeDomain, product.handle, market)
         : null;
 
       // Tier 2: PDP scrape (JSON-LD + review widgets) if >24h stale.
@@ -203,7 +213,7 @@ async function processBatch(
         Date.now() - new Date(product.lastPdpCrawledAt).getTime() >
           META_COOLDOWN_MS;
       const pdp = pdpStale
-        ? await scrapePdp(product.storeDomain, product.handle)
+        ? await scrapePdp(product.storeDomain, product.handle, market)
         : null;
 
       // Pull previous latest observations for change detection.

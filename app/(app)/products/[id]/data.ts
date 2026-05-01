@@ -1,5 +1,6 @@
 import { db, schema, type TagColor } from "@/lib/db";
 import { eq, asc, desc, and, ne, sql } from "drizzle-orm";
+import { getLatestMultiMarketForProduct } from "@/lib/crawler/multi-market";
 
 export type ProductDetailData = NonNullable<
   Awaited<ReturnType<typeof getProductData>>
@@ -13,6 +14,8 @@ export async function getProductData(id: string) {
     .limit(1);
 
   if (!product) return null;
+
+  const multiMarket = await getLatestMultiMarketForProduct(id);
 
   const [priceObs, stockObs, recent, tagMeta] = await Promise.all([
     db
@@ -94,6 +97,7 @@ export async function getProductData(id: string) {
     recent,
     tagColors,
     linkedProducts,
+    multiMarket,
   };
 }
 

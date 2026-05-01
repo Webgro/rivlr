@@ -10,6 +10,34 @@ import { dispatchCrawl } from "@/lib/crawler/dispatch";
 
 // ─── Single-product actions ─────────────────────────────────────────────
 
+/**
+ * Update the market this product is crawled under. Affects the hourly
+ * dispatch (uses these as Shopify Markets cookies). The next crawl will
+ * pick up the new currency. Existing price history retains its original
+ * currency on each row, so the chart shows a discontinuity at the
+ * change-over point — that's intentional, not a bug.
+ */
+export async function setProductMarket(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const id = String(formData.get("id") ?? "");
+  const country = String(formData.get("country") ?? "").trim().toUpperCase();
+  const currency = String(formData.get("currency") ?? "").trim().toUpperCase();
+  if (!id || !/^[A-Z]{2}$/.test(country) || !/^[A-Z]{3}$/.test(currency)) return;
+  await db
+    .update(schema.trackedProducts)
+    .set({
+      marketCountry: country,
+      marketCurrency: currency,
+      // Update the displayed currency immediately so the UI doesn't lag
+      // a crawl behind. Real currency is reconfirmed on next crawl.
+      currency,
+    })
+    .where(eq(schema.trackedProducts.id, id));
+  revalidatePath(`/products/${id}`);
+  revalidatePath("/products");
+}
+
+
 export async function pauseProduct(formData: FormData) {
   if (!(await isAuthed())) redirect("/login");
   const id = String(formData.get("id") ?? "");

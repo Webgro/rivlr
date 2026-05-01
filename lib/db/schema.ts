@@ -129,6 +129,17 @@ export const trackedProducts = pgTable(
     socialProofWidget: text("social_proof_widget"),
     /** Last time we fetched the PDP HTML for JSON-LD/widgets. >24h stale. */
     lastPdpCrawledAt: timestamp("last_pdp_crawled_at", { withTimezone: true }),
+
+    // ─── Market override (Shopify Markets routing) ─────────────────────
+    /** ISO country code (e.g. "IE", "GB", "US") used when this product is
+     *  crawled. Drives the Cookie/Accept-Language headers so Shopify
+     *  Markets returns the right market's price. NULL means use the
+     *  global default (GB/GBP). Set per-product so users can mix .ie /
+     *  .co.uk / .com stores in one watchlist. */
+    marketCountry: text("market_country"),
+    /** ISO currency code (e.g. "EUR", "GBP", "USD") that pairs with the
+     *  marketCountry. When set, the crawl forces this currency. */
+    marketCurrency: text("market_currency"),
   },
   (t) => [
     index("idx_products_store").on(t.storeDomain),
@@ -362,6 +373,39 @@ export type DiscoveredProduct = typeof discoveredProducts.$inferSelect;
 export type Store = typeof stores.$inferSelect;
 export type NewStore = typeof stores.$inferInsert;
 export type StoreSnapshot = typeof storeSnapshots.$inferSelect;
+export type MultiMarketObservation = typeof multiMarketObservations.$inferSelect;
+
+/**
+ * Daily multi-market price/stock snapshots — same product, different
+ * Shopify Markets headers, different price. Powers the "Across markets"
+ * panel on the product detail page so users can spot cross-market markup
+ * arbitrage and currency-conversion lag.
+ *
+ * One row per product per market per day. Latest 30 days kept; older rows
+ * pruned by the daily scan to keep the table bounded.
+ */
+export const multiMarketObservations = pgTable(
+  "multi_market_observations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => trackedProducts.id, { onDelete: "cascade" }),
+    observedAt: timestamp("observed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Country ISO code, e.g. "IE", "US". */
+    country: text("country").notNull(),
+    /** Currency ISO code returned for that market. */
+    currency: text("currency").notNull(),
+    price: numeric("price", { precision: 12, scale: 2 }),
+    available: boolean("available"),
+  },
+  (t) => [
+    index("idx_mm_product_time").on(t.productId, t.observedAt),
+    index("idx_mm_product_country").on(t.productId, t.country),
+  ],
+);
 
 /**
  * Products discovered on stores the user already tracks but not yet in

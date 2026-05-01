@@ -132,26 +132,86 @@ const RIVLR_USER_AGENT =
   "Mozilla/5.0 (compatible; RivlrBot/1.0; +https://rivlr.app/bot)";
 
 /**
- * Headers forcing Shopify to route us to the UK / GBP market when a store
- * has Shopify Markets enabled. Without this, the same store can return
- * USD prices to one request and GBP to the next based on Shopify's geo
- * routing decisions for our (Vercel) IP. The two cookies plus
- * Accept-Language together cover the variants of how stores set the market.
+ * Per-market routing for Shopify Markets. Without these headers, the same
+ * store can return different currencies to different requests based on
+ * Shopify's geo decisions for our (Vercel) egress IP. Sending an explicit
+ * `localization` + `cart_currency` cookie pair, plus an aligned
+ * Accept-Language, pins the market deterministically.
  *
- * If we ever support multiple regions per user, this becomes configurable.
+ * Default: UK / GBP. Per-product overrides flow through `buildMarketHeaders`
+ * — used for .ie stores wanting EUR, .com wanting USD, etc.
  */
-const RIVLR_HEADERS: HeadersInit = {
-  "User-Agent": RIVLR_USER_AGENT,
-  Accept: "application/json",
-  "Accept-Language": "en-GB,en;q=0.9",
-  Cookie: "localization=GB; cart_currency=GBP",
-};
+export interface Market {
+  country: string;  // ISO 3166-1 alpha-2, e.g. "GB", "IE", "US"
+  currency: string; // ISO 4217, e.g. "GBP", "EUR", "USD"
+}
+
+export const DEFAULT_MARKET: Market = { country: "GB", currency: "GBP" };
+
+/** Common markets shown in the per-product picker. Order matters — most
+ *  likely first. Keep in sync with the UI selector. */
+export const COMMON_MARKETS: Array<Market & { label: string }> = [
+  { country: "GB", currency: "GBP", label: "United Kingdom · GBP" },
+  { country: "IE", currency: "EUR", label: "Ireland · EUR" },
+  { country: "US", currency: "USD", label: "United States · USD" },
+  { country: "DE", currency: "EUR", label: "Germany · EUR" },
+  { country: "FR", currency: "EUR", label: "France · EUR" },
+  { country: "ES", currency: "EUR", label: "Spain · EUR" },
+  { country: "IT", currency: "EUR", label: "Italy · EUR" },
+  { country: "NL", currency: "EUR", label: "Netherlands · EUR" },
+  { country: "CA", currency: "CAD", label: "Canada · CAD" },
+  { country: "AU", currency: "AUD", label: "Australia · AUD" },
+  { country: "NZ", currency: "NZD", label: "New Zealand · NZD" },
+  { country: "JP", currency: "JPY", label: "Japan · JPY" },
+];
+
+/** Builds the headers for a given market. Both cookies named because
+ *  different themes/middleware respect different ones. Accept-Language
+ *  hints the server too — some Markets apps key off it. */
+function buildMarketHeaders(market?: Market | null): HeadersInit {
+  const m = market && market.country && market.currency ? market : DEFAULT_MARKET;
+  return {
+    "User-Agent": RIVLR_USER_AGENT,
+    Accept: "application/json",
+    "Accept-Language": `en-${m.country},en;q=0.9`,
+    Cookie: `localization=${m.country}; cart_currency=${m.currency}`,
+  };
+}
+
+/**
+ * Convenience: infer a default market from the store's TLD when the user
+ * hasn't picked one. .ie → IE/EUR, .co.uk / .uk → GB/GBP, .de → DE/EUR,
+ * .fr → FR/EUR, .com.au → AU/AUD, .ca → CA/CAD, .com / unknown → GB/GBP
+ * (we still default to GB to match historical behaviour).
+ */
+export function inferMarketFromDomain(domain: string): Market {
+  const d = domain.toLowerCase();
+  if (d.endsWith(".ie")) return { country: "IE", currency: "EUR" };
+  if (d.endsWith(".co.uk") || d.endsWith(".uk")) return { country: "GB", currency: "GBP" };
+  if (d.endsWith(".de")) return { country: "DE", currency: "EUR" };
+  if (d.endsWith(".fr")) return { country: "FR", currency: "EUR" };
+  if (d.endsWith(".es")) return { country: "ES", currency: "EUR" };
+  if (d.endsWith(".it")) return { country: "IT", currency: "EUR" };
+  if (d.endsWith(".nl")) return { country: "NL", currency: "EUR" };
+  if (d.endsWith(".com.au") || d.endsWith(".au")) return { country: "AU", currency: "AUD" };
+  if (d.endsWith(".co.nz") || d.endsWith(".nz")) return { country: "NZ", currency: "NZD" };
+  if (d.endsWith(".ca")) return { country: "CA", currency: "CAD" };
+  if (d.endsWith(".jp") || d.endsWith(".co.jp")) return { country: "JP", currency: "JPY" };
+  return DEFAULT_MARKET;
+}
+
+/**
+ * @deprecated kept for any direct imports — use buildMarketHeaders().
+ * Equivalent to GB/GBP, the historical default.
+ */
+const RIVLR_HEADERS: HeadersInit = buildMarketHeaders(DEFAULT_MARKET);
 
 export async function fetchShopifyProduct(
   productJsUrl: string,
+  market?: Market | null,
 ): Promise<ShopifyProduct> {
   const res = await fetch(productJsUrl, {
-    headers: RIVLR_HEADERS,
+    headers: buildMarketHeaders(market),
     cache: "no-store",
   });
 
@@ -180,11 +240,11 @@ export async function fetchShopifyProduct(
 export async function fetchShopifyCollection(
   storeDomain: string,
   handle: string,
-  opts: { maxProducts?: number } = {},
+  opts: { maxProducts?: number; market?: Market | null } = {},
 ): Promise<
   Array<{ handle: string; title: string; imageUrl: string | null }>
 > {
-  const { maxProducts = 1000 } = opts;
+  const { maxProducts = 1000, market } = opts;
   const results: Array<{
     handle: string;
     title: string;
@@ -192,11 +252,12 @@ export async function fetchShopifyCollection(
   }> = [];
   const PER_PAGE = 250;
   const MAX_PAGES = Math.ceil(maxProducts / PER_PAGE);
+  const headers = buildMarketHeaders(market);
 
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = `https://${storeDomain}/collections/${handle}/products.json?limit=${PER_PAGE}&page=${page}`;
     const res = await fetch(url, {
-      headers: RIVLR_HEADERS,
+      headers,
       cache: "no-store",
     });
     if (!res.ok) {
@@ -241,14 +302,15 @@ export async function fetchShopifyCollection(
  */
 export async function fetchShopifyCurrency(
   storeDomain: string,
+  market?: Market | null,
 ): Promise<string> {
   const res = await fetch(`https://${storeDomain}/cart.js`, {
-    headers: RIVLR_HEADERS,
+    headers: buildMarketHeaders(market),
     cache: "no-store",
   });
-  if (!res.ok) return "GBP";
+  if (!res.ok) return market?.currency ?? "GBP";
   const data = (await res.json()) as Partial<ShopifyCart>;
-  return (data.currency ?? "GBP").toUpperCase();
+  return (data.currency ?? market?.currency ?? "GBP").toUpperCase();
 }
 
 /**
@@ -364,10 +426,14 @@ export function normaliseShopifyTags(input: unknown): string[] {
 export async function fetchShopifyProductMeta(
   storeDomain: string,
   handle: string,
+  market?: Market | null,
 ): Promise<ShopifyProductMeta | null> {
   const url = `https://${storeDomain}/products/${handle}.json`;
   try {
-    const res = await fetch(url, { headers: RIVLR_HEADERS, cache: "no-store" });
+    const res = await fetch(url, {
+      headers: buildMarketHeaders(market),
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { product?: ShopifyProductMeta };
     return data.product ?? null;
@@ -402,12 +468,13 @@ export interface PdpScrape {
 export async function scrapePdp(
   storeDomain: string,
   handle: string,
+  market?: Market | null,
 ): Promise<PdpScrape | null> {
   const url = `https://${storeDomain}/products/${handle}`;
   let html: string;
   try {
     const res = await fetch(url, {
-      headers: { ...RIVLR_HEADERS, Accept: "text/html" },
+      headers: { ...buildMarketHeaders(market), Accept: "text/html" },
       cache: "no-store",
     });
     if (!res.ok) return null;

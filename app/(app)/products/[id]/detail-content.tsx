@@ -9,6 +9,7 @@ import {
   togglePriceDropNotify,
   unlinkProduct,
 } from "../actions";
+import { MarketSelect } from "./market-select";
 import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
 import { NotesEditor } from "./notes-editor";
@@ -21,7 +22,7 @@ interface DetailContentProps {
 }
 
 export function DetailContent({ data, variant }: DetailContentProps) {
-  const { product, priceObs, stockObs, recent, tagColors, linkedProducts } = data;
+  const { product, priceObs, stockObs, recent, tagColors, linkedProducts, multiMarket } = data;
 
   const latestPrice = priceObs[priceObs.length - 1] ?? null;
   const latestStock = stockObs[stockObs.length - 1] ?? null;
@@ -192,7 +193,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           fields that exist; entirely hidden when nothing's known. */}
       <ProductIntelStrip product={product} />
 
-      {/* Notification toggles */}
+      {/* Notification toggles + market */}
       <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
         <div className="text-[11px] uppercase tracking-wider text-muted font-mono mb-3">
           Notifications
@@ -213,10 +214,25 @@ export function DetailContent({ data, variant }: DetailContentProps) {
             action={togglePriceDropNotify}
           />
         </div>
+
+        <div className="mt-4 pt-4 border-t border-default">
+          <div className="text-[11px] uppercase tracking-wider text-muted font-mono mb-2">
+            Market
+          </div>
+          <MarketSelect
+            productId={product.id}
+            initialCountry={product.marketCountry}
+            initialCurrency={product.marketCurrency}
+          />
+        </div>
+
         <p className="mt-3 text-[11px] text-muted font-mono">
           Emails actually start sending in Phase 5 (Resend). Toggles persist now.
         </p>
       </div>
+
+      {/* Across markets — daily snapshot in 7 standard markets */}
+      <AcrossMarketsPanel multiMarket={multiMarket} primaryCountry={product.marketCountry} />
 
       {/* Stat cards */}
       <div className={`mt-6 grid grid-cols-2 gap-3 ${statsCols}`}>
@@ -463,6 +479,120 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AcrossMarketsPanel({
+  multiMarket,
+  primaryCountry,
+}: {
+  multiMarket: ProductDetailData["multiMarket"];
+  primaryCountry: string | null;
+}) {
+  const populated = multiMarket.filter((m) => m.price !== null);
+  if (populated.length === 0) {
+    return (
+      <div className="mt-6">
+        <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
+          Across markets
+        </h2>
+        <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-5 text-center text-xs text-muted">
+          No multi-market snapshot yet. Refreshes daily at 05:30 UTC.
+        </div>
+      </div>
+    );
+  }
+
+  // Compute price spread (min/max in the same currency family is hard, so
+  // surface raw + show "vs primary" deltas in % which is currency-neutral).
+  const primary =
+    populated.find((m) => m.country === primaryCountry) ?? populated[0];
+  const primaryPrice = primary.price ? Number(primary.price) : null;
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
+          Across markets · daily snapshot
+        </h2>
+        <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
+          {populated.length} of {multiMarket.length} markets
+        </span>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-default">
+        <div className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-3 border-b border-default bg-elevated px-4 py-2 text-[10px] uppercase tracking-wider text-muted font-mono">
+          <div>Market</div>
+          <div>Currency</div>
+          <div>Price</div>
+          <div>vs {primary.country}</div>
+          <div className="text-right">Stock</div>
+        </div>
+        {multiMarket.map((m) => {
+          const price = m.price ? Number(m.price) : null;
+          const isPrimary = m.country === primaryCountry;
+          const deltaPct =
+            price !== null && primaryPrice !== null && primaryPrice > 0
+              ? Math.round(((price - primaryPrice) / primaryPrice) * 100)
+              : null;
+          return (
+            <div
+              key={m.country}
+              className={`grid grid-cols-[80px_1fr_1fr_1fr_auto] items-center gap-3 px-4 py-2.5 border-b border-default last:border-b-0 text-sm ${isPrimary ? "bg-signal/[0.04]" : ""}`}
+            >
+              <div className="font-mono">
+                {m.country}
+                {isPrimary && (
+                  <span className="ml-1.5 text-[9px] uppercase tracking-[0.18em] text-signal">
+                    primary
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-xs text-muted">{m.currency}</div>
+              <div className="font-mono">
+                {price !== null
+                  ? `${currencySymbol(m.currency)}${price.toFixed(2)}`
+                  : <span className="text-muted">—</span>}
+              </div>
+              <div className="font-mono text-xs">
+                {deltaPct === null ? (
+                  <span className="text-muted">—</span>
+                ) : deltaPct === 0 ? (
+                  <span className="text-muted">±0%</span>
+                ) : (
+                  <span
+                    className={
+                      deltaPct > 0 ? "text-signal" : "text-green-500"
+                    }
+                  >
+                    {deltaPct > 0 ? "+" : ""}
+                    {deltaPct}%
+                  </span>
+                )}
+              </div>
+              <div className="text-right text-xs">
+                {m.available === null ? (
+                  <span className="text-muted">—</span>
+                ) : m.available ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                    In
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-signal">
+                    <span className="h-1.5 w-1.5 rounded-full bg-signal" />
+                    Out
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
+        · Currencies aren't FX-converted. % delta compares raw numbers and
+        is most meaningful within the same currency family.
+      </p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   parseShopifyUrl,
   parseShopifyCollectionUrl,
   fetchShopifyCollection,
+  inferMarketFromDomain,
 } from "@/lib/crawler/shopify";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { generateLinkSuggestions } from "@/lib/crawler/link-suggestions";
@@ -131,13 +132,21 @@ async function addProducts(formData: FormData) {
     await db
       .insert(schema.trackedProducts)
       .values(
-        slice.map(({ url, parsed: p }) => ({
-          url,
-          handle: p.handle,
-          storeDomain: p.storeDomain,
-          title: null,
-          imageUrl: null,
-        })),
+        slice.map(({ url, parsed: p }) => {
+          const market = inferMarketFromDomain(p.storeDomain);
+          return {
+            url,
+            handle: p.handle,
+            storeDomain: p.storeDomain,
+            title: null,
+            imageUrl: null,
+            // Set sensible defaults so .ie etc. start in their native
+            // market. User can override later from the detail page.
+            currency: market.currency,
+            marketCountry: market.country,
+            marketCurrency: market.currency,
+          };
+        }),
       )
       .onConflictDoNothing();
     added += slice.length;
