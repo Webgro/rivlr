@@ -1,6 +1,6 @@
 import { db, schema } from "@/lib/db";
-import { eq, sql } from "drizzle-orm";
-import { fetchShopifyCollection } from "./shopify";
+import { eq, sql, inArray } from "drizzle-orm";
+import { fetchShopifyCollection, inferMarketFromDomain } from "./shopify";
 
 /**
  * Daily 'new product' discovery scan. For each store we have at least one
@@ -22,6 +22,7 @@ const PER_STORE_DELAY_MS = 1000;
 interface DiscoverResult {
   storesScanned: number;
   newDiscoveries: number;
+  autoTracked: number;
   imagesBackfilled: number;
   errors: number;
 }
@@ -36,8 +37,17 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
   const stores = Array.from(storeRows).map((r) => r.store_domain);
 
   let newDiscoveries = 0;
+  let autoTracked = 0;
   let imagesBackfilled = 0;
   let errors = 0;
+
+  // Pull the set of stores that have auto_track_new = true so we can
+  // route fresh-found products straight into tracked_products on them.
+  const autoTrackRows = await db
+    .select({ domain: schema.stores.domain })
+    .from(schema.stores)
+    .where(eq(schema.stores.autoTrackNew, true));
+  const autoTrackSet = new Set(autoTrackRows.map((r) => r.domain));
 
   for (const storeDomain of stores) {
     try {
@@ -84,23 +94,45 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
       );
 
       if (fresh.length > 0) {
-        // Bulk insert. URL has a unique constraint to prevent duplicates
-        // even under race conditions. Image URL is just the Shopify CDN
-        // link — never proxied or locally hosted.
-        await db
-          .insert(schema.discoveredProducts)
-          .values(
-            fresh.map((p) => ({
-              storeDomain,
-              handle: p.handle,
-              title: p.title,
-              imageUrl: p.imageUrl,
-              url: `https://${storeDomain}/products/${p.handle}`,
-              status: "new" as const,
-            })),
-          )
-          .onConflictDoNothing();
-        newDiscoveries += fresh.length;
+        if (autoTrackSet.has(storeDomain)) {
+          // Auto-track: insert directly into tracked_products. Skips the
+          // review step entirely. The user opted in via the per-store
+          // toggle so they expect this.
+          const market = inferMarketFromDomain(storeDomain);
+          await db
+            .insert(schema.trackedProducts)
+            .values(
+              fresh.map((p) => ({
+                url: `https://${storeDomain}/products/${p.handle}`,
+                handle: p.handle,
+                storeDomain,
+                title: p.title,
+                imageUrl: p.imageUrl,
+                currency: market.currency,
+                marketCountry: market.country,
+                marketCurrency: market.currency,
+              })),
+            )
+            .onConflictDoNothing();
+          autoTracked += fresh.length;
+        } else {
+          // Standard staging behaviour. URL unique constraint dedupes;
+          // image_url is the Shopify CDN link.
+          await db
+            .insert(schema.discoveredProducts)
+            .values(
+              fresh.map((p) => ({
+                storeDomain,
+                handle: p.handle,
+                title: p.title,
+                imageUrl: p.imageUrl,
+                url: `https://${storeDomain}/products/${p.handle}`,
+                status: "new" as const,
+              })),
+            )
+            .onConflictDoNothing();
+          newDiscoveries += fresh.length;
+        }
       }
 
       // Backfill: existing rows we previously stored with NULL image_url
@@ -130,6 +162,7 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
   return {
     storesScanned: stores.length,
     newDiscoveries,
+    autoTracked,
     imagesBackfilled,
     errors,
   };

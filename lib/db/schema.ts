@@ -224,6 +224,10 @@ export const stores = pgTable(
      *  for 7 days before retrying — fighting bot protection rarely wins
      *  and just gets us flagged harder. NULL = no block recorded. */
     cartProbeBlockedAt: timestamp("cart_probe_blocked_at", { withTimezone: true }),
+    /** When true, every new product the daily discovery cron finds on
+     *  this store is auto-tracked instead of staged in
+     *  discovered_products. Blank-slate way to "watch everything". */
+    autoTrackNew: boolean("auto_track_new").notNull().default(false),
   },
   (t) => [
     index("idx_stores_last_scanned").on(t.lastScannedAt),

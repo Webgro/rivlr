@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
-import { eq, ne, and, sql } from "drizzle-orm";
+import { eq, ne, and, sql, inArray } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
 import { scanBestsellerCollections } from "@/lib/crawler/store-scan";
+import { dispatchCrawl } from "@/lib/crawler/dispatch";
+import { inferMarketFromDomain } from "@/lib/crawler/shopify";
 
 /**
  * Mark a store as the user's own. Only one store can be flagged at a time
@@ -60,6 +62,103 @@ export async function markStoreAsMine(formData: FormData) {
   revalidatePath("/stores");
   revalidatePath(`/stores/${domain}`);
   revalidatePath("/opportunities");
+}
+
+/**
+ * Convert every 'new' discovered_products row for a store into a tracked
+ * product. One-shot bulk action — pairs with the per-row Track button on
+ * the store profile's "Not tracked yet" panel.
+ *
+ * Triggers a background crawl after so the new rows pick up price/stock
+ * within a few seconds rather than waiting for the next 10-min dispatch.
+ */
+export async function bulkTrackStoreDiscoveries(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const domain = String(formData.get("domain") ?? "").trim().toLowerCase();
+  if (!domain) return;
+
+  // Pull every 'new' discovery for this store.
+  const rows = await db
+    .select()
+    .from(schema.discoveredProducts)
+    .where(
+      and(
+        eq(schema.discoveredProducts.storeDomain, domain),
+        eq(schema.discoveredProducts.status, "new"),
+      ),
+    );
+
+  if (rows.length === 0) {
+    revalidatePath(`/stores/${domain}`);
+    return;
+  }
+
+  const market = inferMarketFromDomain(domain);
+
+  // Bulk insert into tracked_products. URL has a unique constraint so any
+  // already-tracked rows just get skipped.
+  await db
+    .insert(schema.trackedProducts)
+    .values(
+      rows.map((r) => ({
+        url: r.url,
+        handle: r.handle,
+        storeDomain: r.storeDomain,
+        title: r.title,
+        imageUrl: r.imageUrl,
+        currency: market.currency,
+        marketCountry: market.country,
+        marketCurrency: market.currency,
+      })),
+    )
+    .onConflictDoNothing();
+
+  // Drop the discovery rows now they're tracked.
+  await db
+    .delete(schema.discoveredProducts)
+    .where(
+      inArray(
+        schema.discoveredProducts.id,
+        rows.map((r) => r.id),
+      ),
+    );
+
+  // Fire crawl in background so the new rows have data fast.
+  after(async () => {
+    try {
+      await dispatchCrawl({});
+    } catch {
+      // 10-min cron will pick them up regardless.
+    }
+  });
+
+  revalidatePath(`/stores/${domain}`);
+  revalidatePath("/products");
+  revalidatePath("/discover");
+  revalidatePath("/dashboard");
+}
+
+/**
+ * Flip the auto-track-new flag on a store. When true, the daily discovery
+ * cron immediately tracks every new product it finds on this store
+ * instead of staging them in discovered_products for review.
+ */
+export async function toggleAutoTrackNew(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const domain = String(formData.get("domain") ?? "").trim().toLowerCase();
+  const next = String(formData.get("value") ?? "") === "true";
+  if (!domain) return;
+
+  await db
+    .insert(schema.stores)
+    .values({ domain, autoTrackNew: next })
+    .onConflictDoUpdate({
+      target: schema.stores.domain,
+      set: { autoTrackNew: next },
+    });
+
+  revalidatePath(`/stores/${domain}`);
+  revalidatePath("/stores");
 }
 
 export async function unmarkMyStore(formData: FormData) {

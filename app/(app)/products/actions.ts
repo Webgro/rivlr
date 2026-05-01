@@ -85,10 +85,46 @@ export async function deleteProduct(formData: FormData) {
   if (!(await isAuthed())) redirect("/login");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
+
+  // Capture the identity BEFORE deletion so we can write a tombstone into
+  // discovered_products. Without this, the daily catalogue scan re-finds
+  // the product on the store, sees it isn't tracked, and re-suggests it
+  // as a discovery — the user thinks "I deleted this yesterday, why is
+  // it back?". The tombstone (status='dismissed') tells the cron to skip.
+  const [doomed] = await db
+    .select({
+      url: schema.trackedProducts.url,
+      handle: schema.trackedProducts.handle,
+      storeDomain: schema.trackedProducts.storeDomain,
+      title: schema.trackedProducts.title,
+      imageUrl: schema.trackedProducts.imageUrl,
+    })
+    .from(schema.trackedProducts)
+    .where(eq(schema.trackedProducts.id, id))
+    .limit(1);
+
   await db
     .delete(schema.trackedProducts)
     .where(eq(schema.trackedProducts.id, id));
-  revalidatePath("/products"); revalidatePath("/dashboard");
+
+  if (doomed) {
+    await db
+      .insert(schema.discoveredProducts)
+      .values({
+        storeDomain: doomed.storeDomain,
+        handle: doomed.handle,
+        title: doomed.title,
+        imageUrl: doomed.imageUrl,
+        url: doomed.url,
+        status: "dismissed" as const,
+      })
+      .onConflictDoUpdate({
+        target: schema.discoveredProducts.url,
+        set: { status: "dismissed" as const },
+      });
+  }
+
+  revalidatePath("/products"); revalidatePath("/dashboard"); revalidatePath("/discover");
   redirect("/products");
 }
 
@@ -145,10 +181,44 @@ export async function bulkResume(ids: string[]) {
 export async function bulkDelete(ids: string[]) {
   if (!(await isAuthed())) return { ok: false as const, error: "unauthorized" };
   if (ids.length === 0) return { ok: true as const, count: 0 };
+
+  // Same tombstone treatment as single-delete: prevent the discovery cron
+  // from re-suggesting deleted products on its next run.
+  const doomed = await db
+    .select({
+      url: schema.trackedProducts.url,
+      handle: schema.trackedProducts.handle,
+      storeDomain: schema.trackedProducts.storeDomain,
+      title: schema.trackedProducts.title,
+      imageUrl: schema.trackedProducts.imageUrl,
+    })
+    .from(schema.trackedProducts)
+    .where(inArray(schema.trackedProducts.id, ids));
+
   await db
     .delete(schema.trackedProducts)
     .where(inArray(schema.trackedProducts.id, ids));
-  revalidatePath("/products"); revalidatePath("/dashboard");
+
+  if (doomed.length > 0) {
+    await db
+      .insert(schema.discoveredProducts)
+      .values(
+        doomed.map((d) => ({
+          storeDomain: d.storeDomain,
+          handle: d.handle,
+          title: d.title,
+          imageUrl: d.imageUrl,
+          url: d.url,
+          status: "dismissed" as const,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: schema.discoveredProducts.url,
+        set: { status: "dismissed" as const },
+      });
+  }
+
+  revalidatePath("/products"); revalidatePath("/dashboard"); revalidatePath("/discover");
   return { ok: true as const, count: ids.length };
 }
 

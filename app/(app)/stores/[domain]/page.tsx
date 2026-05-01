@@ -6,6 +6,7 @@ import { scanStoreNow } from "@/lib/crawler/store-scan";
 import { CatalogueTrendChart, StockoutTrendChart } from "./trend-charts";
 import { markStoreAsMine, unmarkMyStore } from "../actions";
 import { UntrackedList, type UntrackedItem } from "./untracked-list";
+import { StoreBulkControls } from "./store-bulk-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -379,13 +380,20 @@ export default async function StoreProfilePage(props: { params: Params }) {
 
       {/* Untracked discoveries on this store */}
       <section className="mt-10">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
-            Not tracked yet ({untracked.length})
-          </h2>
-          <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-            Newest first · daily catalogue scan
-          </span>
+        <div className="flex items-end justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+              Not tracked yet ({untracked.length})
+            </h2>
+            <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
+              Newest first · daily catalogue scan
+            </span>
+          </div>
+          <StoreBulkControls
+            domain={domain}
+            untrackedCount={untracked.length}
+            autoTrackEnabled={store?.autoTrackNew ?? false}
+          />
         </div>
         <UntrackedList items={untracked} />
       </section>
