@@ -228,10 +228,7 @@ export default async function OpportunitiesPage() {
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted font-mono">
-            Action queue
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Opportunities
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">
@@ -379,7 +376,21 @@ export default async function OpportunitiesPage() {
             <div>Best competitor</div>
             <div>Δ</div>
             <div>Demand signal</div>
-            <div className="text-right">Score</div>
+            <div
+              className="text-right cursor-help"
+              title={[
+                "Importance score (0–10):",
+                "+3  in store's bestseller / featured collection",
+                "+2  has a 'bestseller' or 'featured' Shopify tag",
+                "+2  review count in the top 25% of your store",
+                "+2  has gone out of stock 5+ times (high demand churn)",
+                "+1  has 50+ reviews",
+                "",
+                "Higher = the product matters more to your business.",
+              ].join("\n")}
+            >
+              Score <span className="text-muted">ⓘ</span>
+            </div>
           </div>
           {scored.map((r) => (
             <Link

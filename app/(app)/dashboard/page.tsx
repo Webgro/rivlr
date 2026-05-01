@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { getDashboardInsights } from "@/lib/dashboard-insights";
 import { InsightsRow } from "@/app/(app)/products/insights-row";
 import { OnboardingChecklist } from "./onboarding-checklist";
+import { FavouritesWidget } from "./favourites-widget";
 
 export const dynamic = "force-dynamic";
 
@@ -341,6 +342,9 @@ export default async function DashboardPage() {
 
       {/* Step-by-step onboarding — auto-hides once all 5 steps are done. */}
       <OnboardingChecklist />
+
+      {/* Favourites — auto-hides if user hasn't starred anything. */}
+      <FavouritesWidget />
 
       {data && (
         <>

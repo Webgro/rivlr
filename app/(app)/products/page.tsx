@@ -149,6 +149,12 @@ async function getDashboardData(params: {
     ) pp ON true
     LEFT JOIN sold_30d_calc s ON s.product_id = p.id
     LEFT JOIN oos_since_calc oos ON oos.product_id = p.id
+    LEFT JOIN stores st ON st.domain = p.store_domain
+    -- Hide the user's own products from the competitor watchlist. Own
+    -- products live in /my-products and don't count toward the plan
+    -- limit. They're still in tracked_products so observations/charts
+    -- keep working — we just don't surface them here.
+    WHERE COALESCE(st.is_my_store, false) = false
     ORDER BY p.added_at DESC
   `);
 
@@ -364,7 +370,7 @@ export default async function DashboardPage(props: {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Tracked products
+            Competitors
           </h1>
           <p className="mt-1 text-sm text-muted">
             {dbError
@@ -374,6 +380,14 @@ export default async function DashboardPage(props: {
                 : totalPages > 1
                   ? `${totalCount} product${totalCount === 1 ? "" : "s"} · page ${page} of ${totalPages}`
                   : `${totalCount} product${totalCount === 1 ? "" : "s"}`}
+            {totalCount >= 2 && (
+              <>
+                {" · "}
+                <span className="text-foreground">
+                  Tip: tick 2–5 to compare side by side.
+                </span>
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -45,10 +45,30 @@ export default async function SettingsPage() {
         <p className="mt-1 text-sm text-muted">
           Plan: <span className="font-mono uppercase">{plan}</span>.
         </p>
+
+        {/* Group nav — anchor links to skip the wall-of-sections */}
+        <nav className="mt-5 flex flex-wrap gap-2 text-xs">
+          <a href="#crawling" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
+            Crawling
+          </a>
+          <a href="#data" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
+            Data
+          </a>
+          <a href="#alerts" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
+            Alerts
+          </a>
+        </nav>
+      </div>
+
+      {/* ─── Crawling ────────────────────────────────────────────────── */}
+      <div id="crawling" className="mt-12 pt-2 border-t border-default">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
+          Crawling
+        </div>
       </div>
 
       {/* Crawl cadence */}
-      <section className="mt-10">
+      <section className="mt-6">
         <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
           Crawl cadence
         </h2>
@@ -68,8 +88,15 @@ export default async function SettingsPage() {
         </form>
       </section>
 
+      {/* ─── Data ────────────────────────────────────────────────────── */}
+      <div id="data" className="mt-12 pt-2 border-t border-default">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
+          Data
+        </div>
+      </div>
+
       {/* Multi-market scan */}
-      <section className="mt-10">
+      <section className="mt-6">
         <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
           Multi-market price scan
         </h2>
@@ -219,14 +246,28 @@ export default async function SettingsPage() {
         </form>
       </section>
 
+      {/* ─── Alerts ──────────────────────────────────────────────────── */}
+      <div id="alerts" className="mt-12 pt-2 border-t border-default">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
+          Alerts
+        </div>
+      </div>
+
       {/* Notification emails */}
-      <section className="mt-10">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Notification emails
-        </h2>
+      <section className="mt-6">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
+            Notification emails
+          </h2>
+          <span className="rounded-full bg-amber-400/15 text-amber-400 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] font-mono">
+            Coming soon
+          </span>
+        </div>
         <p className="mt-2 text-sm text-muted">
-          Where to send stock-change and price-drop alerts. Comma-separated.
-          Emails actually start sending once Phase 5 (Resend) lands.
+          Email sending isn&apos;t live yet — we&apos;re wiring it up next.
+          You can save addresses now and we&apos;ll start delivering
+          stock-change and price-drop alerts the moment the email service
+          lands.
         </p>
 
         <form action={saveNotificationEmails} className="mt-4 space-y-3">

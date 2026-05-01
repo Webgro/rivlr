@@ -84,6 +84,17 @@ export function HelpIcon({ className, size = 20 }: IconProps) {
   );
 }
 
+export function MyProductsIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
+      <path d="M3 7 L12 3 L21 7 L12 11 L3 7 Z" />
+      <path d="M3 7 V17 L12 21 V11" />
+      <path d="M21 7 V17 L12 21" />
+      <circle cx="18" cy="14" r="2.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function OpportunitiesIcon({ className, size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>

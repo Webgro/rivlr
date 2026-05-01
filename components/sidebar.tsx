@@ -12,6 +12,7 @@ import {
   SuggestionsIcon,
   TagsIcon,
   StoresIcon,
+  MyProductsIcon,
   OpportunitiesIcon,
   SettingsIcon,
   HelpIcon,
@@ -24,16 +25,42 @@ interface NavItem {
   Icon: React.ComponentType<{ className?: string; size?: number }>;
 }
 
-const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
-  { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
-  { href: "/products", label: "Products", Icon: ProductsIcon },
-  { href: "/stores", label: "Stores", Icon: StoresIcon },
-  { href: "/discover", label: "Discover", Icon: DiscoverIcon },
-  { href: "/activity", label: "Activity", Icon: ActivityIcon },
-  { href: "/products/suggestions", label: "Suggestions", Icon: SuggestionsIcon },
-  { href: "/tags", label: "Tags", Icon: TagsIcon },
+// Three groups for clarity. Order = priority of the daily user flow:
+// "Where's the action?" → "What am I tracking?" → "Manage".
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Today",
+    items: [
+      { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
+      { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
+      { href: "/activity", label: "Activity", Icon: ActivityIcon },
+    ],
+  },
+  {
+    label: "Catalogue",
+    items: [
+      { href: "/my-products", label: "My products", Icon: MyProductsIcon },
+      { href: "/products", label: "Competitors", Icon: ProductsIcon },
+      { href: "/discover", label: "Discover", Icon: DiscoverIcon },
+      { href: "/products/suggestions", label: "Suggestions", Icon: SuggestionsIcon },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { href: "/stores", label: "Stores", Icon: StoresIcon },
+      { href: "/tags", label: "Tags", Icon: TagsIcon },
+    ],
+  },
 ];
+
+// Flat list used for active-route detection.
+const PRIMARY_NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 const SECONDARY_NAV: NavItem[] = [
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
@@ -70,13 +97,20 @@ export function Sidebar() {
         </span>
       </div>
 
-      {/* Primary nav */}
-      <nav className="flex-1 px-3 py-4">
-        <ul className="space-y-0.5">
-          {PRIMARY_NAV.map((item) => (
-            <NavLink key={item.href} item={item} active={isActive(item)} />
-          ))}
-        </ul>
+      {/* Primary nav, grouped */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <div className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+              {group.label}
+            </div>
+            <ul className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink key={item.href} item={item} active={isActive(item)} />
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       {/* Bottom: Settings + Help + Theme + Sign out */}

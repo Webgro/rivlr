@@ -41,12 +41,15 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
   let imagesBackfilled = 0;
   let errors = 0;
 
-  // Pull the set of stores that have auto_track_new = true so we can
-  // route fresh-found products straight into tracked_products on them.
+  // Auto-track set: explicit per-store toggle OR is_my_store. The
+  // user's own store always auto-tracks because their own products
+  // belong in /my-products, not in the competitor review queue.
   const autoTrackRows = await db
     .select({ domain: schema.stores.domain })
     .from(schema.stores)
-    .where(eq(schema.stores.autoTrackNew, true));
+    .where(
+      sql`${schema.stores.autoTrackNew} = true OR ${schema.stores.isMyStore} = true`,
+    );
   const autoTrackSet = new Set(autoTrackRows.map((r) => r.domain));
 
   for (const storeDomain of stores) {

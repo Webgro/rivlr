@@ -64,10 +64,7 @@ export default async function StoresPage() {
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted font-mono">
-            Surveillance roster
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Stores
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">

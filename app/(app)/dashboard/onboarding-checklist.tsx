@@ -134,7 +134,7 @@ async function loadSteps(): Promise<Step[]> {
     has_my_store: boolean;
     has_link: boolean;
     has_emails: boolean;
-    has_favourite: boolean;
+    has_settings: boolean;
   }>(sql`
     SELECT
       EXISTS (SELECT 1 FROM tracked_products WHERE active = true) AS has_product,
@@ -152,7 +152,7 @@ async function loadSteps(): Promise<Step[]> {
         WHERE id = 'singleton'
           AND array_length(notification_emails, 1) > 0
       ) AS has_emails,
-      EXISTS (SELECT 1 FROM tracked_products WHERE is_favourite = true) AS has_favourite
+      EXISTS (SELECT 1 FROM app_settings WHERE id = 'singleton') AS has_settings
   `);
 
   return [
@@ -160,45 +160,47 @@ async function loadSteps(): Promise<Step[]> {
       id: "track",
       title: "Track your first competitor product",
       description:
-        "Paste a Shopify product URL — or a whole collection — and Rivlr starts watching the price and stock for you. You can add as many as your plan allows.",
-      ctaLabel: "Add products",
+        "Paste a Shopify product URL — or a whole collection — and Rivlr starts watching the price and stock for you. Your plan covers a fixed number of competitor products.",
+      ctaLabel: "Add competitor",
       ctaHref: "/products/new",
       done: !!row?.has_product,
     },
     {
       id: "my-store",
-      title: "Mark your own store",
+      title: "Tell us which store is yours",
       description:
-        "Add the store you sell on the same way you added competitors, then tap 'Mark as my store' on its profile page. This unlocks the Opportunities view that shows where you're losing on price.",
+        "Open the Stores page, click your own Shopify store, then tap 'Mark as my store'. We auto-import your catalogue (free, doesn't count toward your plan) and unlock side-by-side comparison against competitors.",
       ctaLabel: "Choose store",
       ctaHref: "/stores",
       done: !!row?.has_my_store,
     },
     {
       id: "link",
-      title: "Link a product to a competitor",
+      title: "Link your product to a competitor's",
       description:
-        "Tell Rivlr that two products are the same item across different stores so it can compare them side by side. We auto-suggest matches — you just confirm.",
+        "Tell Rivlr that two products are the same item across different stores. We auto-suggest matches based on barcode, manufacturer code, or title — you just review and confirm.",
       ctaLabel: "Review suggestions",
       ctaHref: "/products/suggestions",
       done: !!row?.has_link,
     },
     {
-      id: "favourite",
-      title: "Star a favourite",
+      id: "cadence",
+      title: "Pick how often we re-check prices",
       description:
-        "Tap the star next to any product you care most about. Favourites are easier to find later from the Products page.",
-      ctaLabel: "Open products",
-      ctaHref: "/products",
-      done: !!row?.has_favourite,
+        "Daily is cheapest, hourly is fastest. Faster cadences are unlocked on higher plans — you can change this anytime from Settings.",
+      ctaLabel: "Open settings",
+      ctaHref: "/settings#crawling",
+      // Ticks once the user has saved any setting at all (proxy for
+      // "they visited and configured something").
+      done: !!row?.has_settings,
     },
     {
       id: "emails",
-      title: "Add a notification email",
+      title: "Add a notification email (optional)",
       description:
-        "Where should we send price-drop and stock-change alerts? Pop your email into Settings — you can add more than one if you'd like a teammate to get them too.",
+        "Where should we send price-drop and stock-change alerts when email sending goes live? Pop your address into Settings — alerts queue up the moment we ship the email service.",
       ctaLabel: "Open settings",
-      ctaHref: "/settings",
+      ctaHref: "/settings#alerts",
       done: !!row?.has_emails,
     },
   ];
