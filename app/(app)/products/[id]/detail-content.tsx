@@ -11,6 +11,7 @@ import {
 } from "../actions";
 import { MarketSelect } from "./market-select";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
+import { ToggleSwitch } from "@/components/toggle-switch";
 import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
 import { NotesEditor } from "./notes-editor";
@@ -788,23 +789,14 @@ function NotifyToggle({
     <form action={action} className="flex items-start gap-3">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="value" value={(!checked).toString()} />
-      <button
-        type="submit"
-        role="switch"
-        aria-checked={checked}
-        aria-label={`Toggle ${label}`}
-        className={`relative mt-0.5 h-5 w-9 flex-shrink-0 rounded-full border transition ${
-          checked
-            ? "border-signal bg-signal"
-            : "border-default bg-elevated hover:border-strong"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-            checked ? "translate-x-[18px]" : "translate-x-[2px]"
-          }`}
+      <div className="mt-0.5">
+        <ToggleSwitch
+          type="submit"
+          checked={checked}
+          size="md"
+          ariaLabel={`Toggle ${label}`}
         />
-      </button>
+      </div>
       <div>
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-muted mt-0.5">{help}</div>

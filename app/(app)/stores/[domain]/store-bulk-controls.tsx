@@ -7,6 +7,7 @@ import {
   toggleAutoTrackNew,
 } from "../actions";
 import { ConfirmDialog } from "@/components/confirm-action-button";
+import { ToggleSwitch } from "@/components/toggle-switch";
 
 /**
  * Header controls above the "Not tracked yet" panel on a store profile.
@@ -64,35 +65,24 @@ export function StoreBulkControls({
         </button>
       )}
 
-      <label
-        className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium cursor-pointer transition select-none ${
+      <div
+        className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition ${
           autoTrackEnabled
             ? "border-signal/50 bg-signal/10 text-signal"
-            : "border-default bg-surface text-muted hover:border-strong hover:text-foreground"
+            : "border-default bg-surface text-muted"
         }`}
       >
         <span className="text-[10px] uppercase tracking-[0.18em] font-mono">
           Auto-track new
         </span>
-        <button
-          type="button"
+        <ToggleSwitch
+          checked={autoTrackEnabled}
           onClick={flipAutoTrack}
           disabled={pending}
-          role="switch"
-          aria-checked={autoTrackEnabled}
-          className={`relative h-4 w-7 flex-shrink-0 rounded-full border transition ${
-            autoTrackEnabled
-              ? "border-signal bg-signal"
-              : "border-default bg-elevated"
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white transition-transform ${
-              autoTrackEnabled ? "translate-x-[14px]" : "translate-x-[2px]"
-            }`}
-          />
-        </button>
-      </label>
+          size="sm"
+          ariaLabel="Auto-track new products"
+        />
+      </div>
 
       <ConfirmDialog
         open={confirmOpen}

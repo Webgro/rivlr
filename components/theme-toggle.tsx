@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ToggleSwitch } from "./toggle-switch";
 
 type Theme = "light" | "dark";
 
@@ -33,11 +34,21 @@ export function ThemeToggle() {
     );
   }
 
+  // Avoid nested buttons (the parent NavLink-style row would normally be
+  // a button). Render a plain row + a single ToggleSwitch on the right
+  // that owns the click. Whole row also clickable via wrapping label.
   return (
-    <button
-      type="button"
+    <div
+      className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted hover:bg-surface hover:text-foreground transition cursor-pointer"
       onClick={flip}
-      className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted hover:bg-surface hover:text-foreground transition"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          flip();
+        }
+      }}
       aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
     >
       {theme === "dark" ? (
@@ -46,23 +57,22 @@ export function ThemeToggle() {
         <SunIcon className="text-muted-strong opacity-80" />
       )}
       <span>{theme === "dark" ? "Dark" : "Light"} mode</span>
-      {/* Toggle switch on the right — matches NotifyToggle / cart-probe
-          toggle geometry so it looks consistent across the app. */}
       <span
-        className={`ml-auto relative h-5 w-9 flex-shrink-0 rounded-full border transition ${
-          theme === "dark"
-            ? "border-default bg-elevated"
-            : "border-strong bg-foreground/15"
-        }`}
-        aria-hidden
+        className="ml-auto"
+        // Stop the row's onClick from also firing — otherwise a click on
+        // the toggle would flip twice.
+        onClick={(e) => {
+          e.stopPropagation();
+          flip();
+        }}
       >
-        <span
-          className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-foreground transition-transform ${
-            theme === "dark" ? "translate-x-[2px]" : "translate-x-[18px]"
-          }`}
+        <ToggleSwitch
+          checked={theme === "light"}
+          size="md"
+          ariaLabel="Toggle light mode"
         />
       </span>
-    </button>
+    </div>
   );
 }
 

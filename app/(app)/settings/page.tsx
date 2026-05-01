@@ -8,6 +8,7 @@ import {
   updateDaysCoverThreshold,
 } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { ToggleSwitch } from "@/components/toggle-switch";
 import {
   PLAN_FEATURES,
   CADENCE_LABELS,
@@ -227,22 +228,12 @@ export default async function SettingsPage() {
             name="enabled"
             value={(!cartProbeEnabled).toString()}
           />
-          <button
+          <ToggleSwitch
             type="submit"
-            role="switch"
-            aria-checked={cartProbeEnabled}
-            className={`relative h-6 w-11 flex-shrink-0 rounded-full border transition ${
-              cartProbeEnabled
-                ? "border-signal bg-signal"
-                : "border-default bg-surface hover:border-strong"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                cartProbeEnabled ? "translate-x-[22px]" : "translate-x-[2px]"
-              }`}
-            />
-          </button>
+            checked={cartProbeEnabled}
+            size="lg"
+            ariaLabel="Probe hidden inventory"
+          />
         </form>
       </section>
 
