@@ -287,14 +287,35 @@ export function penceToDecimal(pence: number): string {
 // ─────────────────────────────────────────────────────────────────────
 
 /** The product fields exposed by /products/{handle}.json (richer than .js).
- *  We don't model variants here because we already get them from .js. */
+ *  We don't model variants here because we already get them from .js.
+ *
+ *  NOTE: `tags` ships as either an array (newer storefront API) OR a
+ *  comma-separated string (older themes / admin API legacy). Normalise via
+ *  `normaliseShopifyTags` below before storing. */
 export interface ShopifyProductMeta {
   vendor?: string | null;
   product_type?: string | null;
-  tags?: string[];
+  tags?: string[] | string;
   created_at?: string;
   updated_at?: string;
   images?: Array<{ src?: string }>;
+}
+
+/** Normalise `tags` from /products/{handle}.json which can be either an
+ *  array or a comma-separated string. Returns a clean lowercase-trimmed
+ *  array, deduped. */
+export function normaliseShopifyTags(input: unknown): string[] {
+  if (!input) return [];
+  let parts: string[];
+  if (Array.isArray(input)) {
+    parts = input.map((s) => String(s));
+  } else if (typeof input === "string") {
+    parts = input.split(",");
+  } else {
+    return [];
+  }
+  const cleaned = parts.map((s) => s.trim()).filter(Boolean);
+  return Array.from(new Set(cleaned));
 }
 
 /**

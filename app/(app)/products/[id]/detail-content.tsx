@@ -490,15 +490,10 @@ function ProductIntelStrip({
   if (product.mpn) meta.push({ label: "MPN", value: product.mpn });
   if (product.imageCount !== null && product.imageCount > 0)
     meta.push({ label: "Images", value: product.imageCount.toString() });
-  if (product.shopifyUpdatedAt)
-    meta.push({
-      label: "Last edited",
-      value: timeAgoShort(product.shopifyUpdatedAt),
-    });
   if (product.shopifyCreatedAt)
     meta.push({
-      label: "Added",
-      value: timeAgoShort(product.shopifyCreatedAt),
+      label: "On store for",
+      value: yearsAndMonths(product.shopifyCreatedAt),
     });
   if (compareAt !== null)
     meta.push({
@@ -513,16 +508,6 @@ function ProductIntelStrip({
         product.reviewScore ? ` · ${Number(product.reviewScore).toFixed(1)}★` : ""
       }`,
     });
-  if (product.priceValidUntil) {
-    const d = new Date(product.priceValidUntil);
-    if (d.getTime() > Date.now()) {
-      meta.push({
-        label: "Sale ends",
-        value: d.toLocaleDateString(),
-        tone: "signal",
-      });
-    }
-  }
   if (product.socialProofWidget)
     meta.push({
       label: "FOMO widget",
@@ -578,17 +563,22 @@ function ProductIntelStrip({
   );
 }
 
-function timeAgoShort(d: Date | string): string {
+/**
+ * Formats a past date as a human-friendly years-and-months span.
+ * E.g. 84 months → "7y", 14 months → "1y 2mo", 6 months → "6mo",
+ * 5 days → "5d". Always reads naturally — no "84mo" surprise.
+ */
+function yearsAndMonths(d: Date | string): string {
   const ms = Date.now() - new Date(d).getTime();
   if (ms < 0) return "future";
-  const mins = Math.round(ms / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 48) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 60) return `${days}d ago`;
-  const months = Math.round(days / 30);
-  return `${months}mo ago`;
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  if (days < 31) return `${days}d`;
+  const totalMonths = Math.floor(days / 30.44);
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  if (years === 0) return `${totalMonths}mo`;
+  if (months === 0) return `${years}y`;
+  return `${years}y ${months}mo`;
 }
 
 function NotifyToggle({

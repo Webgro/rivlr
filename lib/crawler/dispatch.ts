@@ -4,6 +4,7 @@ import {
   fetchShopifyProduct,
   fetchShopifyCurrency,
   fetchShopifyProductMeta,
+  normaliseShopifyTags,
   scrapePdp,
   summariseProduct,
   penceToDecimal,
@@ -275,7 +276,7 @@ async function processBatch(
           // Tier 1 meta — only updated when we fetched it.
           ...(meta
             ? {
-                shopifyTags: Array.isArray(meta.tags) ? meta.tags : [],
+                shopifyTags: normaliseShopifyTags(meta.tags),
                 vendor: meta.vendor ?? null,
                 productType: meta.product_type ?? null,
                 shopifyCreatedAt: meta.created_at

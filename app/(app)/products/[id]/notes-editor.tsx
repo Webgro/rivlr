@@ -36,11 +36,11 @@ export function NotesEditor({
   }
 
   return (
-    <div className="rounded-lg border border-default bg-elevated p-4">
+    <div>
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-[11px] uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
           Notes
-        </div>
+        </h2>
         <div className="flex items-center gap-3 text-xs text-muted font-mono">
           {pending
             ? "Saving…"
@@ -51,23 +51,25 @@ export function NotesEditor({
                 : null}
         </div>
       </div>
-      <textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={save}
-        placeholder="Anything you want to remember about this product. Restock cadence, pricing tactics, anecdotes."
-        rows={4}
-        className="block w-full rounded-md border border-default bg-surface px-3 py-2.5 text-sm text-foreground placeholder-muted outline-none font-mono leading-5 focus:border-strong"
-      />
-      <div className="mt-2 flex items-center justify-end">
-        <button
-          type="button"
-          onClick={save}
-          disabled={!dirty || pending}
-          className="rounded-md border border-default bg-surface px-3 py-1 text-xs hover:border-strong disabled:opacity-50"
-        >
-          Save
-        </button>
+      <div className="overflow-hidden rounded-lg border border-default">
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={save}
+          placeholder="Anything you want to remember about this product. Restock cadence, pricing tactics, anecdotes."
+          rows={4}
+          className="block w-full bg-transparent px-4 py-3 text-sm text-foreground placeholder-muted outline-none font-mono leading-5 resize-y"
+        />
+        <div className="border-t border-default px-4 py-2 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!dirty || pending}
+            className="rounded-md border border-default bg-elevated px-3 py-1 text-xs hover:border-strong disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </div>
   );

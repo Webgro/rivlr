@@ -71,7 +71,10 @@ export default async function StoresPage() {
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">
             Every store you track, with intel pulled from public storefront
             data — apps installed, Plus status, free-shipping thresholds,
-            catalogue growth and stockout trend lines.
+            catalogue growth and stockout trend lines.{" "}
+            <span className="text-foreground">
+              Click a row for the full profile.
+            </span>
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -102,10 +105,10 @@ export default async function StoresPage() {
             <Link
               key={s.domain}
               href={`/stores/${encodeURIComponent(s.domain)}`}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-5 py-4 border-b border-default last:border-b-0 items-center hover:bg-elevated transition group"
+              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-5 py-4 border-b border-default last:border-b-0 items-center cursor-pointer hover:bg-elevated hover:border-l-2 hover:border-l-signal hover:pl-[18px] transition-all group focus:outline-none focus-visible:bg-elevated"
             >
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-sm font-medium truncate">
+                <div className="flex items-center gap-2 text-sm font-medium truncate group-hover:text-signal transition">
                   {s.display_name ?? prettyDomain(s.domain)}
                   {s.is_shopify_plus && (
                     <span className="rounded bg-signal/15 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-signal font-mono">
@@ -148,8 +151,8 @@ export default async function StoresPage() {
               </div>
               <div className="text-right text-xs font-mono text-muted flex items-center justify-end gap-2">
                 {s.platform_currency ?? "—"}
-                <span className="text-muted/60 group-hover:text-foreground transition">
-                  ›
+                <span className="text-signal/60 group-hover:text-signal group-hover:translate-x-0.5 transition-all font-mono">
+                  →
                 </span>
               </div>
             </Link>
