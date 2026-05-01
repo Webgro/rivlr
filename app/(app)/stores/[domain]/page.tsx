@@ -4,7 +4,8 @@ import { db, schema } from "@/lib/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { scanStoreNow } from "@/lib/crawler/store-scan";
 import { CatalogueTrendChart, StockoutTrendChart } from "./trend-charts";
-import { markStoreAsMine, unmarkMyStore } from "../actions";
+import { markStoreAsMine, unmarkMyStore, crawlStoreNow } from "../actions";
+import { SubmitButton } from "@/components/submit-button";
 import { UntrackedList, type UntrackedItem } from "./untracked-list";
 import { StoreBulkControls } from "./store-bulk-controls";
 
@@ -185,29 +186,55 @@ export default async function StoreProfilePage(props: { params: Params }) {
             {domain} ↗
           </a>
         </div>
-        {store?.isMyStore ? (
-          <form action={unmarkMyStore}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <form action={crawlStoreNow}>
             <input type="hidden" name="domain" value={domain} />
-            <button
-              type="submit"
-              className="rounded-md border border-default bg-surface px-4 py-2 text-sm hover:border-strong"
-              title="No longer treat this as your store"
+            <SubmitButton
+              className="rounded-md border border-default bg-surface px-4 py-2 text-sm hover:border-strong transition disabled:opacity-50 inline-flex items-center gap-2"
+              pendingLabel="Crawling…"
+              title="Re-scan store-level data and force-refresh prices on every product on this store"
             >
-              Unmark as my store
-            </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12 a9 9 0 1 1 -3 -6.7" />
+                <path d="M21 4 V12 H13" />
+              </svg>
+              Crawl now
+            </SubmitButton>
           </form>
-        ) : (
-          <form action={markStoreAsMine}>
-            <input type="hidden" name="domain" value={domain} />
-            <button
-              type="submit"
-              className="rounded-md bg-green-500/15 border border-green-500/40 text-green-500 px-4 py-2 text-sm font-medium hover:bg-green-500/25"
-              title="Mark this as your own Shopify store. Unlocks /opportunities."
-            >
-              + Mark as my store
-            </button>
-          </form>
-        )}
+
+          {store?.isMyStore ? (
+            <form action={unmarkMyStore}>
+              <input type="hidden" name="domain" value={domain} />
+              <SubmitButton
+                className="rounded-md border border-default bg-surface px-4 py-2 text-sm hover:border-strong transition disabled:opacity-50"
+                pendingLabel="Unmarking…"
+                title="No longer treat this as your store"
+              >
+                Unmark as my store
+              </SubmitButton>
+            </form>
+          ) : (
+            <form action={markStoreAsMine}>
+              <input type="hidden" name="domain" value={domain} />
+              <SubmitButton
+                className="rounded-md bg-green-500/15 border border-green-500/40 text-green-500 px-4 py-2 text-sm font-medium hover:bg-green-500/25 transition disabled:opacity-50"
+                pendingLabel="Setting up…"
+                title="Mark this as your own Shopify store. Auto-imports your catalogue (free, doesn't count toward plan)."
+              >
+                + Mark as my store
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       </div>
 
       {/* Top stats */}

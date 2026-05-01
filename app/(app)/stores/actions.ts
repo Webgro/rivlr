@@ -6,9 +6,12 @@ import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq, ne, and, sql, inArray } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
-import { scanBestsellerCollections } from "@/lib/crawler/store-scan";
+import { scanBestsellerCollections, scanStoreNow } from "@/lib/crawler/store-scan";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
-import { inferMarketFromDomain } from "@/lib/crawler/shopify";
+import {
+  fetchShopifyCollection,
+  inferMarketFromDomain,
+} from "@/lib/crawler/shopify";
 
 /**
  * Mark a store as the user's own. Only one store can be flagged at a time
@@ -45,18 +48,32 @@ export async function markStoreAsMine(formData: FormData) {
       set: { isMyStore: true },
     });
 
-  // Fire the best-seller probe AFTER the response — it hits up to 11
-  // collection URLs sequentially, which made the click-to-redirect feel
-  // sluggish (~5–8s). after() lets the redirect happen instantly while
-  // the probe runs in the background. The daily cron is a safety net.
+  // Fire two background jobs in parallel:
+  //  1. Import the store's full catalogue into tracked_products. The user
+  //     wants their own products tracked automatically — they shouldn't
+  //     have to add anything manually for /my-products to populate.
+  //  2. Probe best-seller collections so /opportunities has demand signal.
+  // Both deferred via after() so the redirect is instant.
   after(async () => {
     try {
+      await importOwnStoreCatalogue(domain);
+    } catch {
+      // best effort — daily discovery cron will catch anything we missed.
+    }
+    try {
       await scanBestsellerCollections(domain);
-      revalidatePath("/opportunities");
-      revalidatePath(`/stores/${domain}`);
     } catch {
       // best effort
     }
+    try {
+      // Kick a crawl so the just-imported products pick up prices fast.
+      await dispatchCrawl({});
+    } catch {
+      // 10-min cron will pick them up regardless.
+    }
+    revalidatePath("/opportunities");
+    revalidatePath("/my-products");
+    revalidatePath(`/stores/${domain}`);
   });
 
   revalidatePath("/stores");
@@ -156,6 +173,90 @@ export async function toggleAutoTrackNew(formData: FormData) {
       target: schema.stores.domain,
       set: { autoTrackNew: next },
     });
+
+  revalidatePath(`/stores/${domain}`);
+  revalidatePath("/stores");
+}
+
+/**
+ * One-shot: import every public product on a store into tracked_products.
+ * Called from markStoreAsMine so the user's catalogue is in /my-products
+ * within seconds of marking, without waiting for the daily discovery
+ * cron. Capped at 5,000 products to avoid runaway imports on huge
+ * catalogues — the daily cron picks up anything beyond that on its
+ * normal schedule.
+ *
+ * Same insertion pattern as bulkTrackStoreDiscoveries — onConflictDoNothing
+ * so previously-tracked URLs are skipped.
+ */
+async function importOwnStoreCatalogue(domain: string) {
+  const products = await fetchShopifyCollection(domain, "all", {
+    maxProducts: 5000,
+  });
+  if (products.length === 0) return;
+
+  const market = inferMarketFromDomain(domain);
+
+  // Chunk inserts for parameter-limit safety.
+  const chunkSize = 500;
+  for (let i = 0; i < products.length; i += chunkSize) {
+    const slice = products.slice(i, i + chunkSize);
+    await db
+      .insert(schema.trackedProducts)
+      .values(
+        slice.map((p) => ({
+          url: `https://${domain}/products/${p.handle}`,
+          handle: p.handle,
+          storeDomain: domain,
+          title: p.title,
+          imageUrl: p.imageUrl,
+          currency: market.currency,
+          marketCountry: market.country,
+          marketCurrency: market.currency,
+        })),
+      )
+      .onConflictDoNothing();
+  }
+
+  // If any of these are sitting in discovered_products from a previous
+  // session (status='new'), drop them — they're tracked now.
+  await db.execute(sql`
+    DELETE FROM discovered_products
+    WHERE store_domain = ${domain}
+      AND status = 'new'
+  `);
+}
+
+/**
+ * Manual "Crawl now" trigger from the store profile page. Refreshes
+ * store-level intel (apps, theme, free-shipping, catalogue size) and
+ * fires a forced product crawl that bypasses the cooldown — useful when
+ * the user just changed something or wants fresh numbers right now
+ * without waiting for the next 10-min cron.
+ */
+export async function crawlStoreNow(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const domain = String(formData.get("domain") ?? "").trim().toLowerCase();
+  if (!domain) return;
+
+  // scanStoreNow is fast (~5 fetches), worth awaiting so the user sees
+  // updated numbers on the store profile after the redirect.
+  try {
+    await scanStoreNow(domain);
+  } catch {
+    // best effort
+  }
+
+  // Force-dispatch in the background — bypasses 55min/22h cooldowns
+  // and re-crawls every active product. Most useful for the user's
+  // own store because that's where they want fresh numbers fastest.
+  after(async () => {
+    try {
+      await dispatchCrawl({ force: true });
+    } catch {
+      // cron will pick up
+    }
+  });
 
   revalidatePath(`/stores/${domain}`);
   revalidatePath("/stores");
