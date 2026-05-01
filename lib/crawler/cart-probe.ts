@@ -38,23 +38,38 @@ const RIVLR_USER_AGENT =
  *  wild — keep the comment with a real example for traceability. */
 const ERROR_PATTERNS: RegExp[] = [
   // "There are only 47 [variant] left." — most common, modern Online Store 2.0.
-  /there\s+are\s+only\s+(\d+)\s+\S/i,
+  /there\s+are\s+only\s+(\d+)\b/i,
   // "All 12 of [variant] are in your cart." — when probe quantity exceeds total.
-  /all\s+(\d+)\s+of\s+\S+\s+are\s+in\s+your\s+cart/i,
+  /all\s+(\d+)\s+of\s+/i,
   // "You can only add 5 of [variant] to the cart." — newer phrasing.
   /you\s+can\s+only\s+add\s+(\d+)/i,
   // "Only 8 left" — short variant some themes synthesise from API data.
-  /only\s+(\d+)\s+left/i,
-  // Generic "n available" — Plus / custom themes occasionally.
-  /(\d+)\s+available/i,
+  /only\s+(\d+)\s+(?:left|in\s+stock|remaining|available)/i,
+  // "8 in stock" / "8 left" — terse formats.
+  /\b(\d+)\s+(?:in\s+stock|left\s+in\s+stock|remaining|available\b)/i,
+  // "in stock: 8" — colon-based format some themes emit.
+  /(?:stock|inventory|qty|quantity)\s*[:\-]?\s*(\d+)\b/i,
+  // "you've added the maximum (8) of this item" / "max 8 per cart"
+  /\bmax(?:imum)?\s*(?:of\s*)?\(?(\d+)\)?/i,
+  // Pure number with units like "8 units"
+  /\b(\d+)\s+units?\b/i,
 ];
 
+export interface ProbeDebug {
+  /** Raw HTTP status code from /cart/add.js. */
+  status: number;
+  /** Whatever string Shopify put in description / message / errors. */
+  message: string | null;
+  /** Which regex matched (index into ERROR_PATTERNS), -1 if none. */
+  matchedPatternIndex: number;
+}
+
 export type ProbeResult =
-  | { kind: "exact"; quantity: number }
-  | { kind: "unbounded" }
-  | { kind: "soldout" }
-  | { kind: "blocked" }
-  | { kind: "unknown" };
+  | { kind: "exact"; quantity: number; debug: ProbeDebug }
+  | { kind: "unbounded"; debug: ProbeDebug }
+  | { kind: "soldout"; debug: ProbeDebug }
+  | { kind: "blocked"; debug: ProbeDebug }
+  | { kind: "unknown"; debug: ProbeDebug };
 
 /**
  * Probes a single variant. Caller is responsible for politeness (per-store
@@ -72,6 +87,12 @@ export async function probeVariantInventory(
     quantity: String(PROBE_QUANTITY),
   }).toString();
 
+  const debug: ProbeDebug = {
+    status: 0,
+    message: null,
+    matchedPatternIndex: -1,
+  };
+
   let res: Response;
   try {
     res = await fetch(url, {
@@ -81,63 +102,116 @@ export async function probeVariantInventory(
         "User-Agent": RIVLR_USER_AGENT,
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
+        // Some themes redirect /cart/add to /cart on success — Shopify
+        // checks Referer + X-Requested-With to opt into JSON behaviour.
+        "X-Requested-With": "XMLHttpRequest",
+        Referer: `https://${storeDomain}/`,
       },
       body,
       cache: "no-store",
-      redirect: "manual", // some stores 30x to a checkout flow on success
     });
   } catch {
-    return { kind: "unknown" };
+    return { kind: "unknown", debug };
   }
+
+  debug.status = res.status;
 
   if (res.status === 403 || res.status === 429) {
-    return { kind: "blocked" };
+    return { kind: "blocked", debug };
   }
 
-  // 200 = oversell or unbounded. Treat as no useful number.
-  if (res.ok) return { kind: "unbounded" };
-
-  if (res.status !== 422) return { kind: "unknown" };
+  // Try to read the body whether 2xx or 4xx — some 200 responses carry
+  // useful info too (e.g. when the store returned the cart line item with
+  // adjusted quantity capped at available stock).
+  let raw = "";
+  try {
+    raw = await res.text();
+  } catch {
+    // ignore
+  }
 
   let data: unknown;
-  try {
-    data = await res.json();
-  } catch {
-    return { kind: "unknown" };
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = null;
+    }
   }
 
-  const message = extractMessage(data);
-  if (!message) return { kind: "unknown" };
+  const message = extractMessage(data) ?? raw.slice(0, 500);
+  debug.message = message || null;
+
+  // 2xx with a "quantity" field → cart line item was created. The quantity
+  // it actually accepted IS the available stock. This catches the case
+  // where Shopify caps your add (rare but happens on some themes).
+  if (res.ok && data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj.quantity === "number" && obj.quantity < PROBE_QUANTITY) {
+      return { kind: "exact", quantity: obj.quantity, debug };
+    }
+    // Otherwise 200 with no signal = unbounded (oversell-allowed or massive stock).
+    return { kind: "unbounded", debug };
+  }
+
+  if (res.status !== 422) {
+    return { kind: "unknown", debug };
+  }
+
+  if (!message) {
+    return { kind: "unknown", debug };
+  }
 
   // Out-of-stock detection — return soldout BEFORE running the parser so
   // a number elsewhere in the message doesn't get mistaken for stock.
   if (
     /\bsold\s+out\b/i.test(message) ||
     /\bunavailable\b/i.test(message) ||
-    /\bno\s+longer\s+available\b/i.test(message)
+    /\bno\s+longer\s+available\b/i.test(message) ||
+    /\bcannot\s+(?:be\s+)?(?:add|purchas)/i.test(message)
   ) {
-    return { kind: "soldout" };
+    return { kind: "soldout", debug };
   }
 
-  for (const re of ERROR_PATTERNS) {
-    const m = message.match(re);
+  for (let i = 0; i < ERROR_PATTERNS.length; i++) {
+    const m = message.match(ERROR_PATTERNS[i]);
     if (m) {
       const n = parseInt(m[1], 10);
       if (Number.isFinite(n) && n >= 0 && n < 10_000_000) {
-        return { kind: "exact", quantity: n };
+        debug.matchedPatternIndex = i;
+        return { kind: "exact", quantity: n, debug };
       }
     }
   }
-  return { kind: "unknown" };
+  return { kind: "unknown", debug };
 }
 
 function extractMessage(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
-  // Common keys Shopify uses across themes.
+
+  // Common scalar keys.
   const candidates = [obj.description, obj.message, obj.error];
   for (const c of candidates) {
     if (typeof c === "string" && c.trim().length > 0) return c;
+  }
+
+  // Newer Shopify error format: { errors: { "0": ["msg"] } } or { errors: ["msg"] }.
+  if (obj.errors) {
+    if (Array.isArray(obj.errors)) {
+      for (const e of obj.errors) {
+        if (typeof e === "string" && e.trim().length > 0) return e;
+      }
+    } else if (typeof obj.errors === "object") {
+      for (const v of Object.values(obj.errors)) {
+        if (typeof v === "string" && v.trim().length > 0) return v;
+        if (Array.isArray(v)) {
+          for (const e of v) {
+            if (typeof e === "string" && e.trim().length > 0) return e;
+          }
+        }
+      }
+    }
   }
   return null;
 }

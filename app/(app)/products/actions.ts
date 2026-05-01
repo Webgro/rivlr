@@ -7,8 +7,154 @@ import { db, schema } from "@/lib/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
+import { probeVariantInventory } from "@/lib/crawler/cart-probe";
 
 // ─── Single-product actions ─────────────────────────────────────────────
+
+/**
+ * Diagnostic on-demand inventory probe for a single product. Hits
+ * /cart/add.js once per variant and returns the per-variant probe
+ * results, the parsed total, and the raw error message Shopify gave
+ * us — useful when the daily cron probe came back as "in stock" with
+ * no number and we want to see what went wrong.
+ *
+ * Also writes a fresh stock_observation if any variant returned an
+ * exact number, so the UI updates without waiting for the next cron.
+ */
+export async function probeInventoryNow(productId: string): Promise<{
+  ok: boolean;
+  totalQuantity: number | null;
+  variants: Array<{
+    id: string;
+    title: string;
+    kind: string;
+    quantity: number | null;
+    status: number;
+    message: string | null;
+  }>;
+  written: boolean;
+  error?: string;
+}> {
+  if (!(await isAuthed())) {
+    return {
+      ok: false,
+      totalQuantity: null,
+      variants: [],
+      written: false,
+      error: "unauthorized",
+    };
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
+    return {
+      ok: false,
+      totalQuantity: null,
+      variants: [],
+      written: false,
+      error: "invalid id",
+    };
+  }
+
+  const [product] = await db
+    .select()
+    .from(schema.trackedProducts)
+    .where(eq(schema.trackedProducts.id, productId))
+    .limit(1);
+  if (!product) {
+    return {
+      ok: false,
+      totalQuantity: null,
+      variants: [],
+      written: false,
+      error: "not found",
+    };
+  }
+
+  const market =
+    product.marketCountry && product.marketCurrency
+      ? { country: product.marketCountry, currency: product.marketCurrency }
+      : undefined;
+
+  const variantsToProbe = (product.variantsSnapshot ?? []).slice(0, 12);
+  if (variantsToProbe.length === 0) {
+    return {
+      ok: false,
+      totalQuantity: null,
+      variants: [],
+      written: false,
+      error: "no variants — wait for the next crawl",
+    };
+  }
+
+  const results: Array<{
+    id: string;
+    title: string;
+    kind: string;
+    quantity: number | null;
+    status: number;
+    message: string | null;
+  }> = [];
+
+  let totalQuantity: number | null = 0;
+  let anyExact = false;
+  let anyAvailable = false;
+
+  for (let i = 0; i < variantsToProbe.length; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 1000));
+    const v = variantsToProbe[i];
+    const probe = await probeVariantInventory(
+      product.storeDomain,
+      v.id,
+      market,
+    );
+    let q: number | null = null;
+    if (probe.kind === "exact") {
+      anyExact = true;
+      q = probe.quantity;
+      anyAvailable = anyAvailable || probe.quantity > 0;
+      if (totalQuantity !== null) totalQuantity += probe.quantity;
+    } else if (probe.kind === "soldout") {
+      q = 0;
+    } else if (probe.kind === "unbounded") {
+      anyAvailable = true;
+      totalQuantity = null;
+    } else {
+      totalQuantity = null;
+    }
+    results.push({
+      id: String(v.id),
+      title: v.title,
+      kind: probe.kind,
+      quantity: q,
+      status: probe.debug.status,
+      message: probe.debug.message,
+    });
+  }
+
+  let written = false;
+  if (anyExact || totalQuantity !== null) {
+    await db.insert(schema.stockObservations).values({
+      productId: product.id,
+      available: anyAvailable || (totalQuantity !== null && totalQuantity > 0),
+      quantity: totalQuantity,
+      quantitySource: "probed",
+    });
+    await db
+      .update(schema.trackedProducts)
+      .set({ lastInventoryProbedAt: new Date() })
+      .where(eq(schema.trackedProducts.id, product.id));
+    written = true;
+  }
+
+  revalidatePath(`/products/${productId}`);
+
+  return {
+    ok: true,
+    totalQuantity: anyExact ? totalQuantity : null,
+    variants: results,
+    written,
+  };
+}
+
 
 /**
  * Update the market this product is crawled under. Affects the hourly

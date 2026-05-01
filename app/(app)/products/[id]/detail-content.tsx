@@ -12,6 +12,7 @@ import {
 import { MarketSelect } from "./market-select";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
+import { ProbeInventoryButton } from "./probe-inventory-button";
 import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
 import { NotesEditor } from "./notes-editor";
@@ -297,6 +298,16 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           value={stockOuts.toString()}
           highlight={stockOuts > 0 ? "bad" : "neutral"}
         />
+      </div>
+
+      {/* Manual inventory probe — useful when daily cron came back empty */}
+      <div className="mt-4 flex items-center gap-3 flex-wrap">
+        <ProbeInventoryButton productId={product.id} />
+        <span className="text-[11px] text-muted leading-relaxed">
+          Hits Shopify&apos;s cart endpoint once per variant to read exact
+          stock. Use if the Stock card above shows &quot;In stock&quot;
+          with no number — the panel below will explain why.
+        </span>
       </div>
 
       {/* Linked products */}

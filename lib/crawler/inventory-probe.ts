@@ -157,7 +157,12 @@ export async function probeInventoryAcrossActive(): Promise<ProbeBatchResult> {
         anyAvailable = true;
         totalQty = null;
       } else {
-        // unknown — also unsum.
+        // unknown — also unsum but try to log for diagnostics.
+        if (probe.debug.message) {
+          console.warn(
+            `[inventory-probe] unknown response for ${p.store_domain} variant ${variant.id}: status=${probe.debug.status} msg=${probe.debug.message.slice(0, 200)}`,
+          );
+        }
         totalQty = null;
       }
     }
