@@ -272,7 +272,7 @@ export function ProductsTable({
       )}
 
       <div className="mt-6 overflow-hidden rounded-xl border border-neutral-800">
-        <div className="grid grid-cols-[28px_2.4fr_1fr_1.2fr_0.8fr_1fr_1fr] items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-5 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-mono">
+        <div className="grid grid-cols-[28px_28px_minmax(0,2.4fr)_1fr_1.2fr_0.8fr_1fr_1fr] items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-5 py-3 text-[11px] uppercase tracking-wider text-neutral-500 font-mono">
           <input
             type="checkbox"
             aria-label="Select all on this page"
@@ -283,6 +283,7 @@ export function ProductsTable({
             onChange={toggleAll}
             className="accent-signal"
           />
+          <div></div>
           <div>Product</div>
           <div>Price</div>
           <div>Stock</div>
@@ -296,7 +297,7 @@ export function ProductsTable({
           return (
             <div
               key={r.id}
-              className={`grid grid-cols-[28px_2.4fr_1fr_1.2fr_0.8fr_1fr_1fr] items-center gap-3 border-b border-neutral-800 px-5 py-4 text-sm last:border-b-0 transition ${
+              className={`grid grid-cols-[28px_28px_minmax(0,2.4fr)_1fr_1.2fr_0.8fr_1fr_1fr] items-center gap-3 border-b border-neutral-800 px-5 py-4 text-sm last:border-b-0 transition ${
                 isSelected
                   ? "bg-signal/5"
                   : "hover:bg-neutral-900/70"

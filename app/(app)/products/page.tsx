@@ -408,100 +408,124 @@ export default async function DashboardPage(props: {
           // reflect the current sort/filter values (defaultValue only applies
           // on initial mount — without this, soft nav would leave stale
           // visual state behind even though the URL is correct).
-          key={`${params.q ?? ""}|${params.store ?? ""}|${params.tag ?? ""}|${params.stock ?? ""}|${params.sort ?? ""}`}
-          className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated px-4 py-3"
+          key={`${params.q ?? ""}|${params.store ?? ""}|${params.tag ?? ""}|${params.stock ?? ""}|${params.sort ?? ""}|${params.fav ?? ""}`}
+          className="mt-6 rounded-lg border border-default bg-elevated p-3 space-y-3"
         >
-          <input
-            type="search"
-            name="q"
-            defaultValue={params.q ?? ""}
-            placeholder="Search products, handles, stores…"
-            className="flex-1 min-w-[200px] rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
-          />
-          <select
-            name="store"
-            defaultValue={params.store ?? ""}
-            className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-          >
-            <option value="">All stores</option>
-            {stores.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          {tags.length > 0 && (
-            <select
-              name="tag"
-              defaultValue={params.tag ?? ""}
-              className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
+          {/* Top row: search field full-width with submit button */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21 L16.65 16.65" strokeLinecap="round" />
+              </svg>
+              <input
+                type="search"
+                name="q"
+                defaultValue={params.q ?? ""}
+                placeholder="Search products, handles, stores…"
+                className="w-full rounded-md border border-default bg-surface pl-9 pr-3 py-2 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90"
             >
-              <option value="">All tags</option>
-              {tags.map((t) => (
-                <option key={t} value={t}>
-                  #{t}
-                </option>
-              ))}
-            </select>
-          )}
-          <select
-            name="stock"
-            defaultValue={params.stock ?? ""}
-            className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-          >
-            <option value="">All stock</option>
-            <option value="in">In stock</option>
-            <option value="out">Out of stock</option>
-            {hasAnyQuantityData && (
-              <option value="low">Low stock (&lt;10)</option>
-            )}
-          </select>
-          <label
-            className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm cursor-pointer transition ${
-              params.fav === "1"
-                ? "border-yellow-400/40 bg-yellow-400/[0.06] text-yellow-400"
-                : "border-default bg-surface text-muted hover:border-strong"
-            }`}
-          >
-            <input
-              type="checkbox"
-              name="fav"
-              value="1"
-              defaultChecked={params.fav === "1"}
-              className="accent-yellow-400"
+              Apply
+            </button>
+          </div>
+
+          {/* Second row: filter dropdowns + favourite chip */}
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterSelect
+              name="store"
+              value={params.store ?? ""}
+              defaultLabel="All stores"
+              options={stores.map((s) => ({ value: s, label: s }))}
             />
-            <svg width="14" height="14" viewBox="0 0 24 24" fill={params.fav === "1" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
-              <path d="M12 2 L14.5 8.5 L21 9.5 L16 14 L17.5 21 L12 17.5 L6.5 21 L8 14 L3 9.5 L9.5 8.5 Z" />
-            </svg>
-            Favourites
-          </label>
-          <select
-            name="sort"
-            defaultValue={params.sort ?? "added_desc"}
-            className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-          >
-            <option value="added_desc">Newest first</option>
-            <option value="added_asc">Oldest first</option>
-            <option value="name_asc">Name A → Z</option>
-            <option value="price_asc">Price low → high</option>
-            <option value="price_desc">Price high → low</option>
-            <option value="change_desc">Biggest price rise (24h)</option>
-            <option value="change_asc">Biggest price drop (24h)</option>
-            {hasAnyQuantityData && (
-              <>
-                <option value="qty_desc">Quantity high → low</option>
-                <option value="qty_asc">Quantity low → high</option>
-                <option value="sold_desc">Most sold (30d)</option>
-                <option value="sold_asc">Least sold (30d)</option>
-              </>
+            {tags.length > 0 && (
+              <FilterSelect
+                name="tag"
+                value={params.tag ?? ""}
+                defaultLabel="All tags"
+                options={tags.map((t) => ({ value: t, label: `#${t}` }))}
+              />
             )}
-          </select>
-          <button
-            type="submit"
-            className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-surface"
-          >
-            Apply
-          </button>
+            <FilterSelect
+              name="stock"
+              value={params.stock ?? ""}
+              defaultLabel="All stock"
+              options={[
+                { value: "in", label: "In stock" },
+                { value: "out", label: "Out of stock" },
+                ...(hasAnyQuantityData
+                  ? [{ value: "low", label: "Low stock (<10)" }]
+                  : []),
+              ]}
+            />
+            <label
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium cursor-pointer transition select-none ${
+                params.fav === "1"
+                  ? "border-yellow-400/50 bg-yellow-400/10 text-yellow-400"
+                  : "border-default bg-surface text-muted hover:border-strong hover:text-foreground"
+              }`}
+            >
+              <input
+                type="checkbox"
+                name="fav"
+                value="1"
+                defaultChecked={params.fav === "1"}
+                className="sr-only"
+              />
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill={params.fav === "1" ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2 L14.5 8.5 L21 9.5 L16 14 L17.5 21 L12 17.5 L6.5 21 L8 14 L3 9.5 L9.5 8.5 Z" />
+              </svg>
+              Favourites
+            </label>
+
+            {/* Spacer pushes Sort to the right edge */}
+            <div className="flex-1" />
+
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+              Sort
+            </span>
+            <select
+              name="sort"
+              defaultValue={params.sort ?? "added_desc"}
+              className="rounded-md border border-default bg-surface px-2.5 py-1.5 text-xs font-medium text-foreground outline-none focus:border-strong cursor-pointer"
+            >
+              <option value="added_desc">Newest first</option>
+              <option value="added_asc">Oldest first</option>
+              <option value="name_asc">Name A → Z</option>
+              <option value="price_asc">Price low → high</option>
+              <option value="price_desc">Price high → low</option>
+              <option value="change_desc">Biggest price rise (24h)</option>
+              <option value="change_asc">Biggest price drop (24h)</option>
+              {hasAnyQuantityData && (
+                <>
+                  <option value="qty_desc">Quantity high → low</option>
+                  <option value="qty_asc">Quantity low → high</option>
+                  <option value="sold_desc">Most sold (30d)</option>
+                  <option value="sold_asc">Least sold (30d)</option>
+                </>
+              )}
+            </select>
+          </div>
           {(params.q ||
             params.store ||
             params.tag ||
@@ -666,4 +690,39 @@ function buildBanner(params: {
   if (dup) parts.push(`${dup} duplicate${dup === 1 ? "" : "s"} skipped`);
   if (failed) parts.push(`${failed} failed`);
   return parts.join(" · ");
+}
+
+/**
+ * Compact filter dropdown used in the products page filter bar. Smaller
+ * padding + uppercase labels match the rest of the new dense layout.
+ */
+function FilterSelect({
+  name,
+  value,
+  defaultLabel,
+  options,
+}: {
+  name: string;
+  value: string;
+  defaultLabel: string;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={value}
+      className={`rounded-md border px-2.5 py-1.5 text-xs font-medium outline-none cursor-pointer transition focus:border-strong ${
+        value
+          ? "border-signal/40 bg-signal/[0.06] text-signal"
+          : "border-default bg-surface text-foreground hover:border-strong"
+      }`}
+    >
+      <option value="">{defaultLabel}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
 }
