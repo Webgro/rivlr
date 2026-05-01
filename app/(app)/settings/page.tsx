@@ -7,6 +7,7 @@ import {
   updateCartProbeEnabled,
   updateDaysCoverThreshold,
 } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 import {
   PLAN_FEATURES,
   CADENCE_LABELS,
@@ -115,12 +116,12 @@ export default async function SettingsPage() {
               Tip: include only markets your competitors actually sell in —
               extra markets are wasted fetches.
             </span>
-            <button
-              type="submit"
-              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+            <SubmitButton
+              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
+              pendingLabel="Saving…"
             >
               Save markets
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </section>
@@ -153,12 +154,12 @@ export default async function SettingsPage() {
             />
             days
           </label>
-          <button
-            type="submit"
-            className="ml-auto rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+          <SubmitButton
+            className="ml-auto rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
+            pendingLabel="Saving…"
           >
             Save threshold
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -236,12 +237,12 @@ export default async function SettingsPage() {
             placeholder="you@example.com, partner@example.com"
             className="block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground outline-none focus:border-foreground"
           />
-          <button
-            type="submit"
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+          <SubmitButton
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
+            pendingLabel="Saving…"
           >
             Save emails
-          </button>
+          </SubmitButton>
         </form>
       </section>
 

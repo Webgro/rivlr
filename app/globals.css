@@ -246,3 +246,42 @@ html {
   font-family: var(--font-mono);
   margin: 16px 0;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Universal button affordance: pointer cursor on enabled buttons + the
+ * Link components that act as buttons. Disabled buttons get the default
+ * arrow so users see they're not interactive. Keep this loose — Tailwind
+ * cursor-pointer utilities still win where applied per-component.
+ * ───────────────────────────────────────────────────────────────────── */
+button:not([disabled]),
+[role="button"]:not([aria-disabled="true"]),
+[type="submit"]:not([disabled]),
+[type="button"]:not([disabled]),
+[type="reset"]:not([disabled]),
+summary,
+label[for] {
+  cursor: pointer;
+}
+
+button[disabled],
+[type="submit"][disabled],
+[type="button"][disabled],
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Inline spinner used by SubmitButton during a pending form submission.
+ * Single keyframe so it can be reused anywhere via the .rivlr-spinner class. */
+@keyframes rivlr-spin {
+  to { transform: rotate(360deg); }
+}
+.rivlr-spinner {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: rivlr-spin 0.7s linear infinite;
+  vertical-align: -2px;
+}

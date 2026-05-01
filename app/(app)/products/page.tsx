@@ -5,6 +5,7 @@ import { RunNowButton } from "./run-now-button";
 import { ProductsTable, type DashboardRow } from "./products-table";
 import { InsightsRow } from "./insights-row";
 import { getDashboardInsights } from "@/lib/dashboard-insights";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -434,12 +435,12 @@ export default async function DashboardPage(props: {
                 className="w-full rounded-md border border-default bg-surface pl-9 pr-3 py-2 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
               />
             </div>
-            <button
-              type="submit"
-              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90"
+            <SubmitButton
+              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
+              pendingLabel="Filtering…"
             >
               Apply
-            </button>
+            </SubmitButton>
           </div>
 
           {/* Second row: filter dropdowns + favourite chip */}

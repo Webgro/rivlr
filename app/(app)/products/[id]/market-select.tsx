@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { COMMON_MARKETS } from "@/lib/crawler/shopify";
 import { setProductMarket } from "../actions";
+import { SubmitButton } from "@/components/submit-button";
 
 /**
  * Per-product market picker. Sends a server action to update the product's
@@ -41,13 +42,13 @@ export function MarketSelect({
           </option>
         ))}
       </select>
-      <button
-        type="submit"
+      <SubmitButton
         disabled={!dirty}
-        className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm hover:border-strong disabled:opacity-50"
+        className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm hover:border-strong disabled:opacity-50 transition"
+        pendingLabel="Saving…"
       >
         Save market
-      </button>
+      </SubmitButton>
       <span className="text-xs text-muted">
         Forces this market's currency on the next crawl. Old price history
         keeps its original currency.
