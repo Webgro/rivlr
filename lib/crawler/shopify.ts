@@ -202,11 +202,19 @@ export async function fetchShopifyCollection(
     if (!res.ok) {
       throw new Error(`Collection fetch failed: ${res.status} ${res.statusText}`);
     }
+    // Shopify's storefront `/collections/{handle}/products.json` returns
+    // images in TWO different shapes depending on the Shopify version /
+    // theme: a flat array of URL strings (most common on the public
+    // storefront), OR an array of objects with `src` (Admin API legacy).
+    // It also reliably exposes `featured_image` as a URL string at the
+    // product level. We try all three so we get the CDN URL whichever
+    // shape this store uses.
     const data = (await res.json()) as {
       products: Array<{
         handle: string;
         title: string;
-        images?: Array<{ src?: string }>;
+        featured_image?: string | null;
+        images?: Array<string | { src?: string }>;
       }>;
     };
     if (!data.products || data.products.length === 0) break;
@@ -214,7 +222,7 @@ export async function fetchShopifyCollection(
       ...data.products.map((p) => ({
         handle: p.handle,
         title: p.title,
-        imageUrl: p.images && p.images.length > 0 ? p.images[0].src ?? null : null,
+        imageUrl: pickProductImage(p),
       })),
     );
     if (data.products.length < PER_PAGE) break;
@@ -280,6 +288,34 @@ export function summariseProduct(product: ShopifyProduct): ProductSnapshot {
  */
 export function penceToDecimal(pence: number): string {
   return (pence / 100).toFixed(2);
+}
+
+/**
+ * Pick a CDN image URL from a Shopify product object — handles all three
+ * shapes the various endpoints emit:
+ *   1. featured_image: "https://cdn.shopify.com/..."  (storefront)
+ *   2. images: ["https://...", ...]                   (storefront, modern)
+ *   3. images: [{src: "https://..."}, ...]            (admin / legacy)
+ *
+ * Returns null when none of them yield a URL. We never proxy or
+ * locally-host images — the CDN URL is what gets persisted and rendered.
+ */
+export function pickProductImage(p: {
+  featured_image?: string | null;
+  images?: Array<string | { src?: string } | undefined> | null;
+}): string | null {
+  if (typeof p.featured_image === "string" && p.featured_image.length > 0) {
+    return p.featured_image;
+  }
+  if (Array.isArray(p.images)) {
+    for (const img of p.images) {
+      if (typeof img === "string" && img.length > 0) return img;
+      if (img && typeof img === "object" && typeof img.src === "string") {
+        return img.src;
+      }
+    }
+  }
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────

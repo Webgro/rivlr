@@ -22,6 +22,7 @@ const PER_STORE_DELAY_MS = 1000;
 interface DiscoverResult {
   storesScanned: number;
   newDiscoveries: number;
+  imagesBackfilled: number;
   errors: number;
 }
 
@@ -35,6 +36,7 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
   const stores = Array.from(storeRows).map((r) => r.store_domain);
 
   let newDiscoveries = 0;
+  let imagesBackfilled = 0;
   let errors = 0;
 
   for (const storeDomain of stores) {
@@ -47,6 +49,11 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
 
       if (products.length === 0) continue;
 
+      // Build a handle → CDN imageUrl map from this scan, for both new
+      // inserts and the backfill below.
+      const imageByHandle = new Map<string, string | null>();
+      for (const p of products) imageByHandle.set(p.handle, p.imageUrl);
+
       // Get the set of handles we already track on this store.
       const trackedRows = await db.execute<{ handle: string }>(sql`
         SELECT handle FROM tracked_products
@@ -57,23 +64,29 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
       // And the set of handles already discovered (regardless of status —
       // we don't want to surface dismissed items again, and we don't want
       // to duplicate 'new' rows).
-      const discoveredRows = await db.execute<{ handle: string }>(sql`
-        SELECT handle FROM discovered_products
+      const discoveredRows = await db.execute<{
+        handle: string;
+        image_url: string | null;
+      }>(sql`
+        SELECT handle, image_url FROM discovered_products
         WHERE store_domain = ${storeDomain}
       `);
-      const discovered = new Set(
-        Array.from(discoveredRows).map((r) => r.handle),
-      );
+      const discoveredHandles = new Set<string>();
+      const handlesMissingImage: string[] = [];
+      for (const r of discoveredRows) {
+        discoveredHandles.add(r.handle);
+        if (!r.image_url) handlesMissingImage.push(r.handle);
+      }
 
       // The new ones — on the store, not tracked, not previously discovered.
       const fresh = products.filter(
-        (p) => !tracked.has(p.handle) && !discovered.has(p.handle),
+        (p) => !tracked.has(p.handle) && !discoveredHandles.has(p.handle),
       );
 
       if (fresh.length > 0) {
         // Bulk insert. URL has a unique constraint to prevent duplicates
-        // even under race conditions. Image URL points to Shopify's CDN
-        // so we don't store the binary, just the link.
+        // even under race conditions. Image URL is just the Shopify CDN
+        // link — never proxied or locally hosted.
         await db
           .insert(schema.discoveredProducts)
           .values(
@@ -89,6 +102,23 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
           .onConflictDoNothing();
         newDiscoveries += fresh.length;
       }
+
+      // Backfill: existing rows we previously stored with NULL image_url
+      // (from the old image-shape bug). Update each one with the CDN URL
+      // we just pulled. One UPDATE per handle keeps the SQL straightforward
+      // and the volume is naturally bounded by per-store catalogue size.
+      for (const handle of handlesMissingImage) {
+        const url = imageByHandle.get(handle);
+        if (!url) continue;
+        await db.execute(sql`
+          UPDATE discovered_products
+             SET image_url = ${url}
+           WHERE store_domain = ${storeDomain}
+             AND handle = ${handle}
+             AND image_url IS NULL
+        `);
+        imagesBackfilled += 1;
+      }
     } catch {
       errors += 1;
     }
@@ -100,6 +130,7 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
   return {
     storesScanned: stores.length,
     newDiscoveries,
+    imagesBackfilled,
     errors,
   };
 }
