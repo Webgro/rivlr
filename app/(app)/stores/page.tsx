@@ -11,6 +11,7 @@ type StoreRow = {
   out_of_stock_count: number | null;
   apps_count: number;
   is_shopify_plus: boolean;
+  is_my_store: boolean;
   platform_currency: string | null;
   free_shipping_threshold: string | null;
   free_shipping_currency: string | null;
@@ -35,6 +36,7 @@ export default async function StoresPage() {
       s.out_of_stock_count,
       COALESCE(jsonb_array_length(s.apps_detected), 0)::int AS apps_count,
       COALESCE(s.is_shopify_plus, false) AS is_shopify_plus,
+      COALESCE(s.is_my_store, false) AS is_my_store,
       s.platform_currency,
       s.free_shipping_threshold,
       s.free_shipping_currency,
@@ -45,9 +47,9 @@ export default async function StoresPage() {
     WHERE tp.active = true
     GROUP BY tp.store_domain, s.display_name, s.total_product_count,
              s.out_of_stock_count, s.apps_detected, s.is_shopify_plus,
-             s.platform_currency, s.free_shipping_threshold,
+             s.is_my_store, s.platform_currency, s.free_shipping_threshold,
              s.free_shipping_currency, s.last_scanned_at
-    ORDER BY tracked_count DESC, tp.store_domain ASC
+    ORDER BY s.is_my_store DESC NULLS LAST, tracked_count DESC, tp.store_domain ASC
   `);
   const stores = Array.from(rows);
 
@@ -110,6 +112,11 @@ export default async function StoresPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-sm font-medium truncate group-hover:text-signal transition">
                   {s.display_name ?? prettyDomain(s.domain)}
+                  {s.is_my_store && (
+                    <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-green-500 font-mono">
+                      Mine
+                    </span>
+                  )}
                   {s.is_shopify_plus && (
                     <span className="rounded bg-signal/15 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-signal font-mono">
                       Plus

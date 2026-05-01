@@ -140,6 +140,13 @@ export const trackedProducts = pgTable(
     /** ISO currency code (e.g. "EUR", "GBP", "USD") that pairs with the
      *  marketCountry. When set, the crawl forces this currency. */
     marketCurrency: text("market_currency"),
+
+    /** True when this product appears in a "best sellers" / "featured" /
+     *  "top products" collection on its store. Populated by the daily
+     *  best-seller probe in store-scan, only run for stores with
+     *  is_my_store = true (no point on competitors). Strongest demand
+     *  signal we can derive from public data. */
+    isBestseller: boolean("is_bestseller").notNull().default(false),
   },
   (t) => [
     index("idx_products_store").on(t.storeDomain),
@@ -198,8 +205,15 @@ export const stores = pgTable(
     /** Catalogue counts from /collections.json and /blogs.json. */
     collectionsCount: integer("collections_count"),
     blogsCount: integer("blogs_count"),
+    /** Marks this store as the user's own — drives the /opportunities view.
+     *  Only one row is allowed = true at a time (enforced in the server
+     *  action). Unlocks the best-seller collection probe for this store. */
+    isMyStore: boolean("is_my_store").notNull().default(false),
   },
-  (t) => [index("idx_stores_last_scanned").on(t.lastScannedAt)],
+  (t) => [
+    index("idx_stores_last_scanned").on(t.lastScannedAt),
+    index("idx_stores_is_mine").on(t.isMyStore),
+  ],
 );
 
 /**

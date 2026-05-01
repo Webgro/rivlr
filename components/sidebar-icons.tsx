@@ -84,6 +84,14 @@ export function HelpIcon({ className, size = 20 }: IconProps) {
   );
 }
 
+export function OpportunitiesIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
+      <path d="M12 2 L14.5 8.5 L21 9.5 L16 14 L17.5 21 L12 17.5 L6.5 21 L8 14 L3 9.5 L9.5 8.5 Z" />
+    </svg>
+  );
+}
+
 export function StoresIcon({ className, size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>

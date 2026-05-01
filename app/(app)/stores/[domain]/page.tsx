@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { eq, sql, desc } from "drizzle-orm";
 import { scanStoreNow } from "@/lib/crawler/store-scan";
 import { CatalogueTrendChart, StockoutTrendChart } from "./trend-charts";
+import { markStoreAsMine, unmarkMyStore } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,11 @@ export default async function StoreProfilePage(props: { params: Params }) {
             <h1 className="text-3xl font-semibold tracking-tight">
               {store?.displayName ?? prettyDomain(domain)}
             </h1>
+            {store?.isMyStore && (
+              <span className="rounded bg-green-500/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-green-500 font-mono">
+                My store
+              </span>
+            )}
             {store?.isShopifyPlus && (
               <span className="rounded bg-signal/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-signal font-mono">
                 Shopify Plus
@@ -151,6 +157,29 @@ export default async function StoreProfilePage(props: { params: Params }) {
             {domain} ↗
           </a>
         </div>
+        {store?.isMyStore ? (
+          <form action={unmarkMyStore}>
+            <input type="hidden" name="domain" value={domain} />
+            <button
+              type="submit"
+              className="rounded-md border border-default bg-surface px-4 py-2 text-sm hover:border-strong"
+              title="No longer treat this as your store"
+            >
+              Unmark as my store
+            </button>
+          </form>
+        ) : (
+          <form action={markStoreAsMine}>
+            <input type="hidden" name="domain" value={domain} />
+            <button
+              type="submit"
+              className="rounded-md bg-green-500/15 border border-green-500/40 text-green-500 px-4 py-2 text-sm font-medium hover:bg-green-500/25"
+              title="Mark this as your own Shopify store. Unlocks /opportunities."
+            >
+              + Mark as my store
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Top stats */}

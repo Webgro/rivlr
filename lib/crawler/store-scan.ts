@@ -403,6 +403,21 @@ export async function scanAllStores(): Promise<{
         appsCount: result.apps.length,
       });
 
+      // Best-seller probe: only meaningful for the user's own store. Cheap
+      // when skipped (one column lookup), so safe to gate inside the loop.
+      const [own] = await db
+        .select({ isMine: schema.stores.isMyStore })
+        .from(schema.stores)
+        .where(eq(schema.stores.domain, domain))
+        .limit(1);
+      if (own?.isMine) {
+        try {
+          await scanBestsellerCollections(domain);
+        } catch {
+          // best-effort
+        }
+      }
+
       ok++;
     } catch (err) {
       console.error("[store-scan] failed", domain, err);
@@ -412,6 +427,96 @@ export async function scanAllStores(): Promise<{
   }
 
   return { scanned: domains.length, ok, failed };
+}
+
+/** Common handles for "best sellers" / "featured" / "top products" type
+ *  collections. Order matters — first hit wins per store. Most Shopify
+ *  themes use one of these conventions. */
+const BESTSELLER_COLLECTION_HANDLES = [
+  "best-sellers",
+  "bestsellers",
+  "best-selling",
+  "best-sellers-1",
+  "top-sellers",
+  "top-selling",
+  "top-products",
+  "featured",
+  "most-popular",
+  "popular-products",
+  "trending",
+];
+
+/**
+ * Probe a store's catalogue for best-seller-type collections and mark any
+ * tracked products on that store that appear inside them. Only run for
+ * stores flagged is_my_store = true (no point on competitors — we don't
+ * track every product on competitor stores so the signal isn't useful).
+ *
+ * Tries each candidate handle in order; first one that returns products
+ * is treated as the best-seller list. Caps at 250 products per collection
+ * to keep request volume bounded.
+ */
+export async function scanBestsellerCollections(domain: string): Promise<{
+  matched: number;
+  collectionUsed: string | null;
+}> {
+  let bestsellerHandles: Set<string> | null = null;
+  let collectionUsed: string | null = null;
+
+  for (const handle of BESTSELLER_COLLECTION_HANDLES) {
+    try {
+      const res = await fetch(
+        `https://${domain}/collections/${handle}/products.json?limit=250`,
+        { headers: HEADERS_JSON, cache: "no-store" },
+      );
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        products?: Array<{ handle?: string }>;
+      };
+      const handles = (data.products ?? [])
+        .map((p) => p.handle)
+        .filter((h): h is string => typeof h === "string");
+      if (handles.length === 0) continue;
+      bestsellerHandles = new Set(handles);
+      collectionUsed = handle;
+      break;
+    } catch {
+      // try next
+    }
+  }
+
+  if (!bestsellerHandles || bestsellerHandles.size === 0) {
+    // Reset flags so a previously-flagged set isn't stuck if the merchant
+    // removed the collection.
+    await db
+      .update(schema.trackedProducts)
+      .set({ isBestseller: false })
+      .where(eq(schema.trackedProducts.storeDomain, domain));
+    return { matched: 0, collectionUsed: null };
+  }
+
+  // Update tracked_products: flag those whose handle is in the set, clear
+  // the rest. Two SQL statements — cheap on a few hundred rows.
+  const handleArray = Array.from(bestsellerHandles);
+  await db.execute(sql`
+    UPDATE tracked_products
+       SET is_bestseller = true
+     WHERE store_domain = ${domain}
+       AND handle = ANY(${handleArray})
+  `);
+  await db.execute(sql`
+    UPDATE tracked_products
+       SET is_bestseller = false
+     WHERE store_domain = ${domain}
+       AND NOT (handle = ANY(${handleArray}))
+  `);
+
+  // Count how many of OUR tracked products were marked.
+  const [row] = await db.execute<{ c: number }>(sql`
+    SELECT COUNT(*)::int AS c FROM tracked_products
+    WHERE store_domain = ${domain} AND is_bestseller = true
+  `);
+  return { matched: row?.c ?? 0, collectionUsed };
 }
 
 /** Used by the `/stores` UI as a fallback when a store hasn't been scanned
