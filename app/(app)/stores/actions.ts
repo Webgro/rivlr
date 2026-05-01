@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq, ne, and, sql } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
@@ -42,13 +43,19 @@ export async function markStoreAsMine(formData: FormData) {
       set: { isMyStore: true },
     });
 
-  // Fire the best-seller probe in the background — best effort, errors don't
-  // block the redirect.
-  try {
-    await scanBestsellerCollections(domain);
-  } catch {
-    // Daily cron will pick it up.
-  }
+  // Fire the best-seller probe AFTER the response — it hits up to 11
+  // collection URLs sequentially, which made the click-to-redirect feel
+  // sluggish (~5–8s). after() lets the redirect happen instantly while
+  // the probe runs in the background. The daily cron is a safety net.
+  after(async () => {
+    try {
+      await scanBestsellerCollections(domain);
+      revalidatePath("/opportunities");
+      revalidatePath(`/stores/${domain}`);
+    } catch {
+      // best effort
+    }
+  });
 
   revalidatePath("/stores");
   revalidatePath(`/stores/${domain}`);
