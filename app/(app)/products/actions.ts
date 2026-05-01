@@ -38,6 +38,25 @@ export async function setProductMarket(formData: FormData) {
 }
 
 
+/**
+ * Toggle favourite on a single product. Surfaces a star in the table and
+ * unlocks the Favourites filter on /products. Single-account product so
+ * no per-user scoping needed.
+ */
+export async function toggleFavourite(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const id = String(formData.get("id") ?? "");
+  const next = String(formData.get("value") ?? "") === "true";
+  if (!id) return;
+  await db
+    .update(schema.trackedProducts)
+    .set({ isFavourite: next })
+    .where(eq(schema.trackedProducts.id, id));
+  revalidatePath("/products");
+  revalidatePath("/dashboard");
+  revalidatePath(`/products/${id}`);
+}
+
 export async function pauseProduct(formData: FormData) {
   if (!(await isAuthed())) redirect("/login");
   const id = String(formData.get("id") ?? "");

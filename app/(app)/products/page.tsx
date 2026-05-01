@@ -19,6 +19,7 @@ type SearchParams = Promise<{
   stock?: string;
   sort?: string;
   page?: string;
+  fav?: string;
   added?: string;
   failed?: string;
   dup?: string;
@@ -32,6 +33,7 @@ async function getDashboardData(params: {
   tag?: string;
   stock?: StockFilter;
   sort?: string;
+  fav?: boolean;
   page: number;
 }): Promise<{
   rows: DashboardRow[];
@@ -54,6 +56,7 @@ async function getDashboardData(params: {
     active: boolean;
     notify_stock_changes: boolean;
     notify_price_drops: boolean;
+    is_favourite: boolean;
     tags: string[];
     added_at: string;
     last_crawled_at: string | null;
@@ -112,7 +115,7 @@ async function getDashboardData(params: {
     )
     SELECT
       p.id, p.url, p.handle, p.store_domain, p.title, p.image_url, p.currency,
-      p.active, p.notify_stock_changes, p.notify_price_drops, p.tags,
+      p.active, p.notify_stock_changes, p.notify_price_drops, p.is_favourite, p.tags,
       p.added_at, p.last_crawled_at,
       lp.price AS latest_price,
       lp.currency AS latest_currency,
@@ -187,6 +190,9 @@ async function getDashboardData(params: {
         r.store_domain.toLowerCase().includes(q),
     );
   }
+  if (params.fav) {
+    filtered = filtered.filter((r) => r.is_favourite);
+  }
 
   const rows: DashboardRow[] = filtered.map((r) => {
     const priceNow = r.latest_price ? Number(r.latest_price) : null;
@@ -215,6 +221,7 @@ async function getDashboardData(params: {
       active: r.active,
       notifyStockChanges: r.notify_stock_changes,
       notifyPriceDrops: r.notify_price_drops,
+      isFavourite: r.is_favourite,
       tags: r.tags ?? [],
       lastCrawledAt: r.last_crawled_at,
       latestPrice: r.latest_price
@@ -324,6 +331,7 @@ export default async function DashboardPage(props: {
       tag: params.tag,
       stock: parseStockFilter(params.stock),
       sort: params.sort,
+      fav: params.fav === "1",
       page,
     });
     rows = data.rows;
@@ -448,6 +456,25 @@ export default async function DashboardPage(props: {
               <option value="low">Low stock (&lt;10)</option>
             )}
           </select>
+          <label
+            className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm cursor-pointer transition ${
+              params.fav === "1"
+                ? "border-yellow-400/40 bg-yellow-400/[0.06] text-yellow-400"
+                : "border-default bg-surface text-muted hover:border-strong"
+            }`}
+          >
+            <input
+              type="checkbox"
+              name="fav"
+              value="1"
+              defaultChecked={params.fav === "1"}
+              className="accent-yellow-400"
+            />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={params.fav === "1" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 2 L14.5 8.5 L21 9.5 L16 14 L17.5 21 L12 17.5 L6.5 21 L8 14 L3 9.5 L9.5 8.5 Z" />
+            </svg>
+            Favourites
+          </label>
           <select
             name="sort"
             defaultValue={params.sort ?? "added_desc"}

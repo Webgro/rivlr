@@ -21,15 +21,36 @@ import {
  * is unaffected — that still uses the per-product market override.
  */
 
-const MARKETS_TO_SCAN: Market[] = [
-  { country: "GB", currency: "GBP" },
-  { country: "IE", currency: "EUR" },
-  { country: "US", currency: "USD" },
-  { country: "DE", currency: "EUR" },
-  { country: "AU", currency: "AUD" },
-  { country: "CA", currency: "CAD" },
-  { country: "JP", currency: "JPY" },
-];
+/** Whitelist of markets we know how to scan, with the currency that
+ *  Shopify Markets routes to for that country. Only these countries can
+ *  be selected in Settings. */
+export const KNOWN_MARKETS: Record<string, { currency: string; label: string }> =
+  {
+    GB: { currency: "GBP", label: "United Kingdom" },
+    IE: { currency: "EUR", label: "Ireland" },
+    US: { currency: "USD", label: "United States" },
+    DE: { currency: "EUR", label: "Germany" },
+    FR: { currency: "EUR", label: "France" },
+    ES: { currency: "EUR", label: "Spain" },
+    IT: { currency: "EUR", label: "Italy" },
+    NL: { currency: "EUR", label: "Netherlands" },
+    AU: { currency: "AUD", label: "Australia" },
+    NZ: { currency: "NZD", label: "New Zealand" },
+    CA: { currency: "CAD", label: "Canada" },
+    JP: { currency: "JPY", label: "Japan" },
+    SE: { currency: "SEK", label: "Sweden" },
+    NO: { currency: "NOK", label: "Norway" },
+    DK: { currency: "DKK", label: "Denmark" },
+    CH: { currency: "CHF", label: "Switzerland" },
+    SG: { currency: "SGD", label: "Singapore" },
+    ZA: { currency: "ZAR", label: "South Africa" },
+    BR: { currency: "BRL", label: "Brazil" },
+    MX: { currency: "MXN", label: "Mexico" },
+    IN: { currency: "INR", label: "India" },
+    AE: { currency: "AED", label: "UAE" },
+  };
+
+const DEFAULT_COUNTRIES = ["GB", "IE", "US", "DE", "AU", "CA", "JP"];
 
 const PER_REQUEST_GAP_MS = 800;
 const RETENTION_DAYS = 30;
@@ -42,6 +63,20 @@ interface MultiMarketResult {
 }
 
 export async function scanMultiMarketPrices(): Promise<MultiMarketResult> {
+  // Pick the configured markets from settings; fall back to defaults.
+  const [settings] = await db
+    .select({ countries: schema.appSettings.multiMarketCountries })
+    .from(schema.appSettings)
+    .limit(1);
+  const countries =
+    settings?.countries && settings.countries.length > 0
+      ? settings.countries
+      : DEFAULT_COUNTRIES;
+
+  const marketsToScan: Market[] = countries
+    .filter((c) => KNOWN_MARKETS[c])
+    .map((c) => ({ country: c, currency: KNOWN_MARKETS[c].currency }));
+
   // Pull active tracked products with their store + handle.
   const products = await db
     .select({
@@ -59,7 +94,7 @@ export async function scanMultiMarketPrices(): Promise<MultiMarketResult> {
     const productJsUrl = `https://${p.storeDomain}/products/${p.handle}.js`;
     const observedAt = new Date();
 
-    for (const market of MARKETS_TO_SCAN) {
+    for (const market of marketsToScan) {
       try {
         const fetched = await fetchShopifyProduct(productJsUrl, market);
 
@@ -106,8 +141,9 @@ export async function scanMultiMarketPrices(): Promise<MultiMarketResult> {
 
 /**
  * Latest snapshot per market for a product, for rendering on the detail
- * page. Returns the most recent observation per country, ordered by the
- * MARKETS_TO_SCAN list above so the UI is consistent.
+ * page. Returns the most recent observation per country found in the DB,
+ * regardless of whether it's in the current settings list — that way
+ * historical data isn't dropped when the user reduces the scan list.
  */
 export async function getLatestMultiMarketForProduct(productId: string) {
   const rows = await db.execute<{
@@ -123,18 +159,11 @@ export async function getLatestMultiMarketForProduct(productId: string) {
     WHERE product_id = ${productId}::uuid
     ORDER BY country, observed_at DESC
   `);
-  const byCountry = new Map<string, (typeof rows extends Iterable<infer R> ? R : never)>();
-  for (const r of rows) byCountry.set(r.country, r);
-
-  // Return in the canonical scan order; missing markets become nulls.
-  return MARKETS_TO_SCAN.map((m) => {
-    const row = byCountry.get(m.country);
-    return {
-      country: m.country,
-      currency: m.currency,
-      price: row?.price ?? null,
-      available: row?.available ?? null,
-      observedAt: row?.observed_at ?? null,
-    };
-  });
+  return Array.from(rows).map((r) => ({
+    country: r.country,
+    currency: r.currency,
+    price: r.price,
+    available: r.available,
+    observedAt: r.observed_at,
+  }));
 }

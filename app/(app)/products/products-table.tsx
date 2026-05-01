@@ -12,6 +12,7 @@ import {
   bulkAddTags,
 } from "./actions";
 import { TagChip } from "@/components/tag-chip";
+import { FavouriteStar } from "./favourite-star";
 import { type TagColor } from "@/lib/db";
 
 export interface DashboardRow {
@@ -25,6 +26,7 @@ export interface DashboardRow {
   active: boolean;
   notifyStockChanges: boolean;
   notifyPriceDrops: boolean;
+  isFavourite: boolean;
   tags: string[];
   lastCrawledAt: string | null;
   latestPrice: { price: string; currency: string } | null;
@@ -307,6 +309,8 @@ export function ProductsTable({
                 onChange={() => toggleOne(r.id)}
                 className="accent-signal"
               />
+
+              <FavouriteStar id={r.id} initial={r.isFavourite} />
 
               <Link href={`/products/${r.id}`} className="flex items-center gap-3 min-w-0 group">
                 {r.imageUrl ? (

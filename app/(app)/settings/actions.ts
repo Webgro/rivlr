@@ -5,6 +5,12 @@ import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { isAuthed } from "@/lib/auth";
+import {
+  type Cadence,
+  isCadenceAllowed,
+  getCurrentPlan,
+} from "@/lib/plan";
+import { KNOWN_MARKETS } from "@/lib/crawler/multi-market";
 
 const SETTINGS_ID = "singleton";
 
@@ -45,4 +51,53 @@ export async function getSettings() {
     .where(eq(schema.appSettings.id, SETTINGS_ID))
     .limit(1);
   return row ?? null;
+}
+
+const VALID_CADENCES: Cadence[] = ["daily", "every-6h", "hourly"];
+
+/**
+ * Update crawl cadence. Plan-gated: silently rejects values not allowed by
+ * the user's plan (UI never exposes them as picks anyway).
+ */
+export async function updateCrawlCadence(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const value = String(formData.get("cadence") ?? "");
+  if (!VALID_CADENCES.includes(value as Cadence)) return;
+  const cadence = value as Cadence;
+  const plan = await getCurrentPlan();
+  if (!isCadenceAllowed(cadence, plan)) return;
+
+  await db
+    .insert(schema.appSettings)
+    .values({ id: SETTINGS_ID, crawlCadence: cadence, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: schema.appSettings.id,
+      set: { crawlCadence: cadence, updatedAt: new Date() },
+    });
+  revalidatePath("/settings");
+}
+
+/**
+ * Update the list of countries the daily multi-market price scan polls.
+ * Validated against the KNOWN_MARKETS whitelist; unknown codes are dropped.
+ * Empty list reverts to defaults.
+ */
+export async function updateMultiMarketCountries(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const raw = formData.getAll("country").map((v) => String(v).toUpperCase());
+  const cleaned = Array.from(
+    new Set(raw.filter((c) => /^[A-Z]{2}$/.test(c) && KNOWN_MARKETS[c])),
+  );
+  await db
+    .insert(schema.appSettings)
+    .values({
+      id: SETTINGS_ID,
+      multiMarketCountries: cleaned,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.appSettings.id,
+      set: { multiMarketCountries: cleaned, updatedAt: new Date() },
+    });
+  revalidatePath("/settings");
 }

@@ -5,6 +5,7 @@ import { eq, sql, desc } from "drizzle-orm";
 import { scanStoreNow } from "@/lib/crawler/store-scan";
 import { CatalogueTrendChart, StockoutTrendChart } from "./trend-charts";
 import { markStoreAsMine, unmarkMyStore } from "../actions";
+import { UntrackedList, type UntrackedItem } from "./untracked-list";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,32 @@ export default async function StoreProfilePage(props: { params: Params }) {
       LIMIT 50
     `),
   );
+
+  // Pull untracked discoveries on this store for the "not tracked" panel.
+  const untrackedRows = Array.from(
+    await db.execute<{
+      id: string;
+      handle: string;
+      title: string | null;
+      image_url: string | null;
+      url: string;
+      first_seen: string;
+    }>(sql`
+      SELECT id, handle, title, image_url, url, first_seen
+      FROM discovered_products
+      WHERE store_domain = ${domain} AND status = 'new'
+      ORDER BY first_seen DESC
+      LIMIT 50
+    `),
+  );
+  const untracked: UntrackedItem[] = untrackedRows.map((r) => ({
+    id: r.id,
+    handle: r.handle,
+    title: r.title,
+    imageUrl: r.image_url,
+    url: r.url,
+    firstSeen: r.first_seen,
+  }));
 
   // Pull last 30 days of snapshots for trend charts.
   const snapshots = await db
@@ -348,6 +375,19 @@ export default async function StoreProfilePage(props: { params: Params }) {
             })}
           </div>
         )}
+      </section>
+
+      {/* Untracked discoveries on this store */}
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+            Not tracked yet ({untracked.length})
+          </h2>
+          <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
+            Newest first · daily catalogue scan
+          </span>
+        </div>
+        <UntrackedList items={untracked} />
       </section>
 
       {/* Footer meta */}

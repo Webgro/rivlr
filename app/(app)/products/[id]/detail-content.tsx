@@ -490,12 +490,16 @@ function AcrossMarketsPanel({
   multiMarket: ProductDetailData["multiMarket"];
   primaryCountry: string | null;
 }) {
+  // De-dupe by (currency, price). Markets that share the same currency AND
+  // return the same price (common with EU markets that aren't individually
+  // priced) collapse into one row showing the country list. Primary market
+  // is excluded since it's already shown in the header price card.
   const populated = multiMarket.filter((m) => m.price !== null);
   if (populated.length === 0) {
     return (
       <div className="mt-6">
         <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
-          Across markets
+          Other market prices
         </h2>
         <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-5 text-center text-xs text-muted">
           No multi-market snapshot yet. Refreshes daily at 05:30 UTC.
@@ -504,55 +508,91 @@ function AcrossMarketsPanel({
     );
   }
 
-  // Compute price spread (min/max in the same currency family is hard, so
-  // surface raw + show "vs primary" deltas in % which is currency-neutral).
+  const otherMarkets = populated.filter((m) => m.country !== primaryCountry);
+  if (otherMarkets.length === 0) {
+    return null;
+  }
+
+  // Group by (currency + price). Map key is `${currency}|${price}`.
+  const grouped = new Map<
+    string,
+    {
+      currency: string;
+      price: number;
+      countries: string[];
+      anyOut: boolean;
+      anyIn: boolean;
+    }
+  >();
+  for (const m of otherMarkets) {
+    const key = `${m.currency}|${Number(m.price).toFixed(2)}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.countries.push(m.country);
+      if (m.available === false) existing.anyOut = true;
+      if (m.available === true) existing.anyIn = true;
+    } else {
+      grouped.set(key, {
+        currency: m.currency,
+        price: Number(m.price),
+        countries: [m.country],
+        anyOut: m.available === false,
+        anyIn: m.available === true,
+      });
+    }
+  }
+  const groups = Array.from(grouped.values()).sort((a, b) => a.price - b.price);
+
+  // Find the primary's price for delta % (same-currency comparisons only).
   const primary =
     populated.find((m) => m.country === primaryCountry) ?? populated[0];
   const primaryPrice = primary.price ? Number(primary.price) : null;
+  const primaryCurrency = primary.currency;
 
   return (
     <div className="mt-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
-          Across markets · daily snapshot
+          Other market prices · daily snapshot
         </h2>
         <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-          {populated.length} of {multiMarket.length} markets
+          {groups.length} unique price{groups.length === 1 ? "" : "s"}
         </span>
       </div>
       <div className="overflow-hidden rounded-lg border border-default">
-        <div className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-3 border-b border-default bg-elevated px-4 py-2 text-[10px] uppercase tracking-wider text-muted font-mono">
-          <div>Market</div>
-          <div>Currency</div>
+        <div className="grid grid-cols-[1.6fr_1fr_0.7fr_auto] gap-3 border-b border-default bg-elevated px-4 py-2 text-[10px] uppercase tracking-wider text-muted font-mono">
+          <div>Markets</div>
           <div>Price</div>
-          <div>vs {primary.country}</div>
+          <div>vs primary</div>
           <div className="text-right">Stock</div>
         </div>
-        {multiMarket.map((m) => {
-          const price = m.price ? Number(m.price) : null;
-          const isPrimary = m.country === primaryCountry;
-          const deltaPct =
-            price !== null && primaryPrice !== null && primaryPrice > 0
-              ? Math.round(((price - primaryPrice) / primaryPrice) * 100)
-              : null;
+        {groups.map((g, i) => {
+          const sameCurrency =
+            primaryPrice !== null && g.currency === primaryCurrency;
+          const deltaPct = sameCurrency && primaryPrice! > 0
+            ? Math.round(((g.price - primaryPrice!) / primaryPrice!) * 100)
+            : null;
           return (
             <div
-              key={m.country}
-              className={`grid grid-cols-[80px_1fr_1fr_1fr_auto] items-center gap-3 px-4 py-2.5 border-b border-default last:border-b-0 text-sm ${isPrimary ? "bg-signal/[0.04]" : ""}`}
+              key={i}
+              className="grid grid-cols-[1.6fr_1fr_0.7fr_auto] items-center gap-3 px-4 py-2.5 border-b border-default last:border-b-0 text-sm"
             >
-              <div className="font-mono">
-                {m.country}
-                {isPrimary && (
-                  <span className="ml-1.5 text-[9px] uppercase tracking-[0.18em] text-signal">
-                    primary
+              <div className="flex flex-wrap gap-1">
+                {g.countries.map((c) => (
+                  <span
+                    key={c}
+                    className="rounded border border-default bg-surface px-1.5 py-0.5 text-[10px] font-mono"
+                  >
+                    {c}
                   </span>
-                )}
+                ))}
               </div>
-              <div className="font-mono text-xs text-muted">{m.currency}</div>
               <div className="font-mono">
-                {price !== null
-                  ? `${currencySymbol(m.currency)}${price.toFixed(2)}`
-                  : <span className="text-muted">—</span>}
+                {currencySymbol(g.currency)}
+                {g.price.toFixed(2)}{" "}
+                <span className="text-[10px] text-muted">
+                  {g.currency}
+                </span>
               </div>
               <div className="font-mono text-xs">
                 {deltaPct === null ? (
@@ -571,9 +611,14 @@ function AcrossMarketsPanel({
                 )}
               </div>
               <div className="text-right text-xs">
-                {m.available === null ? (
+                {!g.anyIn && !g.anyOut ? (
                   <span className="text-muted">—</span>
-                ) : m.available ? (
+                ) : g.anyIn && g.anyOut ? (
+                  <span className="inline-flex items-center gap-1.5 text-muted">
+                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+                    Mixed
+                  </span>
+                ) : g.anyIn ? (
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                     In
@@ -590,8 +635,8 @@ function AcrossMarketsPanel({
         })}
       </div>
       <p className="mt-2 text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-        · Currencies aren't FX-converted. % delta compares raw numbers and
-        is most meaningful within the same currency family.
+        · Identical prices collapsed. Δ vs primary shown only for the same
+        currency. Configure scanned markets in Settings.
       </p>
     </div>
   );

@@ -38,18 +38,17 @@ const META_COOLDOWN_MS = 24 * 60 * 60 * 1000;
  * limits, not CPU. Comfortably under the 60s function budget.
  */
 
+import { CADENCE_COOLDOWN_MS, type Cadence } from "@/lib/plan";
+
 // Tuned for Vercel Pro (300s function budget, more concurrent invocations).
 // 20 parallel batches × 10 products = 200 products per dispatch invocation.
-// Combined with the every-5-min cron in vercel.json, that's ~57k crawls/day
+// Combined with the every-10-min cron in vercel.json, that's ~57k crawls/day
 // of capacity — comfortably above an hourly cadence on a few thousand
 // products.
 const BATCH_SIZE = 10;
 const PARALLEL_BATCHES = 20;
 const MAX_PRODUCTS_PER_DISPATCH = BATCH_SIZE * PARALLEL_BATCHES;
 const PER_STORE_MS = 1000;
-// Re-crawl any product older than this. 55min so the every-5-min cron will
-// pick each product up at least once per hour.
-const COOLDOWN_MS = 55 * 60 * 1000;
 // Auto-pause a product after this many consecutive crawl failures so dead
 // URLs (deleted competitor products) don't infinite-retry. User can manually
 // resume from the detail page if it was a transient issue.
@@ -67,7 +66,15 @@ export async function dispatchCrawl(opts: {
 }): Promise<DispatchResult> {
   const { force = false } = opts;
   const now = new Date();
-  const cutoff = new Date(now.getTime() - COOLDOWN_MS);
+
+  // Read cadence from settings — falls back to hourly if no row exists.
+  const [settings] = await db
+    .select({ cadence: schema.appSettings.crawlCadence })
+    .from(schema.appSettings)
+    .limit(1);
+  const cadence: Cadence = (settings?.cadence as Cadence) ?? "hourly";
+  const cooldownMs = CADENCE_COOLDOWN_MS[cadence];
+  const cutoff = new Date(now.getTime() - cooldownMs);
 
   const due = await db
     .select({ id: schema.trackedProducts.id })

@@ -147,6 +147,11 @@ export const trackedProducts = pgTable(
      *  is_my_store = true (no point on competitors). Strongest demand
      *  signal we can derive from public data. */
     isBestseller: boolean("is_bestseller").notNull().default(false),
+
+    /** User-flagged favourite — surfaces a star in the products table and
+     *  unlocks a Favourites filter. Single-account product, so no
+     *  per-user scoping needed. */
+    isFavourite: boolean("is_favourite").notNull().default(false),
   },
   (t) => [
     index("idx_products_store").on(t.storeDomain),
@@ -306,6 +311,21 @@ export const appSettings = pgTable("app_settings", {
     .array()
     .notNull()
     .default(sql`ARRAY[]::text[]`),
+  /** How often the dispatch crawler refreshes products. Drives the
+   *  cooldown window in lib/crawler/dispatch.ts. Plan-gated in the UI:
+   *  free/starter capped at daily, growth at every-6h, pro at hourly. */
+  crawlCadence: text("crawl_cadence", {
+    enum: ["daily", "every-6h", "hourly"],
+  })
+    .notNull()
+    .default("hourly"),
+  /** Which markets the daily multi-market price scan polls. Stored as
+   *  ISO country codes; lib/crawler/multi-market.ts looks them up
+   *  against a whitelist with default currency mapping. */
+  multiMarketCountries: text("multi_market_countries")
+    .array()
+    .notNull()
+    .default(sql`ARRAY['GB','IE','US','DE','AU','CA','JP']::text[]`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
