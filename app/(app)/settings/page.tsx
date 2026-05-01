@@ -9,6 +9,7 @@ import {
 } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
+import { SendTestEmailButton } from "./send-test-email-button";
 import {
   PLAN_FEATURES,
   CADENCE_LABELS,
@@ -246,19 +247,13 @@ export default async function SettingsPage() {
 
       {/* Notification emails */}
       <section className="mt-6">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-            Notification emails
-          </h2>
-          <span className="rounded-full bg-amber-400/15 text-amber-400 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] font-mono">
-            Coming soon
-          </span>
-        </div>
+        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
+          Notification emails
+        </h2>
         <p className="mt-2 text-sm text-muted">
-          Email sending isn&apos;t live yet — we&apos;re wiring it up next.
-          You can save addresses now and we&apos;ll start delivering
-          stock-change and price-drop alerts the moment the email service
-          lands.
+          Where to send price-drop, stock-change, and days-cover-warning
+          alerts. Comma-separated. We dedupe within 24 hours per product so
+          you won&apos;t get the same alert twice.
         </p>
 
         <form action={saveNotificationEmails} className="mt-4 space-y-3">
@@ -269,13 +264,20 @@ export default async function SettingsPage() {
             placeholder="you@example.com, partner@example.com"
             className="block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground outline-none focus:border-foreground"
           />
-          <SubmitButton
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
-            pendingLabel="Saving…"
-          >
-            Save emails
-          </SubmitButton>
+          <div className="flex items-center gap-2 flex-wrap">
+            <SubmitButton
+              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
+              pendingLabel="Saving…"
+            >
+              Save emails
+            </SubmitButton>
+            <SendTestEmailButton hasRecipients={current.length > 0} />
+          </div>
         </form>
+        <p className="mt-3 text-[11px] text-muted/80 leading-relaxed">
+          One-click unsubscribe in every email · weekly digest sent
+          Mondays 09:00 UTC · daily days-cover warnings 09:00 UTC.
+        </p>
       </section>
 
       <p className="mt-10 text-xs text-muted font-mono">

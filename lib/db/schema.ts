@@ -397,11 +397,35 @@ export const alertLog = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => trackedProducts.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ["stock_in", "stock_out", "price_drop"] }).notNull(),
+    kind: text("kind", {
+      enum: [
+        "stock_in",
+        "stock_out",
+        "price_drop",
+        "days_cover_warning",
+        "weekly_digest",
+      ],
+    }).notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("idx_alerts_product_sent").on(t.productId, t.sentAt)],
 );
+
+/**
+ * Email addresses that have unsubscribed. Checked before every send.
+ * Lower-case-normalised on insert. A single row per address — global
+ * unsubscribe (matches the standard one-click unsubscribe expectation
+ * from Gmail / Outlook / RFC 8058).
+ */
+export const emailUnsubscribes = pgTable("email_unsubscribes", {
+  email: text("email").primaryKey(),
+  unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  /** Free-text source so we can tell why someone left
+   *  (e.g. 'one-click', 'list-unsubscribe-header', 'manual'). */
+  source: text("source"),
+});
 
 /**
  * Auto-suggested links for products that look like the same item across

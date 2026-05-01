@@ -12,6 +12,14 @@
     {
       "path": "/api/crawl/stores",
       "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/cron/days-cover",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/digest",
+      "schedule": "0 9 * * 1"
     }
   ]
 }

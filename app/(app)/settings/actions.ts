@@ -11,6 +11,8 @@ import {
   getCurrentPlan,
 } from "@/lib/plan";
 import { KNOWN_MARKETS } from "@/lib/crawler/multi-market";
+import { sendEmail } from "@/lib/email/send";
+import { testEmail } from "@/lib/email/templates";
 
 const SETTINGS_ID = "singleton";
 
@@ -42,6 +44,53 @@ export async function saveNotificationEmails(formData: FormData) {
     });
 
   revalidatePath("/settings");
+}
+
+/**
+ * Fires a test email to every address in app_settings.notification_emails
+ * so users can sanity-check their config without waiting for a real
+ * price drop or stock change. Returns counts so the UI can show
+ * "Sent to 2, skipped 1 (unsubscribed)" feedback.
+ */
+export async function sendTestNotification(): Promise<{
+  ok: boolean;
+  sent: number;
+  skipped: number;
+  recipients: number;
+  error?: string;
+}> {
+  if (!(await isAuthed())) {
+    return { ok: false, sent: 0, skipped: 0, recipients: 0, error: "unauthorized" };
+  }
+  const [row] = await db
+    .select()
+    .from(schema.appSettings)
+    .where(eq(schema.appSettings.id, SETTINGS_ID))
+    .limit(1);
+  const emails = row?.notificationEmails ?? [];
+  if (emails.length === 0) {
+    return {
+      ok: false,
+      sent: 0,
+      skipped: 0,
+      recipients: 0,
+      error: "Add at least one email above and save before sending a test.",
+    };
+  }
+  const built = testEmail();
+  const result = await sendEmail({
+    to: emails,
+    subject: built.subject,
+    html: built.html,
+    text: built.text,
+  });
+  return {
+    ok: true,
+    sent: result.sent,
+    skipped: result.skipped,
+    recipients: emails.length,
+    error: result.error,
+  };
 }
 
 export async function getSettings() {
