@@ -83,8 +83,136 @@ export const trackedProducts = pgTable(
      * Useful for spotting changes the merchant made to copy or specs.
      */
     description: text("description"),
+
+    // ─── Tier 1: richer fields from /products/{handle}.json ────────────
+    /** Strike-through "was £X" price from compare_at_price. NULL when not on
+     *  sale. Stored as numeric string (matches priceObservations.price). */
+    compareAtPrice: numeric("compare_at_price", { precision: 12, scale: 2 }),
+    /** Merchant-set Shopify tags (NOT user-set Rivlr tags above). E.g.
+     *  "bestseller", "summer-2026". Reveals their internal merchandising. */
+    shopifyTags: text("shopify_tags")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    /** The merchant's vendor/brand string (their categorisation of brand). */
+    vendor: text("vendor"),
+    /** The merchant's product type taxonomy entry. */
+    productType: text("product_type"),
+    /** When the merchant first created this product on Shopify. */
+    shopifyCreatedAt: timestamp("shopify_created_at", { withTimezone: true }),
+    /** When the merchant last updated this product on Shopify. Strong
+     *  freshness signal — correlates with stock or copy changes. */
+    shopifyUpdatedAt: timestamp("shopify_updated_at", { withTimezone: true }),
+    /** Number of images attached to the product. Proxy for hero/investment. */
+    imageCount: integer("image_count"),
+    /** Last time we hit /products/{handle}.json for the meta fields above.
+     *  We only re-fetch when this is >24h old, to keep request volume low. */
+    lastMetaCrawledAt: timestamp("last_meta_crawled_at", { withTimezone: true }),
+
+    // ─── Tier 2: scraped from the PDP HTML (JSON-LD, review widgets) ────
+    /** Global Trade Item Number — UPC/EAN — from JSON-LD if exposed. Hard
+     *  identifier for cross-store linking, much better than fuzzy title. */
+    gtin: text("gtin"),
+    /** Manufacturer Part Number from JSON-LD. */
+    mpn: text("mpn"),
+    /** Brand name from JSON-LD `brand.name` (vs merchant-set `vendor`). */
+    brand: text("brand"),
+    /** Latest review count, from JSON-LD aggregateRating or scraped widgets
+     *  (Loox / Judge.me / Yotpo). Δ over time = sales velocity proxy. */
+    reviewCount: integer("review_count"),
+    /** Latest review score (0–5). */
+    reviewScore: numeric("review_score", { precision: 3, scale: 2 }),
+    /** JSON-LD priceValidUntil — pre-announced sale end date. */
+    priceValidUntil: timestamp("price_valid_until", { withTimezone: true }),
+    /** Detected social-proof widget kind (e.g. "salespop", "fomo"). NULL when
+     *  not detected. Lets us flag products with active conversion FOMO apps. */
+    socialProofWidget: text("social_proof_widget"),
+    /** Last time we fetched the PDP HTML for JSON-LD/widgets. >24h stale. */
+    lastPdpCrawledAt: timestamp("last_pdp_crawled_at", { withTimezone: true }),
   },
-  (t) => [index("idx_products_store").on(t.storeDomain), index("idx_products_active").on(t.active)],
+  (t) => [
+    index("idx_products_store").on(t.storeDomain),
+    index("idx_products_active").on(t.active),
+    index("idx_products_gtin").on(t.gtin),
+  ],
+);
+
+/**
+ * Per-store profile — populated by the daily /api/crawl/stores cron.
+ * Snapshots the store-level intel we surface on /stores and /stores/[domain]:
+ * apps installed, theme, currency, free shipping, catalogue size.
+ */
+export const stores = pgTable(
+  "stores",
+  {
+    domain: text("domain").primaryKey(),
+    /** Inferred display name (e.g. "Gymshark" from "uk.gymshark.com"). */
+    displayName: text("display_name"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastScannedAt: timestamp("last_scanned_at", { withTimezone: true }),
+    /** Total products in /products.json paginated. Snapshot from last scan. */
+    totalProductCount: integer("total_product_count"),
+    /** How many we currently observe out of stock. Refreshed at scan time. */
+    outOfStockCount: integer("out_of_stock_count"),
+    /** Theme name and store ID, scraped from the storefront HTML. */
+    themeName: text("theme_name"),
+    themeStoreId: text("theme_store_id"),
+    /** True when we detect Shopify Plus signals in the storefront. */
+    isShopifyPlus: boolean("is_shopify_plus").notNull().default(false),
+    /** The store's currency for our requests (after Markets / cart.js). */
+    platformCurrency: text("platform_currency"),
+    /** How many distinct markets / countries / locales we detected. */
+    marketsCount: integer("markets_count"),
+    /** Detected third-party apps. Shape: Array<{slug, name, kind}>.
+     *  kind: "email" | "reviews" | "subscriptions" | "popups" | "support" |
+     *        "analytics" | "other"  */
+    appsDetected: jsonb("apps_detected")
+      .$type<
+        Array<{
+          slug: string;
+          name: string;
+          kind: string;
+        }>
+      >()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** Free shipping threshold detected from announcement bar / cart drawer. */
+    freeShippingThreshold: numeric("free_shipping_threshold", {
+      precision: 12,
+      scale: 2,
+    }),
+    freeShippingCurrency: text("free_shipping_currency"),
+    /** Catalogue counts from /collections.json and /blogs.json. */
+    collectionsCount: integer("collections_count"),
+    blogsCount: integer("blogs_count"),
+  },
+  (t) => [index("idx_stores_last_scanned").on(t.lastScannedAt)],
+);
+
+/**
+ * Time-series snapshots of store-level metrics. Each row = one daily scan.
+ * Used to plot "catalogue growth" and "stockout rate" trend lines on the
+ * store profile page. Keeps history independent of the latest values on
+ * the `stores` row.
+ */
+export const storeSnapshots = pgTable(
+  "store_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeDomain: text("store_domain")
+      .notNull()
+      .references(() => stores.domain, { onDelete: "cascade" }),
+    takenAt: timestamp("taken_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    totalProductCount: integer("total_product_count"),
+    outOfStockCount: integer("out_of_stock_count"),
+    newProductsLast24h: integer("new_products_last_24h"),
+    appsCount: integer("apps_count"),
+  },
+  (t) => [index("idx_snapshots_store_time").on(t.storeDomain, t.takenAt)],
 );
 
 export const priceObservations = pgTable(
@@ -231,6 +359,9 @@ export type AlertLog = typeof alertLog.$inferSelect;
 export type LinkSuggestion = typeof linkSuggestions.$inferSelect;
 export type WaitlistEntry = typeof waitlist.$inferSelect;
 export type DiscoveredProduct = typeof discoveredProducts.$inferSelect;
+export type Store = typeof stores.$inferSelect;
+export type NewStore = typeof stores.$inferInsert;
+export type StoreSnapshot = typeof storeSnapshots.$inferSelect;
 
 /**
  * Products discovered on stores the user already tracks but not yet in

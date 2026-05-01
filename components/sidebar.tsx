@@ -11,6 +11,7 @@ import {
   DiscoverIcon,
   SuggestionsIcon,
   TagsIcon,
+  StoresIcon,
   SettingsIcon,
   HelpIcon,
   SignOutIcon,
@@ -25,6 +26,7 @@ interface NavItem {
 const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/products", label: "Products", Icon: ProductsIcon },
+  { href: "/stores", label: "Stores", Icon: StoresIcon },
   { href: "/discover", label: "Discover", Icon: DiscoverIcon },
   { href: "/activity", label: "Activity", Icon: ActivityIcon },
   { href: "/products/suggestions", label: "Suggestions", Icon: SuggestionsIcon },

@@ -84,6 +84,19 @@ export function HelpIcon({ className, size = 20 }: IconProps) {
   );
 }
 
+export function StoresIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
+      <path d="M4 7 L5 4 H19 L20 7" />
+      <path d="M4 7 V20 H20 V7" />
+      <path d="M4 7 H20" />
+      <path d="M9 7 V11 a3 3 0 0 1 -6 0 V7" />
+      <path d="M15 7 V11 a3 3 0 0 1 -6 0 V7" />
+      <path d="M21 7 V11 a3 3 0 0 1 -6 0 V7" />
+    </svg>
+  );
+}
+
 export function DiscoverIcon({ className, size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>

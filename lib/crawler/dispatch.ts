@@ -3,11 +3,20 @@ import { eq, isNull, lt, or, and, inArray } from "drizzle-orm";
 import {
   fetchShopifyProduct,
   fetchShopifyCurrency,
+  fetchShopifyProductMeta,
+  scrapePdp,
   summariseProduct,
   penceToDecimal,
   type ShopifyProduct,
 } from "./shopify";
 import { sendAlertsForChange } from "./alerts";
+
+/**
+ * 24h cooldown for the richer-but-less-time-sensitive endpoints (meta JSON
+ * and PDP scrape). Prevents doubling/tripling our request volume on every
+ * hourly crawl while still keeping these fields fresh enough to act on.
+ */
+const META_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 /**
  * In-process crawl dispatch. Replaces the old HTTP-fetch-fan-out approach
@@ -178,6 +187,24 @@ async function processBatch(
       const fetched = await fetchShopifyProduct(productJsUrl);
       const snapshot = summariseProduct(fetched);
 
+      // Tier 1: refresh meta JSON if >24h stale (vendor, tags, type, etc.)
+      const metaStale =
+        !product.lastMetaCrawledAt ||
+        Date.now() - new Date(product.lastMetaCrawledAt).getTime() >
+          META_COOLDOWN_MS;
+      const meta = metaStale
+        ? await fetchShopifyProductMeta(product.storeDomain, product.handle)
+        : null;
+
+      // Tier 2: PDP scrape (JSON-LD + review widgets) if >24h stale.
+      const pdpStale =
+        !product.lastPdpCrawledAt ||
+        Date.now() - new Date(product.lastPdpCrawledAt).getTime() >
+          META_COOLDOWN_MS;
+      const pdp = pdpStale
+        ? await scrapePdp(product.storeDomain, product.handle)
+        : null;
+
       // Pull previous latest observations for change detection.
       const [prevPrice] = await db
         .select({ price: schema.priceObservations.price })
@@ -224,6 +251,13 @@ async function processBatch(
             : null,
       }));
 
+      // compare_at_price comes through .js — store latest, NULL when none.
+      const compareAtPrice =
+        typeof fetched.compare_at_price === "number" &&
+        fetched.compare_at_price > 0
+          ? penceToDecimal(fetched.compare_at_price)
+          : null;
+
       await db
         .update(schema.trackedProducts)
         .set({
@@ -232,11 +266,44 @@ async function processBatch(
           description: snapshot.description,
           currency,
           variantsSnapshot,
+          compareAtPrice,
           lastCrawledAt: new Date(),
           // Reset failure counter on success.
           consecutiveFailures: 0,
           autoPausedAt: null,
           lastError: null,
+          // Tier 1 meta — only updated when we fetched it.
+          ...(meta
+            ? {
+                shopifyTags: Array.isArray(meta.tags) ? meta.tags : [],
+                vendor: meta.vendor ?? null,
+                productType: meta.product_type ?? null,
+                shopifyCreatedAt: meta.created_at
+                  ? new Date(meta.created_at)
+                  : null,
+                shopifyUpdatedAt: meta.updated_at
+                  ? new Date(meta.updated_at)
+                  : null,
+                imageCount: Array.isArray(meta.images) ? meta.images.length : 0,
+                lastMetaCrawledAt: new Date(),
+              }
+            : {}),
+          // Tier 2 PDP — only when we scraped.
+          ...(pdp
+            ? {
+                gtin: pdp.gtin,
+                mpn: pdp.mpn,
+                brand: pdp.brand,
+                reviewCount: pdp.reviewCount,
+                reviewScore:
+                  pdp.reviewScore !== null
+                    ? pdp.reviewScore.toFixed(2)
+                    : null,
+                priceValidUntil: pdp.priceValidUntil,
+                socialProofWidget: pdp.socialProofWidget,
+                lastPdpCrawledAt: new Date(),
+              }
+            : {}),
         })
         .where(eq(schema.trackedProducts.id, product.id));
 

@@ -67,6 +67,12 @@ export function DetailContent({ data, variant }: DetailContentProps) {
   }
 
   const symbol = currencySymbol(product.currency);
+  const discountPct =
+    product.compareAtPrice && latestPrice
+      ? Math.round(
+          (1 - Number(latestPrice.price) / Number(product.compareAtPrice)) * 100,
+        )
+      : null;
   const wrap =
     variant === "page"
       ? "mx-auto max-w-6xl px-6 py-10"
@@ -95,8 +101,14 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="text-xs uppercase tracking-wider text-muted font-mono">
+          <div className="text-xs uppercase tracking-wider text-muted font-mono flex items-center gap-2">
             {product.storeDomain}
+            <Link
+              href={`/stores/${encodeURIComponent(product.storeDomain)}`}
+              className="text-signal hover:text-foreground underline-offset-2 hover:underline"
+            >
+              View store profile →
+            </Link>
           </div>
           <h1
             className={`mt-1 font-semibold tracking-tight ${variant === "page" ? "text-2xl" : "text-xl"}`}
@@ -176,6 +188,10 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         </div>
       </div>
 
+      {/* Tier 1 + 2 intel — vendor, GTIN, discount, reviews, etc. Renders only
+          fields that exist; entirely hidden when nothing's known. */}
+      <ProductIntelStrip product={product} />
+
       {/* Notification toggles */}
       <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
         <div className="text-[11px] uppercase tracking-wider text-muted font-mono mb-3">
@@ -205,12 +221,13 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {/* Stat cards */}
       <div className={`mt-6 grid grid-cols-2 gap-3 ${statsCols}`}>
         <Stat
-          label="Current price"
+          label={discountPct && discountPct > 0 ? `Current price (−${discountPct}%)` : "Current price"}
           value={
             latestPrice
               ? `${symbol}${Number(latestPrice.price).toFixed(2)}`
               : "—"
           }
+          highlight={discountPct && discountPct > 0 ? "good" : "neutral"}
         />
         <Stat
           label="Stock"
@@ -448,6 +465,130 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       )}
     </div>
   );
+}
+
+function ProductIntelStrip({
+  product,
+}: {
+  product: ProductDetailData["product"];
+}) {
+  const compareAt = product.compareAtPrice
+    ? Number(product.compareAtPrice)
+    : null;
+  const reviewBlock =
+    product.reviewCount !== null && product.reviewCount > 0;
+  const meta: Array<{ label: string; value: React.ReactNode; tone?: "signal" }> =
+    [];
+
+  if (product.vendor)
+    meta.push({ label: "Vendor", value: product.vendor });
+  if (product.brand && product.brand !== product.vendor)
+    meta.push({ label: "Brand", value: product.brand });
+  if (product.productType)
+    meta.push({ label: "Type", value: product.productType });
+  if (product.gtin) meta.push({ label: "GTIN", value: product.gtin });
+  if (product.mpn) meta.push({ label: "MPN", value: product.mpn });
+  if (product.imageCount !== null && product.imageCount > 0)
+    meta.push({ label: "Images", value: product.imageCount.toString() });
+  if (product.shopifyUpdatedAt)
+    meta.push({
+      label: "Last edited",
+      value: timeAgoShort(product.shopifyUpdatedAt),
+    });
+  if (product.shopifyCreatedAt)
+    meta.push({
+      label: "Added",
+      value: timeAgoShort(product.shopifyCreatedAt),
+    });
+  if (compareAt !== null)
+    meta.push({
+      label: "Compare-at",
+      value: `${currencySymbol(product.currency)}${compareAt.toFixed(2)}`,
+      tone: "signal",
+    });
+  if (reviewBlock)
+    meta.push({
+      label: "Reviews",
+      value: `${product.reviewCount}${
+        product.reviewScore ? ` · ${Number(product.reviewScore).toFixed(1)}★` : ""
+      }`,
+    });
+  if (product.priceValidUntil) {
+    const d = new Date(product.priceValidUntil);
+    if (d.getTime() > Date.now()) {
+      meta.push({
+        label: "Sale ends",
+        value: d.toLocaleDateString(),
+        tone: "signal",
+      });
+    }
+  }
+  if (product.socialProofWidget)
+    meta.push({
+      label: "FOMO widget",
+      value: product.socialProofWidget,
+    });
+
+  // Shopify tags strip — separate row so it doesn't get crushed.
+  const shopifyTags = product.shopifyTags ?? [];
+
+  if (meta.length === 0 && shopifyTags.length === 0) return null;
+
+  return (
+    <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-mono mb-3">
+        Product intel
+      </div>
+      {meta.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {meta.map((m, i) => (
+            <div key={i}>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+                {m.label}
+              </div>
+              <div
+                className={`mt-0.5 text-sm font-mono truncate ${
+                  m.tone === "signal" ? "text-signal" : "text-foreground"
+                }`}
+              >
+                {m.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {shopifyTags.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-default">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono mb-2">
+            Shopify tags
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {shopifyTags.map((t) => (
+              <span
+                key={t}
+                className="rounded border border-default bg-surface px-2 py-0.5 text-[11px] font-mono text-muted"
+              >
+                #{t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function timeAgoShort(d: Date | string): string {
+  const ms = Date.now() - new Date(d).getTime();
+  if (ms < 0) return "future";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 60) return `${days}d ago`;
+  const months = Math.round(days / 30);
+  return `${months}mo ago`;
 }
 
 function NotifyToggle({

@@ -281,3 +281,212 @@ export function summariseProduct(product: ShopifyProduct): ProductSnapshot {
 export function penceToDecimal(pence: number): string {
   return (pence / 100).toFixed(2);
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Tier 1: /products/{handle}.json meta fetch
+// ─────────────────────────────────────────────────────────────────────
+
+/** The product fields exposed by /products/{handle}.json (richer than .js).
+ *  We don't model variants here because we already get them from .js. */
+export interface ShopifyProductMeta {
+  vendor?: string | null;
+  product_type?: string | null;
+  tags?: string[];
+  created_at?: string;
+  updated_at?: string;
+  images?: Array<{ src?: string }>;
+}
+
+/**
+ * Hits `/products/{handle}.json` for richer product fields not in `.js`:
+ * vendor, product_type, tags array, created_at, updated_at, image count.
+ *
+ * We only call this when last_meta_crawled_at > 24h, so the request volume
+ * is at most 1 per product per day on top of hourly .js crawls.
+ */
+export async function fetchShopifyProductMeta(
+  storeDomain: string,
+  handle: string,
+): Promise<ShopifyProductMeta | null> {
+  const url = `https://${storeDomain}/products/${handle}.json`;
+  try {
+    const res = await fetch(url, { headers: RIVLR_HEADERS, cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { product?: ShopifyProductMeta };
+    return data.product ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Tier 2: PDP scraper for JSON-LD + review widgets
+// ─────────────────────────────────────────────────────────────────────
+
+export interface PdpScrape {
+  gtin: string | null;
+  mpn: string | null;
+  brand: string | null;
+  reviewCount: number | null;
+  reviewScore: number | null;
+  priceValidUntil: Date | null;
+  socialProofWidget: string | null;
+}
+
+/**
+ * Fetches the full PDP HTML and extracts:
+ *  - JSON-LD Product schemas (gtin, mpn, brand, aggregateRating, offers)
+ *  - Loox / Judge.me / Yotpo review-widget data
+ *  - Social-proof FOMO app signatures (SalesPop, Fomo, etc.)
+ *
+ * No DOM parser — uses regex extraction to keep this dependency-free and
+ * fast. It's brittle by nature, so every field is independently nullable.
+ */
+export async function scrapePdp(
+  storeDomain: string,
+  handle: string,
+): Promise<PdpScrape | null> {
+  const url = `https://${storeDomain}/products/${handle}`;
+  let html: string;
+  try {
+    const res = await fetch(url, {
+      headers: { ...RIVLR_HEADERS, Accept: "text/html" },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    html = await res.text();
+  } catch {
+    return null;
+  }
+
+  const result: PdpScrape = {
+    gtin: null,
+    mpn: null,
+    brand: null,
+    reviewCount: null,
+    reviewScore: null,
+    priceValidUntil: null,
+    socialProofWidget: null,
+  };
+
+  // Extract every JSON-LD block, look for Product schemas.
+  const jsonLdMatches = html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
+  for (const m of jsonLdMatches) {
+    const raw = m[1].trim();
+    if (!raw) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue; // some themes emit partial / templated JSON
+    }
+    // Schema can be a single object, array, or @graph wrapper.
+    const candidates: unknown[] = Array.isArray(parsed)
+      ? parsed
+      : (parsed as { "@graph"?: unknown[] })?.["@graph"]
+        ? (parsed as { "@graph": unknown[] })["@graph"]
+        : [parsed];
+
+    for (const c of candidates) {
+      if (!c || typeof c !== "object") continue;
+      const obj = c as Record<string, unknown>;
+      const type = obj["@type"];
+      const isProduct =
+        type === "Product" ||
+        (Array.isArray(type) && type.includes("Product"));
+      if (!isProduct) continue;
+
+      // gtin / mpn / brand
+      const gtin =
+        (obj.gtin13 as string | undefined) ??
+        (obj.gtin12 as string | undefined) ??
+        (obj.gtin8 as string | undefined) ??
+        (obj.gtin as string | undefined) ??
+        null;
+      if (gtin && typeof gtin === "string") result.gtin = gtin.trim();
+
+      if (typeof obj.mpn === "string") result.mpn = obj.mpn.trim();
+
+      const brand = obj.brand;
+      if (typeof brand === "string") {
+        result.brand = brand.trim();
+      } else if (brand && typeof brand === "object") {
+        const bn = (brand as { name?: string }).name;
+        if (typeof bn === "string") result.brand = bn.trim();
+      }
+
+      // aggregateRating
+      const rating = obj.aggregateRating;
+      if (rating && typeof rating === "object") {
+        const r = rating as Record<string, unknown>;
+        const rc = r.reviewCount ?? r.ratingCount;
+        const rv = r.ratingValue;
+        if (typeof rc === "number") result.reviewCount = rc;
+        else if (typeof rc === "string" && /^\d+$/.test(rc))
+          result.reviewCount = parseInt(rc, 10);
+        if (typeof rv === "number") result.reviewScore = rv;
+        else if (typeof rv === "string" && !isNaN(parseFloat(rv)))
+          result.reviewScore = parseFloat(rv);
+      }
+
+      // offers.priceValidUntil — array or single
+      const offers = obj.offers;
+      const offerArr = Array.isArray(offers) ? offers : offers ? [offers] : [];
+      for (const o of offerArr) {
+        if (!o || typeof o !== "object") continue;
+        const pvu = (o as { priceValidUntil?: string }).priceValidUntil;
+        if (typeof pvu === "string") {
+          const d = new Date(pvu);
+          if (!isNaN(d.getTime())) {
+            result.priceValidUntil = d;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Loox widget data (data-rating, data-count attrs on review element).
+  if (result.reviewCount === null || result.reviewScore === null) {
+    const looxMatch = html.match(
+      /class=["'][^"']*loox-rating[^"']*["'][^>]*data-rating=["']([\d.]+)["'][^>]*data-count=["'](\d+)["']/i,
+    );
+    if (looxMatch) {
+      if (result.reviewScore === null) result.reviewScore = parseFloat(looxMatch[1]);
+      if (result.reviewCount === null) result.reviewCount = parseInt(looxMatch[2], 10);
+    }
+  }
+
+  // Judge.me (jdgm-prev-badge data-number-of-reviews, data-average-rating).
+  if (result.reviewCount === null || result.reviewScore === null) {
+    const jdgmCount = html.match(
+      /data-number-of-reviews=["'](\d+)["']/i,
+    );
+    const jdgmScore = html.match(
+      /data-average-rating=["']([\d.]+)["']/i,
+    );
+    if (jdgmCount && result.reviewCount === null)
+      result.reviewCount = parseInt(jdgmCount[1], 10);
+    if (jdgmScore && result.reviewScore === null)
+      result.reviewScore = parseFloat(jdgmScore[1]);
+  }
+
+  // Social-proof FOMO widget detection — by script src patterns.
+  const widgetSignatures: Array<[RegExp, string]> = [
+    [/salespop\./i, "salespop"],
+    [/fomo\.com\//i, "fomo"],
+    [/proofkit\./i, "proofkit"],
+    [/(?:beeketing|nextsale)\./i, "beeketing"],
+    [/sales-?notification/i, "generic-fomo"],
+  ];
+  for (const [re, slug] of widgetSignatures) {
+    if (re.test(html)) {
+      result.socialProofWidget = slug;
+      break;
+    }
+  }
+
+  return result;
+}
