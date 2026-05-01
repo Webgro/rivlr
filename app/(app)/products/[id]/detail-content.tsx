@@ -10,6 +10,7 @@ import {
   unlinkProduct,
 } from "../actions";
 import { MarketSelect } from "./market-select";
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
 import { NotesEditor } from "./notes-editor";
@@ -177,15 +178,25 @@ export function DetailContent({ data, variant }: DetailContentProps) {
               </button>
             </form>
           )}
-          <form action={deleteProduct}>
-            <input type="hidden" name="id" value={product.id} />
-            <button
-              type="submit"
-              className="rounded-md border border-signal/40 bg-signal/5 px-3 py-1.5 text-sm text-signal hover:border-signal hover:bg-signal/10"
-            >
-              Delete
-            </button>
-          </form>
+          <ConfirmActionButton
+            action={deleteProduct}
+            hidden={[{ name: "id", value: product.id }]}
+            buttonClassName="rounded-md border border-signal/40 bg-signal/5 px-3 py-1.5 text-sm text-signal hover:border-signal hover:bg-signal/10"
+            buttonLabel="Delete"
+            title="Delete this product?"
+            description={
+              <>
+                Stops crawling and removes all observations, price history,
+                and stock data for{" "}
+                <strong className="text-foreground">
+                  {product.title ?? product.handle}
+                </strong>
+                . This cannot be undone.
+              </>
+            }
+            confirmLabel="Yes, delete"
+            variant="danger"
+          />
         </div>
       </div>
 

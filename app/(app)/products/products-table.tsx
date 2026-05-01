@@ -13,6 +13,7 @@ import {
 } from "./actions";
 import { TagChip } from "@/components/tag-chip";
 import { FavouriteStar } from "./favourite-star";
+import { ConfirmDialog } from "@/components/confirm-action-button";
 import { type TagColor } from "@/lib/db";
 
 export interface DashboardRow {
@@ -56,6 +57,7 @@ export function ProductsTable({
   const [selectedTag, setSelectedTag] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [expanding, setExpanding] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // Page-level state — how many rows on this page are selected.
   const allOnPageSelected =
@@ -248,18 +250,23 @@ export function ProductsTable({
             <BulkBtn
               disabled={pending}
               variant="danger"
-              onClick={() => {
-                if (
-                  confirm(
-                    `Delete ${selected.size} product${selected.size === 1 ? "" : "s"}? Their entire history will be removed.`,
-                  )
-                ) {
-                  run("Deleted", () => bulkDelete(ids));
-                }
-              }}
+              onClick={() => setBulkDeleteOpen(true)}
             >
               Delete
             </BulkBtn>
+            <ConfirmDialog
+              open={bulkDeleteOpen}
+              onClose={() => setBulkDeleteOpen(false)}
+              onConfirm={() => {
+                setBulkDeleteOpen(false);
+                run("Deleted", () => bulkDelete(ids));
+              }}
+              pending={pending}
+              title={`Delete ${selected.size} product${selected.size === 1 ? "" : "s"}?`}
+              description="All price observations, stock history, notes, tags, and link suggestions for these products will be permanently removed. This cannot be undone."
+              confirmLabel="Yes, delete all"
+              variant="danger"
+            />
             <button
               type="button"
               onClick={() => setSelected(new Set())}

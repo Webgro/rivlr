@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import { getDashboardInsights } from "@/lib/dashboard-insights";
 import { InsightsRow } from "@/app/(app)/products/insights-row";
+import { OnboardingChecklist } from "./onboarding-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -337,6 +338,9 @@ export default async function DashboardPage() {
       )}
 
       {insights && <InsightsRow insights={insights} />}
+
+      {/* Step-by-step onboarding — auto-hides once all 5 steps are done. */}
+      <OnboardingChecklist />
 
       {data && (
         <>

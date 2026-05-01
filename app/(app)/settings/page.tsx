@@ -5,6 +5,7 @@ import {
   updateCrawlCadence,
   updateMultiMarketCountries,
   updateCartProbeEnabled,
+  updateDaysCoverThreshold,
 } from "./actions";
 import {
   PLAN_FEATURES,
@@ -34,6 +35,7 @@ export default async function SettingsPage() {
     "JP",
   ];
   const cartProbeEnabled = settings?.cartProbeEnabled ?? true;
+  const daysCoverThreshold = settings?.daysCoverThreshold ?? 7;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
@@ -120,6 +122,43 @@ export default async function SettingsPage() {
               Save markets
             </button>
           </div>
+        </form>
+      </section>
+
+      {/* Days-cover threshold */}
+      <section className="mt-10">
+        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
+          Opportunities · stockout warning
+        </h2>
+        <p className="mt-2 text-sm text-muted leading-relaxed">
+          Surface competitor products on the Opportunities page when their
+          remaining stock divided by their daily sales velocity drops below
+          this many days. Lower = earlier warning, fewer matches. Higher =
+          more matches, less urgency.
+        </p>
+        <form
+          action={updateDaysCoverThreshold}
+          className="mt-4 flex items-center gap-3 rounded-lg border border-default bg-elevated p-4"
+        >
+          <label className="text-sm flex items-center gap-2">
+            Warn when days cover &lt;
+            <input
+              type="number"
+              name="threshold"
+              defaultValue={daysCoverThreshold}
+              min={1}
+              max={90}
+              step={1}
+              className="w-20 rounded-md border border-default bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-strong"
+            />
+            days
+          </label>
+          <button
+            type="submit"
+            className="ml-auto rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface"
+          >
+            Save threshold
+          </button>
         </form>
       </section>
 

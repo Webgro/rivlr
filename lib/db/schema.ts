@@ -351,6 +351,12 @@ export const appSettings = pgTable("app_settings", {
    *  endpoints don't expose inventory_quantity. Defaults to true on a
    *  permissive rollout — users disable it explicitly if they prefer. */
   cartProbeEnabled: boolean("cart_probe_enabled").notNull().default(true),
+  /** Threshold in days for the "About to go dark" Opportunities section.
+   *  Competitor products whose remaining inventory (units / daily sales
+   *  rate) falls below this number are surfaced as an early-warning
+   *  signal. Default 7 = one week. Range 1–90 enforced by the server
+   *  action. */
+  daysCoverThreshold: integer("days_cover_threshold").notNull().default(7),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -78,6 +78,31 @@ export async function updateCrawlCadence(formData: FormData) {
 }
 
 /**
+ * Update the days-cover threshold for the "About to go dark" Opportunities
+ * section. Clamped to a sensible 1–90 day range.
+ */
+export async function updateDaysCoverThreshold(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const raw = String(formData.get("threshold") ?? "");
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return;
+  const clamped = Math.min(90, Math.max(1, n));
+  await db
+    .insert(schema.appSettings)
+    .values({
+      id: SETTINGS_ID,
+      daysCoverThreshold: clamped,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.appSettings.id,
+      set: { daysCoverThreshold: clamped, updatedAt: new Date() },
+    });
+  revalidatePath("/settings");
+  revalidatePath("/opportunities");
+}
+
+/**
  * Toggle the global cart-add inventory probe. When off, the daily cron
  * skips probing entirely. When on, only products with hidden inventory
  * + non-blocked stores get probed (orchestrator handles those filters).
