@@ -46,18 +46,19 @@ export function ThemeToggle() {
         <SunIcon className="text-muted-strong opacity-80" />
       )}
       <span>{theme === "dark" ? "Dark" : "Light"} mode</span>
-      {/* Toggle switch on the right */}
+      {/* Toggle switch on the right — matches NotifyToggle / cart-probe
+          toggle geometry so it looks consistent across the app. */}
       <span
-        className={`ml-auto relative h-4 w-7 rounded-full border transition ${
+        className={`ml-auto relative h-5 w-9 flex-shrink-0 rounded-full border transition ${
           theme === "dark"
-            ? "border-strong bg-surface"
-            : "border-strong bg-signal/20"
+            ? "border-default bg-elevated"
+            : "border-strong bg-foreground/15"
         }`}
         aria-hidden
       >
         <span
-          className={`absolute top-[1px] h-2.5 w-2.5 rounded-full bg-foreground transition-transform ${
-            theme === "dark" ? "translate-x-[2px]" : "translate-x-[14px]"
+          className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-foreground transition-transform ${
+            theme === "dark" ? "translate-x-[2px]" : "translate-x-[18px]"
           }`}
         />
       </span>

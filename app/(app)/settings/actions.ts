@@ -78,6 +78,28 @@ export async function updateCrawlCadence(formData: FormData) {
 }
 
 /**
+ * Toggle the global cart-add inventory probe. When off, the daily cron
+ * skips probing entirely. When on, only products with hidden inventory
+ * + non-blocked stores get probed (orchestrator handles those filters).
+ */
+export async function updateCartProbeEnabled(formData: FormData) {
+  if (!(await isAuthed())) redirect("/login");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  await db
+    .insert(schema.appSettings)
+    .values({
+      id: SETTINGS_ID,
+      cartProbeEnabled: enabled,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.appSettings.id,
+      set: { cartProbeEnabled: enabled, updatedAt: new Date() },
+    });
+  revalidatePath("/settings");
+}
+
+/**
  * Update the list of countries the daily multi-market price scan polls.
  * Validated against the KNOWN_MARKETS whitelist; unknown codes are dropped.
  * Empty list reverts to defaults.

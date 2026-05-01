@@ -168,7 +168,7 @@ export const COMMON_MARKETS: Array<Market & { label: string }> = [
 /** Builds the headers for a given market. Both cookies named because
  *  different themes/middleware respect different ones. Accept-Language
  *  hints the server too — some Markets apps key off it. */
-function buildMarketHeaders(market?: Market | null): HeadersInit {
+export function buildMarketHeaders(market?: Market | null): HeadersInit {
   const m = market && market.country && market.currency ? market : DEFAULT_MARKET;
   return {
     "User-Agent": RIVLR_USER_AGENT,

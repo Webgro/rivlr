@@ -32,6 +32,7 @@ export async function getProductData(id: string) {
         observedAt: schema.stockObservations.observedAt,
         available: schema.stockObservations.available,
         quantity: schema.stockObservations.quantity,
+        quantitySource: schema.stockObservations.quantitySource,
       })
       .from(schema.stockObservations)
       .where(eq(schema.stockObservations.productId, id))

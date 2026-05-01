@@ -1,8 +1,10 @@
+import Link from "next/link";
 import {
   saveNotificationEmails,
   getSettings,
   updateCrawlCadence,
   updateMultiMarketCountries,
+  updateCartProbeEnabled,
 } from "./actions";
 import {
   PLAN_FEATURES,
@@ -31,6 +33,7 @@ export default async function SettingsPage() {
     "CA",
     "JP",
   ];
+  const cartProbeEnabled = settings?.cartProbeEnabled ?? true;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
@@ -117,6 +120,62 @@ export default async function SettingsPage() {
               Save markets
             </button>
           </div>
+        </form>
+      </section>
+
+      {/* Inventory probe */}
+      <section className="mt-10">
+        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
+          Inventory probe
+        </h2>
+        <p className="mt-2 text-sm text-muted leading-relaxed">
+          For products where the public Shopify endpoints don't expose
+          inventory, Rivlr performs a single polite cart-add probe daily
+          and reads the exact stock from Shopify's response. The probe
+          never completes a checkout. Read more on the{" "}
+          <Link
+            href="/bot"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            bot info page
+          </Link>
+          .
+        </p>
+        <form
+          action={updateCartProbeEnabled}
+          className="mt-4 rounded-lg border border-default bg-elevated p-4 flex items-center justify-between gap-4"
+        >
+          <div>
+            <div className="text-sm font-medium">
+              Probe hidden inventory daily
+            </div>
+            <div className="mt-1 text-xs text-muted">
+              {cartProbeEnabled
+                ? "On — exact quantity revealed when possible. Probe results show a 'probed' badge."
+                : "Off — Rivlr only uses inventory the merchant publishes via /products.json."}
+            </div>
+          </div>
+          <input
+            type="hidden"
+            name="enabled"
+            value={(!cartProbeEnabled).toString()}
+          />
+          <button
+            type="submit"
+            role="switch"
+            aria-checked={cartProbeEnabled}
+            className={`relative h-6 w-11 flex-shrink-0 rounded-full border transition ${
+              cartProbeEnabled
+                ? "border-signal bg-signal"
+                : "border-default bg-surface hover:border-strong"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                cartProbeEnabled ? "translate-x-[22px]" : "translate-x-[2px]"
+              }`}
+            />
+          </button>
         </form>
       </section>
 

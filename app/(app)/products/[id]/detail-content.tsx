@@ -246,7 +246,11 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           highlight={discountPct && discountPct > 0 ? "good" : "neutral"}
         />
         <Stat
-          label="Stock"
+          label={
+            latestStock?.quantitySource === "probed"
+              ? "Stock · probed"
+              : "Stock"
+          }
           value={
             latestStock
               ? latestStock.available

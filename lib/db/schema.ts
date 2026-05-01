@@ -148,6 +148,12 @@ export const trackedProducts = pgTable(
      *  signal we can derive from public data. */
     isBestseller: boolean("is_bestseller").notNull().default(false),
 
+    /** Last time we ran the cart-add inventory probe on this product.
+     *  Used to gate at most one probe per 24h. */
+    lastInventoryProbedAt: timestamp("last_inventory_probed_at", {
+      withTimezone: true,
+    }),
+
     /** User-flagged favourite — surfaces a star in the products table and
      *  unlocks a Favourites filter. Single-account product, so no
      *  per-user scoping needed. */
@@ -214,6 +220,10 @@ export const stores = pgTable(
      *  Only one row is allowed = true at a time (enforced in the server
      *  action). Unlocks the best-seller collection probe for this store. */
     isMyStore: boolean("is_my_store").notNull().default(false),
+    /** Set when the cart-probe got a 403/429 from this store. We back off
+     *  for 7 days before retrying — fighting bot protection rarely wins
+     *  and just gets us flagged harder. NULL = no block recorded. */
+    cartProbeBlockedAt: timestamp("cart_probe_blocked_at", { withTimezone: true }),
   },
   (t) => [
     index("idx_stores_last_scanned").on(t.lastScannedAt),
@@ -274,6 +284,16 @@ export const stockObservations = pgTable(
      * publish quantities in the .js endpoint. Available boolean is always set.
      */
     quantity: integer("quantity"),
+    /** Where the quantity came from:
+     *  - 'public': read directly from /products/{handle}.js (free)
+     *  - 'probed': inferred from a 422 response on /cart/add.js with a
+     *    very large quantity. Daily-only, polite, opt-outable.
+     *  - 'unknown': null quantity, source not tracked. */
+    quantitySource: text("quantity_source", {
+      enum: ["public", "probed", "unknown"],
+    })
+      .notNull()
+      .default("unknown"),
     variantId: text("variant_id"), // null = product-level snapshot, set = variant-level
   },
   (t) => [index("idx_stock_product_time").on(t.productId, t.observedAt)],
@@ -326,6 +346,11 @@ export const appSettings = pgTable("app_settings", {
     .array()
     .notNull()
     .default(sql`ARRAY['GB','IE','US','DE','AU','CA','JP']::text[]`),
+  /** Global on/off for the cart-add inventory probe. When true, the daily
+   *  05:30 UTC cron probes /cart/add.js on products where the public
+   *  endpoints don't expose inventory_quantity. Defaults to true on a
+   *  permissive rollout — users disable it explicitly if they prefer. */
+  cartProbeEnabled: boolean("cart_probe_enabled").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
