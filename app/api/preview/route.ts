@@ -130,30 +130,58 @@ export async function POST(request: Request) {
   const currency =
     currencyResult.status === "fulfilled" ? currencyResult.value : market.currency;
 
-  // Inventory probe: if .js didn't expose quantity AND the product is
-  // available, probe the first variant via /cart/add.js. One request per
-  // preview, bounded by the cookie rate limit. Skip when probing is
-  // pointless (already have a number, or product is sold out).
+  // Inventory probe: when .js doesn't expose quantity AND the product is
+  // available, probe up to MAX_PROBE_VARIANTS variants via /cart/add.js
+  // and sum the exact responses. The first variant alone is unreliable —
+  // it might be oversell-allowed, return a phrasing we don't parse, or
+  // be the only one out of stock. Probing several is the difference
+  // between "In stock" and the actual number that wow's the visitor.
+  //
+  // Cost: at most MAX_PROBE_VARIANTS phantom add-to-cart events per
+  // preview, bounded further by the 3-per-24h cookie rate limit. Polite
+  // 600ms gap between variants to avoid hammering the store.
+  const MAX_PROBE_VARIANTS = 5;
+  const PROBE_VARIANT_GAP_MS = 600;
   let probedQuantity: number | null = null;
   let probedVariantTitle: string | null = null;
+  let probedVariantsCount = 0;
   if (
     snapshot.quantity === null &&
     snapshot.available &&
     product.variants.length > 0
   ) {
-    const firstVariant = product.variants[0];
-    try {
-      const probe = await probeVariantInventory(
-        parsed.storeDomain,
-        firstVariant.id,
-        market,
-      );
-      if (probe.kind === "exact") {
-        probedQuantity = probe.quantity;
-        probedVariantTitle = firstVariant.title;
+    // Sum exact responses; ignore non-exact (unbounded/unknown). Returns a
+    // lower-bound total that's still meaningful — better to show "53+ in
+    // stock" than to suppress a number because one variant misbehaved.
+    let exactSum = 0;
+    let exactVariantHits = 0;
+    const variantsToProbe = product.variants.slice(0, MAX_PROBE_VARIANTS);
+    for (let i = 0; i < variantsToProbe.length; i++) {
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, PROBE_VARIANT_GAP_MS));
       }
-    } catch {
-      // best effort — silent failure leaves probedQuantity null
+      try {
+        const v = variantsToProbe[i];
+        const probe = await probeVariantInventory(
+          parsed.storeDomain,
+          v.id,
+          market,
+        );
+        probedVariantsCount++;
+        if (probe.kind === "exact") {
+          exactSum += probe.quantity;
+          exactVariantHits++;
+          if (!probedVariantTitle) probedVariantTitle = v.title;
+        } else if (probe.kind === "blocked") {
+          break; // store is blocking; stop probing
+        }
+        // soldout / unbounded / unknown — skip silently
+      } catch {
+        // network error — keep going to next variant
+      }
+    }
+    if (exactVariantHits > 0) {
+      probedQuantity = exactSum;
     }
   }
 
