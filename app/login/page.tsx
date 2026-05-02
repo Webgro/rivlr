@@ -148,6 +148,21 @@ function SignInForm({
             Too many sign-in requests. Wait a moment, then try again.
           </p>
         )}
+        {error === "not-invited" && (
+          <p className="text-sm text-signal">
+            That email isn&apos;t on any Rivlr account. Ask the account
+            owner to invite you from <span className="font-mono">Settings → Team</span>.
+          </p>
+        )}
+        {(error === "expired" || error === "used" || error === "invalid") && (
+          <p className="text-sm text-signal">
+            {error === "expired"
+              ? "That link has expired. Get a fresh one below."
+              : error === "used"
+                ? "That link was already used. Get a fresh one below."
+                : "Invalid sign-in link. Get a fresh one below."}
+          </p>
+        )}
 
         <button
           type="submit"

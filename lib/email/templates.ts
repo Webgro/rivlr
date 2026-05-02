@@ -252,6 +252,59 @@ ${
   return { subject, html, text };
 }
 
+// ─── Welcome (first signup) ────────────────────────────────────────────
+export function welcomeEmail(opts: { email: string }): Built {
+  const subject = "Welcome to Rivlr";
+  const html = renderShell(
+    `<h1 style="margin:0 0 12px;font-size:22px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">Welcome to Rivlr</h1>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">You&apos;re in. Here&apos;s what&apos;s waiting for you on the dashboard:</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1a1a1a" style="background:#1a1a1a;border-radius:8px;border:1px solid #262626;margin:0 0 20px;">
+  <tr><td style="padding:18px;">
+    <ul style="margin:0;padding:0 0 0 18px;color:#c0c0c0;font-size:14px;line-height:1.8;">
+      <li>Paste any Shopify product URL — Rivlr starts watching the price &amp; stock</li>
+      <li>Mark your own store to unlock the <strong style="color:#f5f3ee;">Opportunities</strong> view</li>
+      <li>Get email alerts the moment competitors drop a price or run out of stock</li>
+      <li>Multi-market price scanning across GB / IE / US / DE and more</li>
+      <li>Cart-probe inventory: the exact stock count even when merchants hide it</li>
+    </ul>
+  </td></tr>
+</table>
+
+<a href="https://rivlr.app/dashboard" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Open dashboard →</a>
+
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Stuck or curious? Just reply to this email — a real person reads it.</p>`,
+    {
+      preheader: "Your Rivlr account is ready. Here's what's inside.",
+    },
+  );
+  const text = `Welcome to Rivlr.\n\nYou're in. On the dashboard you can:\n- Paste any Shopify product URL to start tracking price & stock\n- Mark your own store to unlock Opportunities\n- Get email alerts on competitor price drops & stockouts\n- Scan multi-market prices (GB/IE/US/DE+)\n- Probe exact inventory even when merchants hide it\n\nDashboard: https://rivlr.app/dashboard\n\nStuck? Reply to this email — a real person reads it.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  return { subject, html, text };
+}
+
+// ─── Team invite ───────────────────────────────────────────────────────
+export function teamInviteEmail(opts: {
+  inviterEmail: string;
+  inviteeEmail: string;
+  url: string;
+  expiresInMinutes: number;
+}): Built {
+  const subject = `${opts.inviterEmail} invited you to their Rivlr account`;
+  const html = renderShell(
+    `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">You&apos;ve been invited to Rivlr</h1>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;"><strong style="color:#f5f3ee;">${escape(opts.inviterEmail)}</strong> added <strong style="color:#f5f3ee;">${escape(opts.inviteeEmail)}</strong> to their Rivlr account. Click below to sign in — you&apos;ll see all the products and stores they track.</p>
+<a href="${opts.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Accept invite →</a>
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Link expires in ${opts.expiresInMinutes} minutes. If you weren&apos;t expecting this, you can ignore the email — no account is created without your click.</p>
+<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If the button doesn&apos;t work, copy and paste:<br>
+<a href="${opts.url}" style="color:#8a8a8a;word-break:break-all;text-decoration:underline;">${opts.url}</a></p>`,
+    {
+      preheader: `${opts.inviterEmail} added you to their Rivlr account.`,
+    },
+  );
+  const text = `${opts.inviterEmail} invited you to their Rivlr account.\n\nClick to accept: ${opts.url}\n\nLink expires in ${opts.expiresInMinutes} minutes. Ignore if unexpected.`;
+  return { subject, html, text };
+}
+
 // ─── Magic-link sign-in ────────────────────────────────────────────────
 export function magicLinkEmail(opts: {
   url: string;

@@ -27,4 +27,5 @@ export {
   type NewUser,
   type AuthSession,
   type AuthMagicLink,
+  type UserEmail,
 } from "./schema";

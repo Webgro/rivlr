@@ -10,6 +10,8 @@ import {
 import { SubmitButton } from "@/components/submit-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
 import { SendTestEmailButton } from "./send-test-email-button";
+import { TeamPanel } from "./team-panel";
+import { listTeamMembers } from "./team-actions";
 import {
   PLAN_FEATURES,
   CADENCE_LABELS,
@@ -39,6 +41,7 @@ export default async function SettingsPage() {
   ];
   const cartProbeEnabled = settings?.cartProbeEnabled ?? true;
   const daysCoverThreshold = settings?.daysCoverThreshold ?? 7;
+  const teamMembers = await listTeamMembers();
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
@@ -50,6 +53,9 @@ export default async function SettingsPage() {
 
         {/* Group nav — anchor links to skip the wall-of-sections */}
         <nav className="mt-5 flex flex-wrap gap-2 text-xs">
+          <a href="#account" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
+            Account
+          </a>
           <a href="#crawling" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
             Crawling
           </a>
@@ -61,6 +67,27 @@ export default async function SettingsPage() {
           </a>
         </nav>
       </div>
+
+      {/* ─── Account ─────────────────────────────────────────────────── */}
+      <div id="account" className="mt-12 pt-2 border-t border-default">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
+          Account
+        </div>
+      </div>
+
+      {/* Team access */}
+      <section className="mt-6">
+        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
+          Team access
+        </h2>
+        <p className="mt-2 text-sm text-muted leading-relaxed">
+          Share this Rivlr account with staff or partners. Each invited
+          email gets its own magic-link sign-in into <em>your</em> account
+          — same products, same stores, same data. Up to 10 additional
+          emails per account.
+        </p>
+        <TeamPanel initial={teamMembers} />
+      </section>
 
       {/* ─── Crawling ────────────────────────────────────────────────── */}
       <div id="crawling" className="mt-12 pt-2 border-t border-default">

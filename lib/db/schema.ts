@@ -78,6 +78,46 @@ export const authSessions = pgTable(
 );
 
 /**
+ * Additional email addresses authorised to sign in to a user's account.
+ * Sharing model: one Rivlr account, multiple authorised inboxes (Gmail's
+ * "shared mailbox" pattern, not Slack-style multi-tenant teams).
+ *
+ * Lookup: /auth/verify resolves an incoming email by unioning users.email
+ * with this table. Whichever inbox the magic link landed in, the resulting
+ * session is owned by the parent user. Same data scope, multiple entry
+ * points.
+ *
+ * No roles for now — every authorised email has the same access. Roles
+ * (admin / editor / viewer) become a column here later if needed.
+ */
+export const userEmails = pgTable(
+  "user_emails",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    email: text("email").notNull().unique(),
+    addedAt: timestamp("added_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    /** When the inviter sent the original magic link. NULL for the
+     *  primary email (which IS the user's own). */
+    invitedAt: timestamp("invited_at", { withTimezone: true }),
+    /** Tracks which user added this email. Useful for the audit log
+     *  ("Sarah added staff@store.com on 2026-05-02"). */
+    invitedByUserId: uuid("invited_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    index("idx_user_emails_email").on(t.email),
+    index("idx_user_emails_user").on(t.userId),
+  ],
+);
+
+/**
  * Pending magic links. Token is HMAC-derived (see lib/auth/magic-link.ts)
  * and only the hash lives here — original token never persisted, so a DB
  * leak doesn't grant inbox-free authentication.
@@ -558,6 +598,7 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
 export type AuthMagicLink = typeof authMagicLinks.$inferSelect;
+export type UserEmail = typeof userEmails.$inferSelect;
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;
