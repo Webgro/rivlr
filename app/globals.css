@@ -31,13 +31,16 @@
 }
 
 [data-theme="light"] {
-  --surface: #f5f3ee;
-  --elevated: #ffffff;
+  /* Inverted from dark: pure white body, paper-toned elevated surfaces.
+   * Cards and sidebar lift slightly via the off-white tint, keeping the
+   * brand cream as the "boxed" colour rather than the wall colour. */
+  --surface: #ffffff;
+  --elevated: #f5f3ee;
   --foreground: #0a0a0a;
   --muted: #6e6e6e;
   --muted-strong: #444444;
-  --default-border: #e0ddd6;
-  --strong-border: #c8c4ba;
+  --default-border: #e8e5dc;
+  --strong-border: #d6d2c8;
 }
 
 @theme inline {

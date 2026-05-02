@@ -4,27 +4,37 @@ import {
   parseShopifyUrl,
   fetchShopifyProduct,
   fetchShopifyCurrency,
+  fetchShopifyProductMeta,
+  normaliseShopifyTags,
+  inferMarketFromDomain,
+  scrapePdp,
   summariseProduct,
   penceToDecimal,
 } from "@/lib/crawler/shopify";
+import { probeVariantInventory } from "@/lib/crawler/cart-probe";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const RATE_COOKIE = "rivlr_preview_uses";
 const MAX_PREVIEWS = 3;
 const WINDOW_HOURS = 24;
 
 /**
- * Public marketing-landing endpoint. Takes a Shopify URL, fetches it once,
- * returns a small JSON for the live demo card.
+ * Public marketing-landing endpoint. The wow-factor moment for visitors:
+ * paste a competitor URL → get back a rich intel card showing everything
+ * Rivlr would surface inside the app.
  *
- * Rate limiting: cookie-based, 3 previews per 24 hours per browser. Not
- * cryptographically secure (cookies can be cleared) but sufficient
- * deterrent for casual abuse. Server-side IP rate limit can be added later
- * via Upstash Ratelimit when actual abuse is observed.
+ * Pipeline (all in parallel for ~2s wall time):
+ *   1. /products/{handle}.js          — price, variants, compare-at, description
+ *   2. /products/{handle}.json        — vendor, type, tags, created date, images
+ *   3. /products/{handle} HTML scrape — JSON-LD gtin/mpn/brand/reviews
+ *   4. /cart.js                       — currency confirmation
+ *   5. /cart/add.js probe (1 variant) — exact inventory when hidden
  *
- * Non-Shopify URLs return a friendly 'we only support Shopify for now'
- * error rather than a generic parsing failure.
+ * Rate limit: cookie-based, 3 previews per browser per 24h. Not crypto-
+ * grade (cookies clear), sufficient deterrent for casual abuse. Server-
+ * side IP rate limit can be added later via Upstash if needed.
  */
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
@@ -35,9 +45,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "missing url" }, { status: 400 });
   }
 
-  // Quick shape check — does it look like a Shopify product URL? Catch
-  // common alternatives so we can show the 'Shopify only for now' message
-  // rather than 'invalid URL'.
   const looksLikeShopify = /\/products\//i.test(rawUrl);
   if (!looksLikeShopify) {
     return NextResponse.json(
@@ -62,7 +69,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Rate limit check — read existing cookie.
+  // Rate limit check.
   const cookieStore = await cookies();
   const existing = cookieStore.get(RATE_COOKIE)?.value;
   let uses: { count: number; resetAt: number } = { count: 0, resetAt: 0 };
@@ -73,13 +80,10 @@ export async function POST(request: Request) {
       uses = { count: 0, resetAt: 0 };
     }
   }
-
-  // Reset the window if expired.
   const now = Date.now();
   if (uses.resetAt < now) {
     uses = { count: 0, resetAt: now + WINDOW_HOURS * 60 * 60 * 1000 };
   }
-
   if (uses.count >= MAX_PREVIEWS) {
     const hoursLeft = Math.max(
       1,
@@ -94,22 +98,24 @@ export async function POST(request: Request) {
     );
   }
 
-  let currency = "GBP";
-  try {
-    currency = await fetchShopifyCurrency(parsed.storeDomain);
-  } catch {
-    // ignore
-  }
+  // Infer market from TLD so currency + price come back native (.ie → EUR etc).
+  const market = inferMarketFromDomain(parsed.storeDomain);
 
-  let product;
-  try {
-    product = await fetchShopifyProduct(parsed.productJsUrl);
-  } catch (err) {
+  // Fan out the four heavy fetches in parallel — wall time = slowest, not sum.
+  const [productResult, metaResult, pdpResult, currencyResult] =
+    await Promise.allSettled([
+      fetchShopifyProduct(parsed.productJsUrl, market),
+      fetchShopifyProductMeta(parsed.storeDomain, parsed.handle, market),
+      scrapePdp(parsed.storeDomain, parsed.handle, market),
+      fetchShopifyCurrency(parsed.storeDomain, market),
+    ]);
+
+  if (productResult.status !== "fulfilled") {
     return NextResponse.json(
       {
         error:
-          err instanceof Error
-            ? `Couldn't fetch this product: ${err.message}`
+          productResult.reason instanceof Error
+            ? `Couldn't fetch this product: ${productResult.reason.message}`
             : "Couldn't fetch this product",
         kind: "fetch-failed",
       },
@@ -117,9 +123,55 @@ export async function POST(request: Request) {
     );
   }
 
+  const product = productResult.value;
   const snapshot = summariseProduct(product);
+  const meta = metaResult.status === "fulfilled" ? metaResult.value : null;
+  const pdp = pdpResult.status === "fulfilled" ? pdpResult.value : null;
+  const currency =
+    currencyResult.status === "fulfilled" ? currencyResult.value : market.currency;
 
-  // Increment use counter and set the cookie.
+  // Inventory probe: if .js didn't expose quantity AND the product is
+  // available, probe the first variant via /cart/add.js. One request per
+  // preview, bounded by the cookie rate limit. Skip when probing is
+  // pointless (already have a number, or product is sold out).
+  let probedQuantity: number | null = null;
+  let probedVariantTitle: string | null = null;
+  if (
+    snapshot.quantity === null &&
+    snapshot.available &&
+    product.variants.length > 0
+  ) {
+    const firstVariant = product.variants[0];
+    try {
+      const probe = await probeVariantInventory(
+        parsed.storeDomain,
+        firstVariant.id,
+        market,
+      );
+      if (probe.kind === "exact") {
+        probedQuantity = probe.quantity;
+        probedVariantTitle = firstVariant.title;
+      }
+    } catch {
+      // best effort — silent failure leaves probedQuantity null
+    }
+  }
+
+  // Compare-at: shows discount % when on sale.
+  const compareAt =
+    typeof product.compare_at_price === "number" && product.compare_at_price > 0
+      ? penceToDecimal(product.compare_at_price)
+      : null;
+
+  // Pull demand signals from shopify_tags.
+  const shopifyTags = meta?.tags
+    ? normaliseShopifyTags(meta.tags)
+    : [];
+  const isBestseller = shopifyTags.some((t) =>
+    /^(?:bestseller|best-seller|best\s*seller|featured|top-seller)$/i.test(t),
+  );
+
+  // Increment use counter and persist.
   uses.count += 1;
   cookieStore.set(RATE_COOKIE, JSON.stringify(uses), {
     httpOnly: true,
@@ -131,15 +183,36 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    // Core
     title: snapshot.title,
     storeDomain: parsed.storeDomain,
     imageUrl: snapshot.imageUrl,
     currency,
     price: penceToDecimal(snapshot.price),
+    compareAtPrice: compareAt,
     available: snapshot.available,
     quantity: snapshot.quantity,
+    probedQuantity,
+    probedVariantTitle,
     description: snapshot.description,
     variantCount: product.variants.length,
+    // Tier 1 — meta JSON
+    vendor: meta?.vendor ?? null,
+    productType: meta?.product_type ?? null,
+    shopifyTags,
+    isBestseller,
+    createdAt: meta?.created_at ?? null,
+    imageCount: Array.isArray(meta?.images) ? meta.images.length : null,
+    // Tier 2 — PDP JSON-LD
+    gtin: pdp?.gtin ?? null,
+    mpn: pdp?.mpn ?? null,
+    brand: pdp?.brand ?? null,
+    reviewCount: pdp?.reviewCount ?? null,
+    reviewScore: pdp?.reviewScore ?? null,
+    socialProofWidget: pdp?.socialProofWidget ?? null,
+    // Market routing diagnostic
+    marketCountry: market.country,
+    // Rate-limit
     usesRemaining: MAX_PREVIEWS - uses.count,
   });
 }
