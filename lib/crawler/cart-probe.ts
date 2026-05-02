@@ -37,13 +37,19 @@ const RIVLR_USER_AGENT =
  *  remaining stock. New ones get appended as we encounter them in the
  *  wild — keep the comment with a real example for traceability. */
 const ERROR_PATTERNS: RegExp[] = [
+  // "Only 1504 items were added to your cart due to availability." —
+  // themes that cap the add silently rather than reject it. The number
+  // IS the actual available stock at the moment of probe.
+  /only\s+(\d+)\s+(?:item|product|unit|piece)s?\s+(?:were|are|have\s+been|will\s+be)\s+added/i,
   // "There are only 47 [variant] left." — most common, modern Online Store 2.0.
   /there\s+are\s+only\s+(\d+)\b/i,
   // "All 12 of [variant] are in your cart." — when probe quantity exceeds total.
   /all\s+(\d+)\s+of\s+/i,
   // "You can only add 5 of [variant] to the cart." — newer phrasing.
   /you\s+can\s+only\s+add\s+(\d+)/i,
-  // "Only 8 left" — short variant some themes synthesise from API data.
+  // "Only 8 left" / "Only 8 items" / "Only 8 in stock" — broadened
+  // to include unit nouns since Shopify uses "items" in some 4xx bodies.
+  /only\s+(\d+)\s+(?:item|product|unit|piece)s?\b/i,
   /only\s+(\d+)\s+(?:left|in\s+stock|remaining|available)/i,
   // "8 in stock" / "8 left" — terse formats.
   /\b(\d+)\s+(?:in\s+stock|left\s+in\s+stock|remaining|available\b)/i,
