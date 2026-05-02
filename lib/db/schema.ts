@@ -12,16 +12,110 @@ import {
 import { sql } from "drizzle-orm";
 
 /**
- * Phase 1 schema — single-tenant (one shared password). Phase 2 introduces
- * `users` and adds `user_id` foreign keys; the migration assigns existing
- * data to the owner account.
+ * Phase 3 schema — per-user via magic-link auth. The `users` table is the
+ * tenant boundary; every user-owned table gets a `user_id` FK. Each `user_id`
+ * starts nullable on the existing tables so the first-signup adoption
+ * migration can assign current data to the new owner without an outage.
+ * Once back-filled, queries enforce `WHERE user_id = ?` everywhere.
  */
+
+// ─── Auth tables ───────────────────────────────────────────────────────
+
+/**
+ * One row per signed-up account. Stores the email + lifecycle timestamps.
+ * No password hash — auth is magic-link only. Stripe customer id lives
+ * here so Phase 4 (billing) has a place to hang it.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    /** Set when the magic-link verify flow completes for the first time. */
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    /** Phase 4 — Stripe customer id. NULL until first successful payment. */
+    stripeCustomerId: text("stripe_customer_id"),
+  },
+  (t) => [index("idx_users_email").on(t.email)],
+);
+
+/**
+ * Active session cookies. Server-controlled invalidation: deleting the
+ * row revokes the session everywhere immediately. Cookie carries the
+ * id; cookie value isn't sensitive on its own (must match a row).
+ *
+ * 30-day rolling expiry — `lastSeenAt` updates on every authed request,
+ * `expiresAt` recomputed from that. Session pruned on first request
+ * after `expiresAt` passes.
+ */
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** Diagnostic — captured at create time. Used in a future "active
+     *  sessions" page in Settings so the user can revoke remotely. */
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+  },
+  (t) => [
+    index("idx_sessions_user").on(t.userId),
+    index("idx_sessions_expires").on(t.expiresAt),
+  ],
+);
+
+/**
+ * Pending magic links. Token is HMAC-derived (see lib/auth/magic-link.ts)
+ * and only the hash lives here — original token never persisted, so a DB
+ * leak doesn't grant inbox-free authentication.
+ *
+ * Single-use: `usedAt` non-null means the link was consumed, can't be
+ * replayed. Expired-but-unused rows get pruned on the next verify call.
+ */
+export const authMagicLinks = pgTable(
+  "auth_magic_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    /** sha256(token). Look up by hash, never store the raw token. */
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    /** Where to redirect after successful verification. */
+    redirectTo: text("redirect_to"),
+  },
+  (t) => [
+    index("idx_magic_links_token").on(t.tokenHash),
+    index("idx_magic_links_email").on(t.email),
+  ],
+);
 
 export const trackedProducts = pgTable(
   "tracked_products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    url: text("url").notNull().unique(),
+    /** Owner. Nullable temporarily so the existing single-tenant data can
+     *  back-fill on first signup. The first verified user adopts every
+     *  NULL-userId row in one transaction. After that, NEW rows always
+     *  set userId. Future Drizzle migration will mark this NOT NULL. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
     handle: text("handle").notNull(), // shopify product handle
     storeDomain: text("store_domain").notNull(), // e.g. example.myshopify.com
     title: text("title"),
@@ -371,6 +465,9 @@ export const appSettings = pgTable("app_settings", {
  */
 export const tags = pgTable("tags", {
   name: text("name").primaryKey(), // lowercase, trimmed
+  /** Owner. Existing rows back-filled on first signup. Tags are per-user
+   *  conceptually — your "premium" tag isn't my "premium" tag. */
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   color: text("color").notNull().default("gray"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -382,6 +479,8 @@ export const tags = pgTable("tags", {
  */
 export const productGroups = pgTable("product_groups", {
   id: uuid("id").primaryKey().defaultRandom(),
+  /** Owner of the group. Same nullable-then-backfilled pattern. */
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -436,6 +535,10 @@ export const linkSuggestions = pgTable(
   "link_suggestions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner of the suggestion. Derived from the products' owners (which
+     *  must be the same user since we don't suggest cross-user links).
+     *  Stored explicitly so /products/suggestions can scope cleanly. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     productAId: uuid("product_a_id")
       .notNull()
       .references(() => trackedProducts.id, { onDelete: "cascade" }),
@@ -451,6 +554,10 @@ export const linkSuggestions = pgTable(
   (t) => [index("idx_suggestions_status").on(t.status)],
 );
 
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type AuthSession = typeof authSessions.$inferSelect;
+export type AuthMagicLink = typeof authMagicLinks.$inferSelect;
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;
@@ -511,12 +618,16 @@ export const discoveredProducts = pgTable(
   "discovered_products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner. Same nullable-then-backfilled pattern as trackedProducts. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     storeDomain: text("store_domain").notNull(),
     handle: text("handle").notNull(),
     title: text("title"),
     imageUrl: text("image_url"),
-    /** Full canonical product URL (constructed from store_domain + handle). */
-    url: text("url").notNull().unique(),
+    /** Full canonical product URL (constructed from store_domain + handle).
+     *  Was unique globally pre-Phase-3; now will be unique per (user, url).
+     *  Composite unique added in the Phase 3 commit 2 migration. */
+    url: text("url").notNull(),
     firstSeen: timestamp("first_seen", { withTimezone: true })
       .notNull()
       .defaultNow(),

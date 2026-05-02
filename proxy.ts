@@ -14,7 +14,14 @@ import type { NextRequest } from "next/server";
  * the function is named `proxy`. Runtime is Node.js.
  */
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/auth/verify",
+  "/bot",
+  "/unsubscribe",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -55,10 +62,16 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Everything else: must have a valid session cookie.
-  const session = request.cookies.get("rivlr_session")?.value;
+  // Everything else: must have either the new per-user session cookie
+  // OR the legacy single-password cookie. Both are accepted during the
+  // Phase 3 cutover; legacy is removed in commit 3.
+  const newSession = request.cookies.get("rivlr_auth")?.value;
+  const legacySession = request.cookies.get("rivlr_session")?.value;
   const expected = process.env.SESSION_TOKEN;
-  const authed = !!session && !!expected && session === expected;
+  const authedNew = !!newSession; // proxy can't hit DB; full validation in route handlers
+  const authedLegacy =
+    !!legacySession && !!expected && legacySession === expected;
+  const authed = authedNew || authedLegacy;
 
   if (!authed) {
     const loginUrl = new URL("/login", request.url);

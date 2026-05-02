@@ -218,26 +218,28 @@ export function LinkProductButton({
                         type="button"
                         onClick={() => handleLink(c.id)}
                         disabled={pending}
-                        className="grid grid-cols-[40px_minmax(0,1.6fr)_1fr_auto] items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-elevated disabled:opacity-50 transition group"
+                        className="grid grid-cols-[40px_minmax(0,1.6fr)_1fr_auto] items-start gap-3 w-full px-4 py-3 text-left hover:bg-elevated disabled:opacity-50 transition group"
                       >
                         {c.image_url ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={c.image_url}
                             alt=""
-                            className="h-10 w-10 rounded bg-elevated object-cover flex-shrink-0"
+                            className="h-10 w-10 rounded bg-elevated object-cover flex-shrink-0 mt-0.5"
                           />
                         ) : (
-                          <div className="h-10 w-10 rounded bg-elevated flex-shrink-0" />
+                          <div className="h-10 w-10 rounded bg-elevated flex-shrink-0 mt-0.5" />
                         )}
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium group-hover:text-signal transition">
+                          <div className="text-sm font-medium group-hover:text-signal transition leading-snug break-words">
                             {c.title ?? "(untitled)"}
                           </div>
-                          <div className="truncate text-[11px] text-muted font-mono flex items-center gap-1.5">
+                          <div className="text-[11px] text-muted font-mono flex items-center gap-1.5 mt-0.5 break-all">
                             {c.store_domain}
                             {c.is_my_store && (
-                              <span className="text-green-500">· yours</span>
+                              <span className="text-green-500 whitespace-nowrap">
+                                · yours
+                              </span>
                             )}
                           </div>
                         </div>

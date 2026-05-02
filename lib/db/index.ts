@@ -23,4 +23,8 @@ export {
   type ProductGroup,
   type AlertLog,
   type LinkSuggestion,
+  type User,
+  type NewUser,
+  type AuthSession,
+  type AuthMagicLink,
 } from "./schema";

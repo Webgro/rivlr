@@ -252,6 +252,27 @@ ${
   return { subject, html, text };
 }
 
+// ─── Magic-link sign-in ────────────────────────────────────────────────
+export function magicLinkEmail(opts: {
+  url: string;
+  expiresInMinutes: number;
+}): Built {
+  const subject = "Your Rivlr sign-in link";
+  const html = renderShell(
+    `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">Sign in to Rivlr</h1>
+<p style="margin:0 0 20px;color:#c0c0c0;font-size:14px;line-height:1.6;">Click the button below to sign in. The link works for ${opts.expiresInMinutes} minutes and can only be used once.</p>
+<a href="${opts.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Sign in →</a>
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If the button doesn&apos;t work, copy and paste this URL:<br>
+<a href="${opts.url}" style="color:#8a8a8a;word-break:break-all;text-decoration:underline;">${opts.url}</a></p>
+<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Didn&apos;t request this? You can ignore this email — no one can sign in without clicking the link.</p>`,
+    {
+      preheader: `Click to sign in. Link expires in ${opts.expiresInMinutes} minutes.`,
+    },
+  );
+  const text = `Sign in to Rivlr\n\nClick the link below to sign in. Expires in ${opts.expiresInMinutes} minutes.\n\n${opts.url}\n\nDidn't request this? Ignore this email.`;
+  return { subject, html, text };
+}
+
 // ─── Test email ────────────────────────────────────────────────────────
 export function testEmail(): Built {
   const subject = "Rivlr · test email";
