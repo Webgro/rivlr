@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db, schema } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
 import { FavouriteStar } from "../products/favourite-star";
+import { LinkProductButton } from "../products/[id]/link-product-button";
 
 export const dynamic = "force-dynamic";
 
@@ -215,12 +216,15 @@ export default async function MyProductsPage() {
                       </div>
                     </>
                   ) : (
-                    <Link
-                      href={`/products/suggestions`}
-                      className="text-[11px] text-signal hover:underline underline-offset-4 font-mono uppercase tracking-[0.15em]"
-                    >
-                      Link →
-                    </Link>
+                    <LinkProductButton
+                      productId={r.id}
+                      excludeOwnStore
+                      modalTitle={`Link "${r.title ?? r.handle}" to a competitor`}
+                      myPrice={myPrice}
+                      myCurrency={r.currency}
+                      triggerLabel="+ Link"
+                      triggerClassName="rounded-md border border-signal/40 bg-signal/5 text-signal px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.15em] hover:bg-signal/10 transition"
+                    />
                   )}
                 </div>
                 <div className="text-right font-mono text-sm">

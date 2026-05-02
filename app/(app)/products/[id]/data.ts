@@ -102,22 +102,67 @@ export async function getProductData(id: string) {
   };
 }
 
+export type LinkCandidate = {
+  id: string;
+  title: string | null;
+  store_domain: string;
+  image_url: string | null;
+  /** Latest price as numeric string from price_observations, or null. */
+  price: string | null;
+  currency: string;
+  /** Latest availability boolean from stock_observations. */
+  available: boolean | null;
+  /** True when this candidate's store_domain has is_my_store = true. */
+  is_my_store: boolean;
+  [key: string]: unknown;
+};
+
+interface LinkCandidatesOpts {
+  limit?: number;
+  query?: string;
+  /** Filter to a specific store's products. */
+  store?: string;
+  /** When true, exclude products on stores marked as the user's own.
+   *  Use from /my-products: linking-to-self isn't useful. */
+  excludeOwnStore?: boolean;
+  /** When true, return ALL competitor products (no token-similarity gate)
+   *  in newest-first order. Driven by the /my-products modal so the user
+   *  can browse and search the full catalogue. */
+  browseAll?: boolean;
+}
+
 /**
- * Candidates for linking. Two modes:
+ * Candidates for linking. Three modes:
  *
- *  - No `query` arg: return fuzzy auto-suggestions based on the product's own
- *    title (longest tokens). Good as a "smart default" when the modal opens.
- *  - With `query`: return substring matches against title, handle, and store
- *    domain — same behaviour as the dashboard search. Lets users type short
- *    strings like "A5" or "v1" that wouldn't survive token filtering.
+ *  - browseAll=true (with optional query): full searchable browse of all
+ *    products (or filtered by store). Used by the /my-products modal so
+ *    the user can pick anything, not just fuzzy auto-matches.
+ *  - With `query` and no browseAll: substring matches against title,
+ *    handle, and store domain — for incremental search.
+ *  - No query, no browseAll: fuzzy auto-suggestions based on the
+ *    product's own title (longest tokens). Smart default when opening
+ *    the link modal from a product detail page.
  *
- * Either way, products already in the same group are excluded.
+ * Always excludes: same-group products, the product itself.
+ * Optionally excludes: own-store products, products from other stores.
+ *
+ * Includes latest price + stock so the modal can show inline price
+ * comparison ("My £30 vs their £25").
  */
 export async function getLinkCandidates(
   productId: string,
-  limit = 20,
-  query?: string,
-) {
+  optsOrLimit?: number | LinkCandidatesOpts,
+  legacyQuery?: string,
+): Promise<LinkCandidate[]> {
+  // Backwards-compat: old callers passed (id, limit, query).
+  const opts: LinkCandidatesOpts =
+    typeof optsOrLimit === "number"
+      ? { limit: optsOrLimit, query: legacyQuery }
+      : (optsOrLimit ?? {});
+
+  const limit = opts.limit ?? 30;
+  const trimmedQuery = opts.query?.trim().toLowerCase() ?? "";
+
   const [self] = await db
     .select()
     .from(schema.trackedProducts)
@@ -125,34 +170,52 @@ export async function getLinkCandidates(
     .limit(1);
   if (!self) return [];
 
-  const trimmedQuery = query?.trim().toLowerCase() ?? "";
+  const ownStoreFilter = opts.excludeOwnStore
+    ? sql`AND COALESCE(st.is_my_store, false) = false`
+    : sql``;
+  const storeFilter = opts.store
+    ? sql`AND p.store_domain = ${opts.store}`
+    : sql``;
+  const queryFilter =
+    trimmedQuery.length > 0
+      ? sql`AND (
+          LOWER(COALESCE(p.title, '')) LIKE ${"%" + trimmedQuery + "%"}
+          OR LOWER(p.handle) LIKE ${"%" + trimmedQuery + "%"}
+          OR LOWER(p.store_domain) LIKE ${"%" + trimmedQuery + "%"}
+        )`
+      : sql``;
 
-  type Row = {
-    id: string;
-    title: string | null;
-    store_domain: string;
-    image_url: string | null;
-  };
-
-  // Substring search mode — used when the modal's input has any text.
-  if (trimmedQuery.length > 0) {
-    const pattern = `%${trimmedQuery}%`;
-    const candidates = await db.execute<Row>(sql`
-      SELECT id, title, store_domain, image_url
+  // Browse-all OR query mode: straightforward filtered list, newest first.
+  if (opts.browseAll || trimmedQuery.length > 0) {
+    const candidates = await db.execute<LinkCandidate>(sql`
+      SELECT
+        p.id, p.title, p.store_domain, p.image_url, p.currency,
+        lp.price,
+        ls.available,
+        COALESCE(st.is_my_store, false) AS is_my_store
       FROM tracked_products p
+      LEFT JOIN stores st ON st.domain = p.store_domain
+      LEFT JOIN LATERAL (
+        SELECT price FROM price_observations
+        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
+      ) lp ON true
+      LEFT JOIN LATERAL (
+        SELECT available FROM stock_observations
+        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
+      ) ls ON true
       WHERE p.id != ${productId}::uuid
+        AND p.active = true
         AND (p.group_id IS NULL OR p.group_id != COALESCE(${self.groupId}::uuid, '00000000-0000-0000-0000-000000000000'::uuid))
-        AND (
-          LOWER(COALESCE(title, '')) LIKE ${pattern}
-          OR LOWER(handle) LIKE ${pattern}
-          OR LOWER(store_domain) LIKE ${pattern}
-        )
+        ${ownStoreFilter}
+        ${storeFilter}
+        ${queryFilter}
+      ORDER BY p.added_at DESC
       LIMIT ${limit}
     `);
     return Array.from(candidates);
   }
 
-  // Auto-suggest mode — match on the product's own longest tokens.
+  // Auto-suggest mode — fuzzy match on the product's own longest tokens.
   const title = (self.title ?? self.handle).toLowerCase();
   const tokens = title
     .split(/[^a-z0-9]+/)
@@ -166,11 +229,26 @@ export async function getLinkCandidates(
     .map((t) => `LOWER(p.title) LIKE '%${t.replace(/'/g, "''")}%'`)
     .join(" OR ");
 
-  const candidates = await db.execute<Row>(sql`
-    SELECT id, title, store_domain, image_url
+  const candidates = await db.execute<LinkCandidate>(sql`
+    SELECT
+      p.id, p.title, p.store_domain, p.image_url, p.currency,
+      lp.price,
+      ls.available,
+      COALESCE(st.is_my_store, false) AS is_my_store
     FROM tracked_products p
+    LEFT JOIN stores st ON st.domain = p.store_domain
+    LEFT JOIN LATERAL (
+      SELECT price FROM price_observations
+      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
+    ) lp ON true
+    LEFT JOIN LATERAL (
+      SELECT available FROM stock_observations
+      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
+    ) ls ON true
     WHERE p.id != ${productId}::uuid
+      AND p.active = true
       AND (p.group_id IS NULL OR p.group_id != COALESCE(${self.groupId}::uuid, '00000000-0000-0000-0000-000000000000'::uuid))
+      ${ownStoreFilter}
       AND (${sql.raw(orClauses)})
     LIMIT ${limit}
   `);
