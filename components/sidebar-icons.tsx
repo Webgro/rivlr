@@ -125,6 +125,16 @@ export function DiscoverIcon({ className, size = 20 }: IconProps) {
   );
 }
 
+export function BillingIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M3 10 H21" />
+      <path d="M7 15 H10" />
+    </svg>
+  );
+}
+
 export function ProfileIcon({ className, size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>

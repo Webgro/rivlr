@@ -43,7 +43,7 @@ export default async function ProfilePage() {
           <Field
             label="Plan"
             value={
-              <span className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 flex-wrap">
                 <span className="font-mono uppercase tracking-wider">
                   {plan}
                 </span>
@@ -52,6 +52,12 @@ export default async function ProfilePage() {
                     ? `${planFeatures.productLimit} products`
                     : "unlimited"}
                 </span>
+                <a
+                  href="/billing"
+                  className="text-[11px] text-foreground underline-offset-4 hover:underline"
+                >
+                  Manage →
+                </a>
               </span>
             }
           />

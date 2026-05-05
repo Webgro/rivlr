@@ -74,9 +74,13 @@ export default async function SettingsPage() {
       <nav className="sticky top-0 z-10 -mx-6 px-6 mt-6 py-3 bg-surface/90 backdrop-blur border-b border-default flex flex-wrap gap-2 text-xs">
         <SectionLink href="#crawling" label="Crawling" />
         <SectionLink href="#alerts" label="Alerts" />
-        <span className="ml-auto self-center text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+        <Link
+          href="/billing"
+          className="ml-auto self-center text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono hover:text-foreground transition"
+          title="Manage plan"
+        >
           Plan: <span className="text-muted">{plan}</span>
-        </span>
+        </Link>
       </nav>
 
       {/* ═══ CRAWLING ════════════════════════════════════════════════ */}
