@@ -25,12 +25,18 @@ import { type Market } from "./shopify";
  * (queries naturally re-prioritise via lastInventoryProbedAt asc).
  */
 
-const PER_STORE_GAP_MS = 5_000;
-const PER_VARIANT_GAP_MS = 1_500;
-const MAX_VARIANTS_PER_PRODUCT = 8;
+// Tuned for the dedicated /api/cron/inventory route (not chained behind
+// the bigger store-scan + multi-market jobs that previously starved this
+// step). Numbers below come from real timings:
+//   - typical product: 1-3 variants, ~6s wall clock total
+//   - long-tail: up to 5 variants, ~10s wall clock total
+//   - 270s budget / 8s avg ≈ 30+ products per run
+const PER_STORE_GAP_MS = 4_000;
+const PER_VARIANT_GAP_MS = 800;
+const MAX_VARIANTS_PER_PRODUCT = 5;
 const PROBE_COOLDOWN_MS = 22 * 60 * 60 * 1000;
 const STORE_BLOCK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_BUDGET_MS = 240_000; // 4 min — leaves headroom inside the 300s function budget.
+const MAX_BUDGET_MS = 270_000; // leaves 30s headroom in a 300s function budget
 
 interface ProbeBatchResult {
   considered: number;
@@ -89,6 +95,10 @@ export async function probeInventoryAcrossActive(): Promise<ProbeBatchResult> {
     skipped: 0,
     failed: 0,
   };
+
+  console.log(
+    `[inventory-probe] ${list.length} candidate product(s) due for probing`,
+  );
 
   if (list.length === 0) return result;
 
@@ -210,6 +220,9 @@ export async function probeInventoryAcrossActive(): Promise<ProbeBatchResult> {
     if (anyExact) result.exact += 1;
   }
 
+  console.log(
+    `[inventory-probe] done: probed=${result.probed} exact=${result.exact} blocked=${result.blocked} skipped=${result.skipped} failed=${result.failed}`,
+  );
   return result;
 }
 
