@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db, schema } from "@/lib/db";
-import { inArray, asc, eq } from "drizzle-orm";
+import { inArray, asc, eq, and } from "drizzle-orm";
 import { CompareChart } from "./compare-chart";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ type SearchParams = Promise<{ ids?: string }>;
 export default async function ComparePage(props: {
   searchParams: SearchParams;
 }) {
+  const user = await requireUser();
   const params = await props.searchParams;
 
   // Parse + validate IDs strictly. Anything that's not a UUID is dropped —
@@ -55,7 +57,12 @@ export default async function ComparePage(props: {
     products = (await db
       .select()
       .from(schema.trackedProducts)
-      .where(inArray(schema.trackedProducts.id, ids))) as never;
+      .where(
+        and(
+          inArray(schema.trackedProducts.id, ids),
+          eq(schema.trackedProducts.userId, user.id),
+        ),
+      )) as never;
 
     series = await Promise.all(
       (products as Array<{

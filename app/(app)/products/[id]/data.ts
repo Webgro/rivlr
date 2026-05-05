@@ -6,11 +6,16 @@ export type ProductDetailData = NonNullable<
   Awaited<ReturnType<typeof getProductData>>
 >;
 
-export async function getProductData(id: string) {
+export async function getProductData(userId: string, id: string) {
   const [product] = await db
     .select()
     .from(schema.trackedProducts)
-    .where(eq(schema.trackedProducts.id, id))
+    .where(
+      and(
+        eq(schema.trackedProducts.id, id),
+        eq(schema.trackedProducts.userId, userId),
+      ),
+    )
     .limit(1);
 
   if (!product) return null;
@@ -50,6 +55,7 @@ export async function getProductData(id: string) {
       ? db
           .select({ name: schema.tags.name, color: schema.tags.color })
           .from(schema.tags)
+          .where(eq(schema.tags.userId, userId))
       : Promise.resolve([] as Array<{ name: string; color: string }>),
   ]);
 
@@ -85,6 +91,7 @@ export async function getProductData(id: string) {
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) ls ON true
       WHERE p.group_id = ${product.groupId}::uuid
+        AND p.user_id = ${userId}::uuid
         AND p.id != ${id}::uuid
       ORDER BY p.added_at ASC
     `);

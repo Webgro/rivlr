@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db, schema } from "@/lib/db";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and } from "drizzle-orm";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -58,10 +59,12 @@ type GoingDarkRow = {
 };
 
 export default async function OpportunitiesPage() {
-  // Pull threshold from settings (default 7).
+  const user = await requireUser();
+  // Pull threshold from this user's settings (default 7).
   const [settings] = await db
     .select({ threshold: schema.appSettings.daysCoverThreshold })
     .from(schema.appSettings)
+    .where(eq(schema.appSettings.id, user.id))
     .limit(1);
   const daysCoverThreshold = settings?.threshold ?? 7;
 
@@ -89,7 +92,7 @@ export default async function OpportunitiesPage() {
         (ls.quantity::numeric / NULLIF(s.sold_30d::numeric / 30.0, 0))::text AS days_cover,
         lp.price AS current_price
       FROM tracked_products p
-      LEFT JOIN stores st ON st.domain = p.store_domain
+      LEFT JOIN user_store_prefs usp ON usp.user_id = ${user.id}::uuid AND usp.domain = p.store_domain
       JOIN sold_30d_calc s ON s.product_id = p.id
       JOIN LATERAL (
         SELECT quantity, available FROM stock_observations
@@ -99,8 +102,9 @@ export default async function OpportunitiesPage() {
         SELECT price FROM price_observations
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) lp ON true
-      WHERE p.active = true
-        AND COALESCE(st.is_my_store, false) = false
+      WHERE p.user_id = ${user.id}::uuid
+        AND p.active = true
+        AND COALESCE(usp.is_my_store, false) = false
         -- Only items still in stock — "going dark" doesn't apply to
         -- products that are already out. Also positive quantity to
         -- avoid divide-by-zero edge cases on stale observations.
@@ -113,11 +117,20 @@ export default async function OpportunitiesPage() {
     `),
   );
 
-  // Find the user's store. If none flagged, render an onboarding state.
+  // Find the user's store from per-user prefs.
   const [mine] = await db
-    .select()
-    .from(schema.stores)
-    .where(eq(schema.stores.isMyStore, true))
+    .select({
+      domain: schema.userStorePrefs.domain,
+      displayName: schema.stores.displayName,
+    })
+    .from(schema.userStorePrefs)
+    .leftJoin(schema.stores, eq(schema.stores.domain, schema.userStorePrefs.domain))
+    .where(
+      and(
+        eq(schema.userStorePrefs.userId, user.id),
+        eq(schema.userStorePrefs.isMyStore, true),
+      ),
+    )
     .limit(1);
 
   // Pricing-disadvantage section requires a flagged "my store". When
@@ -139,7 +152,8 @@ export default async function OpportunitiesPage() {
             WHERE product_id = p.id AND available = false
           ) AS stockout_count
         FROM tracked_products p
-        WHERE p.store_domain = ${mine.domain}
+        WHERE p.user_id = ${user.id}::uuid
+          AND p.store_domain = ${mine.domain}
           AND p.active = true
       ),
       best_competitor AS (
@@ -150,6 +164,7 @@ export default async function OpportunitiesPage() {
         FROM my
         JOIN tracked_products c
           ON c.group_id = my.group_id
+         AND c.user_id = ${user.id}::uuid
          AND c.id != my.id
          AND c.store_domain != my.store_domain
          AND c.active = true

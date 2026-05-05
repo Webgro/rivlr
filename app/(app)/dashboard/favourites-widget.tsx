@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 type FavouriteRow = {
   id: string;
@@ -21,14 +22,17 @@ type FavouriteRow = {
  * — no point showing an empty card.
  */
 export async function FavouritesWidget() {
+  const user = await getCurrentUser();
+  if (!user) return null;
   const rows = Array.from(
     await db.execute<FavouriteRow>(sql`
       SELECT p.id, p.title, p.handle, p.store_domain, p.image_url, p.currency,
         lp.price AS latest_price,
         ls.available AS latest_available,
-        COALESCE(s.is_my_store, false) AS is_my_store
+        COALESCE(usp.is_my_store, false) AS is_my_store
       FROM tracked_products p
-      LEFT JOIN stores s ON s.domain = p.store_domain
+      LEFT JOIN user_store_prefs usp
+        ON usp.user_id = ${user.id}::uuid AND usp.domain = p.store_domain
       LEFT JOIN LATERAL (
         SELECT price FROM price_observations
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
@@ -37,7 +41,9 @@ export async function FavouritesWidget() {
         SELECT available FROM stock_observations
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) ls ON true
-      WHERE p.is_favourite = true AND p.active = true
+      WHERE p.user_id = ${user.id}::uuid
+        AND p.is_favourite = true
+        AND p.active = true
       ORDER BY p.added_at DESC
       LIMIT 6
     `),

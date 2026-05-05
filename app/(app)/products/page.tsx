@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db, schema, type TagColor } from "@/lib/db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
+import { requireUser } from "@/lib/auth/current-user";
 import { RunNowButton } from "./run-now-button";
 import { ProductsTable, type DashboardRow } from "./products-table";
 import { InsightsRow } from "./insights-row";
@@ -29,6 +30,7 @@ type SearchParams = Promise<{
 }>;
 
 async function getDashboardData(params: {
+  userId: string;
   q?: string;
   store?: string;
   tag?: string;
@@ -149,12 +151,13 @@ async function getDashboardData(params: {
     ) pp ON true
     LEFT JOIN sold_30d_calc s ON s.product_id = p.id
     LEFT JOIN oos_since_calc oos ON oos.product_id = p.id
-    LEFT JOIN stores st ON st.domain = p.store_domain
+    LEFT JOIN user_store_prefs usp ON usp.user_id = ${params.userId}::uuid AND usp.domain = p.store_domain
     -- Hide the user's own products from the competitor watchlist. Own
     -- products live in /my-products and don't count toward the plan
     -- limit. They're still in tracked_products so observations/charts
     -- keep working — we just don't surface them here.
-    WHERE COALESCE(st.is_my_store, false) = false
+    WHERE p.user_id = ${params.userId}::uuid
+      AND COALESCE(usp.is_my_store, false) = false
     ORDER BY p.added_at DESC
   `);
 
@@ -293,7 +296,8 @@ async function getDashboardData(params: {
   // bulk-add dropdown — only registered tags can be applied).
   const tagMeta = await db
     .select({ name: schema.tags.name, color: schema.tags.color })
-    .from(schema.tags);
+    .from(schema.tags)
+    .where(eq(schema.tags.userId, params.userId));
   const tagColors: Record<string, TagColor> = {};
   const availableTags: Array<{ name: string; color: TagColor }> = [];
   for (const t of tagMeta) {
@@ -318,6 +322,7 @@ async function getDashboardData(params: {
 export default async function DashboardPage(props: {
   searchParams: SearchParams;
 }) {
+  const user = await requireUser();
   const params = await props.searchParams;
   const page = Math.max(1, Number(params.page ?? 1) || 1);
 
@@ -333,6 +338,7 @@ export default async function DashboardPage(props: {
 
   try {
     const data = await getDashboardData({
+      userId: user.id,
       q: params.q,
       store: params.store,
       tag: params.tag,
@@ -355,7 +361,7 @@ export default async function DashboardPage(props: {
 
   const banner = buildBanner(params);
 
-  const insights = await getDashboardInsights().catch(() => null);
+  const insights = await getDashboardInsights(user.id).catch(() => null);
 
   // Build CSV export URL preserving current filters.
   const exportParams = new URLSearchParams();

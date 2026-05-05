@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ interface ActivityItem {
 }
 
 async function getActivity(params: {
+  userId: string;
   kind?: string;
   store?: string;
   page: number;
@@ -86,6 +88,7 @@ async function getActivity(params: {
       pc.new_price::text AS new_price
     FROM price_changes pc
     JOIN tracked_products p ON p.id = pc.product_id
+    WHERE p.user_id = ${params.userId}::uuid
     UNION ALL
     SELECT
       sc.product_id, p.title, p.handle, p.store_domain, p.currency,
@@ -95,6 +98,7 @@ async function getActivity(params: {
       NULL AS new_price
     FROM stock_changes sc
     JOIN tracked_products p ON p.id = sc.product_id
+    WHERE p.user_id = ${params.userId}::uuid
     ORDER BY observed_at DESC
     LIMIT 5000
   `);
@@ -128,10 +132,12 @@ async function getActivity(params: {
 export default async function ActivityPage(props: {
   searchParams: SearchParams;
 }) {
+  const user = await requireUser();
   const params = await props.searchParams;
   const page = Math.max(1, Number(params.page ?? 1) || 1);
 
   const { items, totalCount, stores } = await getActivity({
+    userId: user.id,
     kind: params.kind,
     store: params.store,
     page,

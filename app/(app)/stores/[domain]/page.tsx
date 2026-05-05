@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db, schema } from "@/lib/db";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { scanStoreNow } from "@/lib/crawler/store-scan";
 import { CatalogueTrendChart, StockoutTrendChart } from "./trend-charts";
 import { markStoreAsMine, unmarkMyStore, crawlStoreNow } from "../actions";
 import { SubmitButton } from "@/components/submit-button";
 import { UntrackedList, type UntrackedItem } from "./untracked-list";
 import { StoreBulkControls } from "./store-bulk-controls";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -33,20 +34,48 @@ type ProductRow = {
  * inline so the user sees a populated page on first navigation.
  */
 export default async function StoreProfilePage(props: { params: Params }) {
+  const user = await requireUser();
   const { domain: rawDomain } = await props.params;
   const domain = decodeURIComponent(rawDomain).toLowerCase();
 
   // Confirm the user actually tracks at least one product on this store.
   const [tracked] = await db.execute<{ c: number }>(sql`
     SELECT COUNT(*)::int AS c FROM tracked_products
-    WHERE store_domain = ${domain} AND active = true
+    WHERE user_id = ${user.id}::uuid
+      AND store_domain = ${domain}
+      AND active = true
   `);
   if (!tracked || tracked.c === 0) notFound();
 
-  // Try to load existing store row; if missing, scan now (cheap one-off).
+  // Load global store info + this user's per-store prefs.
   let [store] = await db
-    .select()
+    .select({
+      domain: schema.stores.domain,
+      displayName: schema.stores.displayName,
+      themeName: schema.stores.themeName,
+      isShopifyPlus: schema.stores.isShopifyPlus,
+      platformCurrency: schema.stores.platformCurrency,
+      marketsCount: schema.stores.marketsCount,
+      totalProductCount: schema.stores.totalProductCount,
+      outOfStockCount: schema.stores.outOfStockCount,
+      collectionsCount: schema.stores.collectionsCount,
+      blogsCount: schema.stores.blogsCount,
+      appsDetected: schema.stores.appsDetected,
+      freeShippingThreshold: schema.stores.freeShippingThreshold,
+      freeShippingCurrency: schema.stores.freeShippingCurrency,
+      lastScannedAt: schema.stores.lastScannedAt,
+      // Per-user prefs: COALESCE so missing rows return false defaults.
+      isMyStore: sql<boolean>`COALESCE(${schema.userStorePrefs.isMyStore}, false)`,
+      autoTrackNew: sql<boolean>`COALESCE(${schema.userStorePrefs.autoTrackNew}, false)`,
+    })
     .from(schema.stores)
+    .leftJoin(
+      schema.userStorePrefs,
+      and(
+        eq(schema.userStorePrefs.domain, schema.stores.domain),
+        eq(schema.userStorePrefs.userId, user.id),
+      ),
+    )
     .where(eq(schema.stores.domain, domain))
     .limit(1);
 
@@ -54,12 +83,36 @@ export default async function StoreProfilePage(props: { params: Params }) {
     try {
       await scanStoreNow(domain);
       [store] = await db
-        .select()
+        .select({
+          domain: schema.stores.domain,
+          displayName: schema.stores.displayName,
+          themeName: schema.stores.themeName,
+          isShopifyPlus: schema.stores.isShopifyPlus,
+          platformCurrency: schema.stores.platformCurrency,
+          marketsCount: schema.stores.marketsCount,
+          totalProductCount: schema.stores.totalProductCount,
+          outOfStockCount: schema.stores.outOfStockCount,
+          collectionsCount: schema.stores.collectionsCount,
+          blogsCount: schema.stores.blogsCount,
+          appsDetected: schema.stores.appsDetected,
+          freeShippingThreshold: schema.stores.freeShippingThreshold,
+          freeShippingCurrency: schema.stores.freeShippingCurrency,
+          lastScannedAt: schema.stores.lastScannedAt,
+          isMyStore: sql<boolean>`COALESCE(${schema.userStorePrefs.isMyStore}, false)`,
+          autoTrackNew: sql<boolean>`COALESCE(${schema.userStorePrefs.autoTrackNew}, false)`,
+        })
         .from(schema.stores)
+        .leftJoin(
+          schema.userStorePrefs,
+          and(
+            eq(schema.userStorePrefs.domain, schema.stores.domain),
+            eq(schema.userStorePrefs.userId, user.id),
+          ),
+        )
         .where(eq(schema.stores.domain, domain))
         .limit(1);
     } catch {
-      // If scan fails (network etc.) we still render with whatever we have.
+      // If scan fails we still render with whatever we have.
     }
   }
 
@@ -79,7 +132,9 @@ export default async function StoreProfilePage(props: { params: Params }) {
         SELECT available FROM stock_observations
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) ls ON true
-      WHERE p.store_domain = ${domain} AND p.active = true
+      WHERE p.user_id = ${user.id}::uuid
+        AND p.store_domain = ${domain}
+        AND p.active = true
       ORDER BY p.added_at DESC
       LIMIT 50
     `),
@@ -97,7 +152,9 @@ export default async function StoreProfilePage(props: { params: Params }) {
     }>(sql`
       SELECT id, handle, title, image_url, url, first_seen
       FROM discovered_products
-      WHERE store_domain = ${domain} AND status = 'new'
+      WHERE user_id = ${user.id}::uuid
+        AND store_domain = ${domain}
+        AND status = 'new'
       ORDER BY first_seen DESC
       LIMIT 50
     `),

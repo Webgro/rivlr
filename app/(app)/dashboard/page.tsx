@@ -5,6 +5,7 @@ import { getDashboardInsights } from "@/lib/dashboard-insights";
 import { InsightsRow } from "@/app/(app)/products/insights-row";
 import { OnboardingChecklist } from "./onboarding-checklist";
 import { FavouritesWidget } from "./favourites-widget";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ interface SummaryStats {
   totalAlerts7d: number;
 }
 
-async function getOverviewData() {
+async function getOverviewData(userId: string) {
   type SummaryRow = {
     total_active: number;
     total_stores: number;
@@ -62,13 +63,19 @@ async function getOverviewData() {
   };
   const [summary] = await db.execute<SummaryRow>(sql`
     SELECT
-      (SELECT COUNT(*)::int FROM tracked_products WHERE active = true) AS total_active,
-      (SELECT COUNT(DISTINCT store_domain)::int FROM tracked_products WHERE active = true) AS total_stores,
+      (SELECT COUNT(*)::int FROM tracked_products
+        WHERE user_id = ${userId}::uuid AND active = true) AS total_active,
+      (SELECT COUNT(DISTINCT store_domain)::int FROM tracked_products
+        WHERE user_id = ${userId}::uuid AND active = true) AS total_stores,
       (SELECT COUNT(*)::int FROM (
-        SELECT DISTINCT ON (product_id) product_id, available
-        FROM stock_observations ORDER BY product_id, observed_at DESC
+        SELECT DISTINCT ON (so.product_id) so.product_id, so.available
+        FROM stock_observations so
+        JOIN tracked_products tp ON tp.id = so.product_id AND tp.user_id = ${userId}::uuid
+        ORDER BY so.product_id, so.observed_at DESC
       ) latest WHERE latest.available = false) AS currently_oos,
-      (SELECT COUNT(*)::int FROM alert_log WHERE sent_at >= NOW() - INTERVAL '7 days') AS total_alerts_7d
+      (SELECT COUNT(*)::int FROM alert_log al
+        JOIN tracked_products tp ON tp.id = al.product_id AND tp.user_id = ${userId}::uuid
+        WHERE al.sent_at >= NOW() - INTERVAL '7 days') AS total_alerts_7d
   `);
 
   const stats: SummaryStats = {
@@ -131,7 +138,7 @@ async function getOverviewData() {
       pc.prev_price::text AS prev_price,
       pc.new_price::text AS new_price
     FROM price_changes pc
-    JOIN tracked_products p ON p.id = pc.product_id
+    JOIN tracked_products p ON p.id = pc.product_id AND p.user_id = ${userId}::uuid
     UNION ALL
     SELECT
       sc.product_id, p.title, p.handle, p.store_domain, p.currency,
@@ -140,7 +147,7 @@ async function getOverviewData() {
       NULL AS prev_price,
       NULL AS new_price
     FROM stock_changes sc
-    JOIN tracked_products p ON p.id = sc.product_id
+    JOIN tracked_products p ON p.id = sc.product_id AND p.user_id = ${userId}::uuid
     ORDER BY observed_at DESC
     LIMIT 30
   `);
@@ -198,7 +205,7 @@ async function getOverviewData() {
       o.oos_since,
       lp.price AS last_price
     FROM oos_starts o
-    JOIN tracked_products p ON p.id = o.product_id AND p.active = true
+    JOIN tracked_products p ON p.id = o.product_id AND p.user_id = ${userId}::uuid AND p.active = true
     LEFT JOIN LATERAL (
       SELECT price FROM price_observations
       WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
@@ -253,7 +260,7 @@ async function getOverviewData() {
       l.price::text AS new_price
     FROM latest_prices l
     JOIN week_ago_prices w ON w.product_id = l.product_id
-    JOIN tracked_products p ON p.id = l.product_id AND p.active = true
+    JOIN tracked_products p ON p.id = l.product_id AND p.user_id = ${userId}::uuid AND p.active = true
     WHERE l.price::numeric != w.price::numeric
     ORDER BY ABS(l.price::numeric - w.price::numeric) DESC
     LIMIT 8
@@ -281,16 +288,17 @@ async function getOverviewData() {
 }
 
 export default async function DashboardPage() {
+  const user = await requireUser();
   let data: Awaited<ReturnType<typeof getOverviewData>> | null = null;
   let dbError: string | null = null;
 
   try {
-    data = await getOverviewData();
+    data = await getOverviewData(user.id);
   } catch (err) {
     dbError = err instanceof Error ? err.message : String(err);
   }
 
-  const insights = await getDashboardInsights().catch(() => null);
+  const insights = await getDashboardInsights(user.id).catch(() => null);
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">

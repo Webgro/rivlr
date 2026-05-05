@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getProductData } from "@/app/(app)/products/[id]/data";
 import { DetailContent } from "@/app/(app)/products/[id]/detail-content";
 import { SlideOver } from "@/components/slide-over";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +26,9 @@ const UUID_RE =
 
 export default async function PanelProductPage(props: { params: Params }) {
   const { id } = await props.params;
-  // Sibling static routes (`/products/new`, `/products/suggestions`,
-  // `/products/compare`) flow through here too. Render nothing for them so
-  // the main slot handles them cleanly. notFound() here would show the
-  // global not-found page instead of falling back to default.tsx.
   if (!UUID_RE.test(id)) return null;
-  const data = await getProductData(id);
+  const user = await requireUser();
+  const data = await getProductData(user.id, id);
   if (!data) notFound();
   return (
     <SlideOver>

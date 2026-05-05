@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,10 @@ type StoreRow = {
  * shows a placeholder row. Click through for the full profile.
  */
 export default async function StoresPage() {
+  const user = await requireUser();
+  // Per-user store list. The is_my_store flag now comes from
+  // user_store_prefs (per-user) rather than the legacy global stores
+  // column. Tracked counts are scoped to this user's products.
   const rows = await db.execute<StoreRow>(sql`
     SELECT
       tp.store_domain AS domain,
@@ -36,7 +41,7 @@ export default async function StoresPage() {
       s.out_of_stock_count,
       COALESCE(jsonb_array_length(s.apps_detected), 0)::int AS apps_count,
       COALESCE(s.is_shopify_plus, false) AS is_shopify_plus,
-      COALESCE(s.is_my_store, false) AS is_my_store,
+      COALESCE(usp.is_my_store, false) AS is_my_store,
       s.platform_currency,
       s.free_shipping_threshold,
       s.free_shipping_currency,
@@ -44,12 +49,15 @@ export default async function StoresPage() {
       COUNT(tp.id)::int AS tracked_count
     FROM tracked_products tp
     LEFT JOIN stores s ON s.domain = tp.store_domain
-    WHERE tp.active = true
+    LEFT JOIN user_store_prefs usp
+      ON usp.user_id = ${user.id}::uuid AND usp.domain = tp.store_domain
+    WHERE tp.user_id = ${user.id}::uuid
+      AND tp.active = true
     GROUP BY tp.store_domain, s.display_name, s.total_product_count,
              s.out_of_stock_count, s.apps_detected, s.is_shopify_plus,
-             s.is_my_store, s.platform_currency, s.free_shipping_threshold,
+             usp.is_my_store, s.platform_currency, s.free_shipping_threshold,
              s.free_shipping_currency, s.last_scanned_at
-    ORDER BY s.is_my_store DESC NULLS LAST, tracked_count DESC, tp.store_domain ASC
+    ORDER BY usp.is_my_store DESC NULLS LAST, tracked_count DESC, tp.store_domain ASC
   `);
   const stores = Array.from(rows);
 

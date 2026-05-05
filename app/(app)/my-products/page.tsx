@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { db, schema } from "@/lib/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { FavouriteStar } from "../products/favourite-star";
 import { LinkProductButton } from "../products/[id]/link-product-button";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +37,23 @@ type Row = {
  * If no my-store is flagged, render a setup CTA.
  */
 export default async function MyProductsPage() {
+  const user = await requireUser();
+  // Look up THIS user's flagged my-store from the per-user prefs table.
   const [mine] = await db
-    .select()
-    .from(schema.stores)
-    .where(eq(schema.stores.isMyStore, true))
+    .select({
+      domain: schema.userStorePrefs.domain,
+      // Pull the display name from the global stores row (may be null
+      // if the store hasn't been scanned yet).
+      displayName: schema.stores.displayName,
+    })
+    .from(schema.userStorePrefs)
+    .leftJoin(schema.stores, eq(schema.stores.domain, schema.userStorePrefs.domain))
+    .where(
+      and(
+        eq(schema.userStorePrefs.userId, user.id),
+        eq(schema.userStorePrefs.isMyStore, true),
+      ),
+    )
     .limit(1);
 
   if (!mine) return <NoStoreFlagged />;
@@ -70,13 +84,15 @@ export default async function MyProductsPage() {
       JOIN price_observations cp
         ON cp.product_id = c.id
       WHERE c.group_id = p.group_id
+        AND c.user_id = ${user.id}::uuid
         AND c.id != p.id
         AND c.store_domain != p.store_domain
         AND p.group_id IS NOT NULL
       ORDER BY cp.observed_at DESC, cp.price ASC
       LIMIT 1
     ) bc ON true
-    WHERE p.store_domain = ${mine.domain}
+    WHERE p.user_id = ${user.id}::uuid
+      AND p.store_domain = ${mine.domain}
       AND p.active = true
     ORDER BY p.is_favourite DESC, p.added_at DESC
   `);

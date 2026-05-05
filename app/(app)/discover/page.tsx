@@ -4,6 +4,7 @@ import { eq, sql, desc } from "drizzle-orm";
 import { DiscoverList } from "./discover-list";
 import { RunDiscoveryButton } from "./run-discovery-button";
 import { getPlanFeatures } from "@/lib/plan";
+import { requireUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ type SearchParams = Promise<{
 }>;
 
 export default async function DiscoverPage(props: { searchParams: SearchParams }) {
+  const user = await requireUser();
   const params = await props.searchParams;
   const page = Math.max(1, Number(params.page ?? 1) || 1);
   const q = params.q?.trim().toLowerCase() ?? "";
@@ -32,7 +34,8 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
   }>(sql`
     SELECT id, store_domain, handle, title, image_url, url, first_seen
     FROM discovered_products
-    WHERE status = 'new'
+    WHERE user_id = ${user.id}::uuid
+      AND status = 'new'
       ${params.store ? sql`AND store_domain = ${params.store}` : sql``}
       ${
         q
@@ -69,7 +72,8 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
   const storesRows = await db.execute<{ store_domain: string; n: number }>(sql`
     SELECT store_domain, COUNT(*)::int AS n
     FROM discovered_products
-    WHERE status = 'new'
+    WHERE user_id = ${user.id}::uuid
+      AND status = 'new'
     GROUP BY store_domain
     ORDER BY n DESC, store_domain ASC
   `);

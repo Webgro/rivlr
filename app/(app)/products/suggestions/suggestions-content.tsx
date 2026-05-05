@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import { acceptSuggestion, dismissSuggestion } from "./actions";
 import { RegenerateButton } from "./regenerate-button";
+import { requireUser } from "@/lib/auth/current-user";
 
 type SuggestionRow = {
   id: string;
@@ -20,7 +21,7 @@ type SuggestionRow = {
   [key: string]: unknown;
 };
 
-async function getSuggestions() {
+async function getSuggestions(userId: string) {
   return Array.from(
     await db.execute<SuggestionRow>(sql`
       SELECT
@@ -32,7 +33,8 @@ async function getSuggestions() {
       FROM link_suggestions s
       JOIN tracked_products a ON a.id = s.product_a_id
       JOIN tracked_products b ON b.id = s.product_b_id
-      WHERE s.status = 'pending'
+      WHERE s.user_id = ${userId}::uuid
+        AND s.status = 'pending'
       ORDER BY s.score DESC
       LIMIT 100
     `),
@@ -45,7 +47,8 @@ async function getSuggestions() {
  * SlideOver as appropriate.
  */
 export async function SuggestionsContent({ inPanel }: { inPanel?: boolean }) {
-  const suggestions = await getSuggestions();
+  const user = await requireUser();
+  const suggestions = await getSuggestions(user.id);
 
   return (
     <>

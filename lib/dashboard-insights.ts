@@ -32,7 +32,9 @@ export interface DashboardInsights {
  * One-shot aggregate query for the dashboard insights widget. Runs in
  * a single round trip via several CTEs.
  */
-export async function getDashboardInsights(): Promise<DashboardInsights> {
+export async function getDashboardInsights(
+  userId: string,
+): Promise<DashboardInsights> {
   type R = {
     price_raised_24h: number;
     price_dropped_24h: number;
@@ -72,13 +74,23 @@ export async function getDashboardInsights(): Promise<DashboardInsights> {
         AND prev.available IS NOT NULL
     )
     SELECT
-      (SELECT COUNT(DISTINCT product_id)::int FROM price_pairs WHERE new_price > prev_price) AS price_raised_24h,
-      (SELECT COUNT(DISTINCT product_id)::int FROM price_pairs WHERE new_price < prev_price) AS price_dropped_24h,
-      (SELECT COUNT(DISTINCT product_id)::int FROM stock_pairs WHERE prev_avail = true AND new_avail = false) AS new_stock_outs_24h,
-      (SELECT COUNT(DISTINCT product_id)::int FROM stock_pairs WHERE prev_avail = false AND new_avail = true) AS new_restocks_24h,
-      (SELECT COUNT(*)::int FROM link_suggestions WHERE status = 'pending') AS pending_suggestions,
+      (SELECT COUNT(DISTINCT pp.product_id)::int FROM price_pairs pp
+        JOIN tracked_products tp ON tp.id = pp.product_id AND tp.user_id = ${userId}::uuid
+        WHERE pp.new_price > pp.prev_price) AS price_raised_24h,
+      (SELECT COUNT(DISTINCT pp.product_id)::int FROM price_pairs pp
+        JOIN tracked_products tp ON tp.id = pp.product_id AND tp.user_id = ${userId}::uuid
+        WHERE pp.new_price < pp.prev_price) AS price_dropped_24h,
+      (SELECT COUNT(DISTINCT sp.product_id)::int FROM stock_pairs sp
+        JOIN tracked_products tp ON tp.id = sp.product_id AND tp.user_id = ${userId}::uuid
+        WHERE sp.prev_avail = true AND sp.new_avail = false) AS new_stock_outs_24h,
+      (SELECT COUNT(DISTINCT sp.product_id)::int FROM stock_pairs sp
+        JOIN tracked_products tp ON tp.id = sp.product_id AND tp.user_id = ${userId}::uuid
+        WHERE sp.prev_avail = false AND sp.new_avail = true) AS new_restocks_24h,
+      (SELECT COUNT(*)::int FROM link_suggestions
+        WHERE user_id = ${userId}::uuid AND status = 'pending') AS pending_suggestions,
       (SELECT COUNT(*)::int FROM tracked_products
-       WHERE active = true
+       WHERE user_id = ${userId}::uuid
+         AND active = true
          AND (last_crawled_at IS NULL OR last_crawled_at < NOW() - INTERVAL '2 hours')) AS stale_count
   `);
 
@@ -114,7 +126,7 @@ export async function getDashboardInsights(): Promise<DashboardInsights> {
       (pr.new_price - pr.prev_price)::text AS delta,
       ((pr.new_price - pr.prev_price) / pr.prev_price * 100)::text AS pct
     FROM prev pr
-    JOIN tracked_products p ON p.id = pr.product_id
+    JOIN tracked_products p ON p.id = pr.product_id AND p.user_id = ${userId}::uuid
     WHERE pr.prev_price IS NOT NULL AND pr.new_price != pr.prev_price
     ORDER BY ABS(pr.new_price - pr.prev_price) DESC
     LIMIT 10

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db, schema } from "@/lib/db";
 import { sql, eq } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 interface Step {
   id: string;
@@ -19,7 +20,9 @@ interface Step {
  * Plain English copy throughout — assumes no Shopify or DTC familiarity.
  */
 export async function OnboardingChecklist() {
-  const steps = await loadSteps();
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const steps = await loadSteps(user.id);
   const doneCount = steps.filter((s) => s.done).length;
 
   // Auto-hide once everything is ticked.
@@ -127,8 +130,9 @@ export async function OnboardingChecklist() {
   );
 }
 
-async function loadSteps(): Promise<Step[]> {
-  // Cheapest possible — single SQL pass for completion bits.
+async function loadSteps(userId: string): Promise<Step[]> {
+  // Cheapest possible — single SQL pass for completion bits, all
+  // scoped to the current user.
   const [row] = await db.execute<{
     has_product: boolean;
     has_my_store: boolean;
@@ -137,22 +141,26 @@ async function loadSteps(): Promise<Step[]> {
     has_settings: boolean;
   }>(sql`
     SELECT
-      EXISTS (SELECT 1 FROM tracked_products WHERE active = true) AS has_product,
-      EXISTS (SELECT 1 FROM stores WHERE is_my_store = true) AS has_my_store,
+      EXISTS (SELECT 1 FROM tracked_products
+        WHERE user_id = ${userId}::uuid AND active = true) AS has_product,
+      EXISTS (SELECT 1 FROM user_store_prefs
+        WHERE user_id = ${userId}::uuid AND is_my_store = true) AS has_my_store,
       EXISTS (
         SELECT 1 FROM tracked_products t1
         JOIN tracked_products t2
           ON t1.group_id = t2.group_id
          AND t1.id != t2.id
          AND t1.store_domain != t2.store_domain
-        WHERE t1.group_id IS NOT NULL
+         AND t2.user_id = ${userId}::uuid
+        WHERE t1.user_id = ${userId}::uuid
+          AND t1.group_id IS NOT NULL
       ) AS has_link,
       EXISTS (
         SELECT 1 FROM app_settings
-        WHERE id = 'singleton'
+        WHERE id = ${userId}
           AND array_length(notification_emails, 1) > 0
       ) AS has_emails,
-      EXISTS (SELECT 1 FROM app_settings WHERE id = 'singleton') AS has_settings
+      EXISTS (SELECT 1 FROM app_settings WHERE id = ${userId}) AS has_settings
   `);
 
   return [
