@@ -92,7 +92,7 @@ export default async function OpportunitiesPage() {
       LEFT JOIN stores st ON st.domain = p.store_domain
       JOIN sold_30d_calc s ON s.product_id = p.id
       JOIN LATERAL (
-        SELECT quantity FROM stock_observations
+        SELECT quantity, available FROM stock_observations
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) ls ON ls.quantity IS NOT NULL
       LEFT JOIN LATERAL (
@@ -101,6 +101,11 @@ export default async function OpportunitiesPage() {
       ) lp ON true
       WHERE p.active = true
         AND COALESCE(st.is_my_store, false) = false
+        -- Only items still in stock — "going dark" doesn't apply to
+        -- products that are already out. Also positive quantity to
+        -- avoid divide-by-zero edge cases on stale observations.
+        AND ls.available = true
+        AND ls.quantity > 0
         AND s.sold_30d > 0
         AND (ls.quantity::numeric / (s.sold_30d::numeric / 30.0)) < ${daysCoverThreshold}
       ORDER BY (ls.quantity::numeric / (s.sold_30d::numeric / 30.0)) ASC

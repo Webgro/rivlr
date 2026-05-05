@@ -14,7 +14,7 @@ export async function sendTeamInviteEmail(opts: {
   inviterEmail: string;
   inviteeEmail: string;
   url: string;
-  expiresInMinutes: number;
+  expiresInDays: number;
 }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {

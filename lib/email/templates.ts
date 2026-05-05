@@ -287,21 +287,22 @@ export function teamInviteEmail(opts: {
   inviterEmail: string;
   inviteeEmail: string;
   url: string;
-  expiresInMinutes: number;
+  expiresInDays: number;
 }): Built {
   const subject = `${opts.inviterEmail} invited you to their Rivlr account`;
   const html = renderShell(
     `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">You&apos;ve been invited to Rivlr</h1>
-<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;"><strong style="color:#f5f3ee;">${escape(opts.inviterEmail)}</strong> added <strong style="color:#f5f3ee;">${escape(opts.inviteeEmail)}</strong> to their Rivlr account. Click below to sign in — you&apos;ll see all the products and stores they track.</p>
-<a href="${opts.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Accept invite →</a>
-<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Link expires in ${opts.expiresInMinutes} minutes. If you weren&apos;t expecting this, you can ignore the email — no account is created without your click.</p>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;"><strong style="color:#f5f3ee;">${escape(opts.inviterEmail)}</strong> added <strong style="color:#f5f3ee;">${escape(opts.inviteeEmail)}</strong> to their Rivlr account. You&apos;ll see all the products and stores they track.</p>
+<a href="${opts.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Accept &amp; sign in →</a>
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:13px;line-height:1.6;">No rush — this link works for <strong style="color:#c0c0c0;">${opts.expiresInDays} days</strong>. After that (or any time you prefer), you can also sign in at <a href="https://rivlr.app/login" style="color:#c0c0c0;text-decoration:underline;">rivlr.app/login</a> using <strong style="color:#c0c0c0;">${escape(opts.inviteeEmail)}</strong> — your address is already on the account.</p>
+<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If you weren&apos;t expecting this, ignore the email — clicking is the only way you get added.</p>
 <p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If the button doesn&apos;t work, copy and paste:<br>
 <a href="${opts.url}" style="color:#8a8a8a;word-break:break-all;text-decoration:underline;">${opts.url}</a></p>`,
     {
       preheader: `${opts.inviterEmail} added you to their Rivlr account.`,
     },
   );
-  const text = `${opts.inviterEmail} invited you to their Rivlr account.\n\nClick to accept: ${opts.url}\n\nLink expires in ${opts.expiresInMinutes} minutes. Ignore if unexpected.`;
+  const text = `${opts.inviterEmail} invited you to their Rivlr account.\n\nAccept & sign in: ${opts.url}\n\nThis link works for ${opts.expiresInDays} days. Or sign in any time at https://rivlr.app/login with ${opts.inviteeEmail}.`;
   return { subject, html, text };
 }
 

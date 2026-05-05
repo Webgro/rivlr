@@ -140,11 +140,20 @@ export async function addAuthorisedEmail(formData: FormData): Promise<{
     });
   }
 
-  // Fire the invite email — this is BOTH the authorise step AND the
-  // sign-in step. Magic link works exactly the same way; /auth/verify
-  // resolves the email via the union lookup so the recipient lands in
-  // the inviter's account.
-  const link = await createMagicLink({ email, redirectTo: "/dashboard" });
+  // Fire the invite email. Two-track design:
+  //   - Embed a long-lived (7-day) magic link so a one-click accept just
+  //     works for the next week, even if the invitee doesn't see the
+  //     email today.
+  //   - Tell them they can ALSO sign in any time via /login using their
+  //     email — no link needed once they're authorised, the address is
+  //     already on the account.
+  const INVITE_TTL_DAYS = 7;
+  const INVITE_TTL_MINUTES = INVITE_TTL_DAYS * 24 * 60;
+  const link = await createMagicLink({
+    email,
+    redirectTo: "/dashboard",
+    ttlMinutes: INVITE_TTL_MINUTES,
+  });
   if (!link.ok) {
     return {
       ok: false,
@@ -163,7 +172,7 @@ export async function addAuthorisedEmail(formData: FormData): Promise<{
     inviterEmail: me.email,
     inviteeEmail: email,
     url,
-    expiresInMinutes: 15,
+    expiresInDays: INVITE_TTL_DAYS,
   });
 
   revalidatePath("/settings");
@@ -172,7 +181,7 @@ export async function addAuthorisedEmail(formData: FormData): Promise<{
     ok: true,
     message: alreadyMine
       ? `Re-sent the sign-in link to ${email}.`
-      : `Invite sent to ${email}. Link expires in 15 minutes.`,
+      : `Invite sent to ${email}. Link works for ${INVITE_TTL_DAYS} days; they can also sign in any time at /login.`,
   };
 }
 

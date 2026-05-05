@@ -19,7 +19,7 @@ import { eq, and, isNull, lt } from "drizzle-orm";
  */
 
 const TOKEN_BYTES = 32;
-const LINK_TTL_MS = 15 * 60 * 1000; // 15 min
+const DEFAULT_TTL_MINUTES = 15; // standard sign-in
 const MAX_PENDING_PER_HOUR = 5;
 const RECENT_WINDOW_MS = 60 * 60 * 1000;
 
@@ -39,9 +39,17 @@ export interface CreateLinkError {
 export async function createMagicLink({
   email,
   redirectTo,
+  ttlMinutes,
 }: {
   email: string;
   redirectTo?: string;
+  /**
+   * Override the default 15-minute TTL. Use longer TTLs for team invites
+   * (where the recipient may not check email immediately) — 7 days is
+   * the recommended invite window. Sign-in flows should keep the
+   * 15-min default for security.
+   */
+  ttlMinutes?: number;
 }): Promise<CreateLinkResult | CreateLinkError> {
   const cleanEmail = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
@@ -84,7 +92,8 @@ export async function createMagicLink({
 
   const token = randomBytes(TOKEN_BYTES).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
-  const expiresAt = new Date(Date.now() + LINK_TTL_MS);
+  const ttl = ttlMinutes ?? DEFAULT_TTL_MINUTES;
+  const expiresAt = new Date(Date.now() + ttl * 60 * 1000);
 
   await db.insert(schema.authMagicLinks).values({
     email: cleanEmail,

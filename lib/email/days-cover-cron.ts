@@ -61,11 +61,17 @@ export async function sendDaysCoverWarnings(): Promise<{
       LEFT JOIN stores st ON st.domain = p.store_domain
       JOIN sold_30d_calc s ON s.product_id = p.id
       JOIN LATERAL (
-        SELECT quantity FROM stock_observations
+        SELECT quantity, available FROM stock_observations
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) ls ON ls.quantity IS NOT NULL
       WHERE p.active = true
         AND COALESCE(st.is_my_store, false) = false
+        -- "About to go dark" only applies to items currently in stock.
+        -- Already-OOS products don't need a warning email — they're already
+        -- dark. Positive quantity guards against stale 0-qty observations
+        -- triggering divide-by-zero or false-positive warnings.
+        AND ls.available = true
+        AND ls.quantity > 0
         AND s.sold_30d > 0
         AND (ls.quantity::numeric / (s.sold_30d::numeric / 30.0)) < ${threshold}
       ORDER BY (ls.quantity::numeric / (s.sold_30d::numeric / 30.0)) ASC
