@@ -43,6 +43,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Stripe webhook authenticated by signature header, not by cookie.
+  if (pathname === "/api/billing/webhook") {
+    return NextResponse.next();
+  }
+
   // Public auth paths.
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();

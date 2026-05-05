@@ -692,6 +692,29 @@ export const subscriptions = pgTable(
   (t) => [index("idx_subscriptions_status").on(t.status)],
 );
 
+/**
+ * Stripe webhook idempotency log. One row per processed event id, written
+ * after the handler runs. Stripe retries failed webhooks aggressively;
+ * checking this table early in the route handler turns retries into
+ * cheap no-ops without us having to make every handler perfectly
+ * re-runnable.
+ *
+ * Pruning: rows older than 30 days are safe to delete (Stripe stops
+ * retrying after ~3 days). Cron-pruning is future work — table stays
+ * small naturally for early stage usage.
+ */
+export const processedStripeEvents = pgTable(
+  "processed_stripe_events",
+  {
+    id: text("id").primaryKey(), // Stripe event id (evt_…)
+    type: text("type").notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("idx_pse_processed_at").on(t.processedAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
