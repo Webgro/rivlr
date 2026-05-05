@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { db, schema } from "@/lib/db";
+import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth/current-user";
 import { getPlanForUser, type Plan } from "@/lib/plan";
 import { isStripeConfigured } from "@/lib/stripe";
@@ -71,6 +72,18 @@ export default async function BillingPage({
   const stripeConfigured = isStripeConfigured();
   const params = await searchParams;
 
+  // Look up the persisted subscription row (populated by webhooks in
+  // Stage 4). Its presence is the signal that the user has an existing
+  // Stripe subscription that should be managed via the Portal rather
+  // than starting fresh through Checkout.
+  const [subscription] = await db
+    .select()
+    .from(schema.subscriptions)
+    .where(eq(schema.subscriptions.userId, user.id))
+    .limit(1);
+
+  const hasSubscription = !!subscription;
+
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <header>
@@ -82,14 +95,18 @@ export default async function BillingPage({
       </header>
 
       {/* Status banner — Checkout success/cancel returns the user here. */}
-      {params.status === "success" && <StatusBanner tone="ok">
-        Checkout complete. Your plan will update within a minute once Stripe
-        confirms the payment.
-      </StatusBanner>}
-      {params.status === "canceled" && <StatusBanner tone="muted">
-        Checkout canceled. No charge made — you can pick a plan whenever
-        you&apos;re ready.
-      </StatusBanner>}
+      {params.status === "success" && (
+        <StatusBanner tone="ok">
+          Checkout complete. Your plan will update within a minute once Stripe
+          confirms the payment.
+        </StatusBanner>
+      )}
+      {params.status === "canceled" && (
+        <StatusBanner tone="muted">
+          Checkout canceled. No charge made — you can pick a plan whenever
+          you&apos;re ready.
+        </StatusBanner>
+      )}
 
       {/* Owner override — gives the founder account a clear "you don't pay" cue
           and hides upgrade buttons. */}
@@ -113,6 +130,19 @@ export default async function BillingPage({
         </StatusBanner>
       )}
 
+      {/* Active-subscription summary card. Shown above the grid when the
+          user has a persisted subscription; the grid below becomes a
+          read-only comparison and plan changes route through the Portal. */}
+      {hasSubscription && plan !== "owner" && (
+        <SubscriptionSummary
+          plan={plan}
+          status={subscription.status}
+          currentPeriodEnd={subscription.currentPeriodEnd}
+          cancelAtPeriodEnd={subscription.cancelAtPeriodEnd}
+          stripeConfigured={stripeConfigured}
+        />
+      )}
+
       {/* Plan grid */}
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {PLAN_CARDS.map((card) => (
@@ -121,22 +151,114 @@ export default async function BillingPage({
             card={card}
             currentPlan={plan}
             stripeConfigured={stripeConfigured}
+            hasSubscription={hasSubscription}
           />
         ))}
       </section>
 
       <p className="mt-10 text-xs text-muted leading-relaxed">
         Prices in GBP. Billed monthly. VAT added at checkout where applicable.
-        Cancel any time from{" "}
-        <Link
-          href="/billing"
-          className="text-foreground underline-offset-4 hover:underline"
-        >
-          this page
-        </Link>{" "}
-        — your access continues until the end of the period you&apos;ve paid for.
+        {hasSubscription
+          ? " Manage your card, switch plans, and cancel from the billing portal above — your access continues until the end of the period you've paid for."
+          : " Cancel any time once you've subscribed — your access continues until the end of the period you've paid for."}
       </p>
     </main>
+  );
+}
+
+function SubscriptionSummary({
+  plan,
+  status,
+  currentPeriodEnd,
+  cancelAtPeriodEnd,
+  stripeConfigured,
+}: {
+  plan: Plan;
+  status: string;
+  currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  stripeConfigured: boolean;
+}) {
+  const planCopy = plan === "free" ? "Free" : plan.charAt(0).toUpperCase() + plan.slice(1);
+  // Status copy. Stripe uses lowercase strings; we'd rather show
+  // "Past due" than "past_due" to a human.
+  const statusCopy =
+    status === "active"
+      ? "Active"
+      : status === "trialing"
+        ? "On trial"
+        : status === "past_due"
+          ? "Past due"
+          : status === "canceled"
+            ? "Canceled"
+            : status.charAt(0).toUpperCase() + status.slice(1);
+  const dateLabel = cancelAtPeriodEnd
+    ? "Access ends"
+    : status === "canceled"
+      ? "Ended"
+      : "Renews";
+
+  return (
+    <section className="mt-6 rounded-xl border border-default bg-elevated p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+            Current plan
+          </div>
+          <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+            <span className="text-lg font-semibold tracking-tight">
+              {planCopy}
+            </span>
+            <span
+              className={`rounded px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] font-mono ${
+                status === "active" || status === "trialing"
+                  ? "bg-green-500/15 text-green-500"
+                  : status === "past_due"
+                    ? "bg-signal/15 text-signal"
+                    : "bg-surface text-muted border border-default"
+              }`}
+            >
+              {statusCopy}
+            </span>
+            {cancelAtPeriodEnd && (
+              <span className="rounded bg-signal/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-signal font-mono">
+                Cancels at period end
+              </span>
+            )}
+          </div>
+          {currentPeriodEnd && (
+            <div className="mt-1 text-xs text-muted">
+              {dateLabel}{" "}
+              {currentPeriodEnd.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </div>
+          )}
+        </div>
+
+        <form
+          action="/api/billing/portal"
+          method="post"
+          className="flex-shrink-0"
+        >
+          <button
+            type="submit"
+            disabled={!stripeConfigured}
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Manage billing →
+          </button>
+        </form>
+      </div>
+
+      <p className="mt-4 pt-4 border-t border-default text-[11px] text-muted leading-relaxed">
+        Update your card, switch plans, view invoices, or cancel — all
+        handled by Stripe&apos;s hosted billing portal. We never see your
+        card details.
+      </p>
+    </section>
   );
 }
 
@@ -144,13 +266,14 @@ function PlanCardComponent({
   card,
   currentPlan,
   stripeConfigured,
+  hasSubscription,
 }: {
   card: PlanCard;
   currentPlan: Plan;
   stripeConfigured: boolean;
+  hasSubscription: boolean;
 }) {
   const isCurrent = currentPlan === card.id;
-  // Owner bypasses billing → every plan shows as "reference only".
   const isOwner = currentPlan === "owner";
   const isPaid = card.id !== "free";
 
@@ -200,6 +323,12 @@ function PlanCardComponent({
         ) : !isPaid ? (
           <div className="text-center text-[11px] text-muted py-2">
             Default plan
+          </div>
+        ) : hasSubscription ? (
+          // Existing subscriber — plan changes go through the Portal,
+          // not a fresh Checkout. The summary card above hosts the CTA.
+          <div className="text-center text-[11px] text-muted py-2">
+            Switch via Manage billing
           </div>
         ) : (
           <form action="/api/billing/checkout" method="post">

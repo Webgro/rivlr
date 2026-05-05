@@ -85,3 +85,32 @@ export async function createCheckoutSession({
   }
   return session.url;
 }
+
+/**
+ * Create a Customer Portal session — Stripe's hosted "manage your
+ * subscription" page where customers update their card, change plan,
+ * download invoices, and cancel.
+ *
+ * Configure once in the Stripe dashboard:
+ *   Settings → Billing → Customer portal
+ * (set allowed actions, business info, branding, return URL fallback).
+ */
+export async function createPortalSession({
+  customerId,
+  returnUrl,
+}: {
+  customerId: string;
+  returnUrl: string;
+}): Promise<string> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured.");
+  }
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+  });
+  if (!session.url) {
+    throw new Error("Stripe Portal session created without a URL.");
+  }
+  return session.url;
+}
