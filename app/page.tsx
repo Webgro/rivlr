@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { isAuthed } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { Wordmark } from "@/components/wordmark";
 import { HeroDemo } from "./(marketing)/hero-demo";
 import { RadarBackground } from "./(marketing)/radar-bg";
@@ -88,7 +88,7 @@ const SOFTWARE_LD = {
 };
 
 export default async function MarketingPage() {
-  if (await isAuthed()) {
+  if (await getCurrentUser()) {
     redirect("/dashboard");
   }
 

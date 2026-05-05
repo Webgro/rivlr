@@ -32,7 +32,7 @@ export default function CookiesPage() {
         <tbody>
           <tr>
             <td>
-              <code>rivlr_session</code>
+              <code>rivlr_auth</code>
             </td>
             <td>Strictly necessary</td>
             <td>Keeps you logged in. Required to use the dashboard.</td>
@@ -69,7 +69,7 @@ export default function CookiesPage() {
       <h2>Managing Cookies</h2>
       <p>
         Most browsers let you delete or block cookies through their
-        settings. Doing so for <code>rivlr_session</code> will sign you
+        settings. Doing so for <code>rivlr_auth</code> will sign you
         out. Browsers also offer a "private" or "incognito" mode that
         clears cookies when the window closes.
       </p>

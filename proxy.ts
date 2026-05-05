@@ -2,16 +2,18 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Phase 1 password gate.
+ * Proxy (formerly middleware) — gates the dashboard behind a per-user
+ * magic-link session.
  *
- * This is a temporary single-password lock so the owner can use Rivlr before
- * real user accounts exist. Phase 2 replaces this with Better Auth.
+ * - Public paths: /login, /signup, /auth/verify, marketing landing,
+ *   /legal/*, /help/*, /unsubscribe, /api/auth/*, /api/preview,
+ *   /api/waitlist, /api/public/*, Vercel cron endpoints, _next assets.
+ * - Everything else requires the `rivlr_auth` cookie. Cookie presence is
+ *   checked here; full session validation (auth_sessions row + sliding
+ *   expiry) happens in route handlers / server components via getSession().
  *
- * - Public paths: /login, /api/auth/*, Vercel cron endpoints, _next assets
- * - Everything else requires the `rivlr_session` cookie to match SESSION_TOKEN.
- *
- * In Next.js 16, this file is `proxy.ts` (renamed from `middleware.ts`) and
- * the function is named `proxy`. Runtime is Node.js.
+ * In Next.js 16, this file is `proxy.ts` (renamed from `middleware.ts`)
+ * and the function is named `proxy`. Runtime is Node.js.
  */
 
 const PUBLIC_PATHS = [
@@ -36,7 +38,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Cron endpoints authenticated by Vercel's CRON_SECRET, not by the cookie.
+  // Cron endpoints authenticated by Vercel's CRON_SECRET, not by cookie.
   if (pathname.startsWith("/api/crawl/")) {
     return NextResponse.next();
   }
@@ -62,18 +64,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Everything else: must have either the new per-user session cookie
-  // OR the legacy single-password cookie. Both are accepted during the
-  // Phase 3 cutover; legacy is removed in commit 3.
-  const newSession = request.cookies.get("rivlr_auth")?.value;
-  const legacySession = request.cookies.get("rivlr_session")?.value;
-  const expected = process.env.SESSION_TOKEN;
-  const authedNew = !!newSession; // proxy can't hit DB; full validation in route handlers
-  const authedLegacy =
-    !!legacySession && !!expected && legacySession === expected;
-  const authed = authedNew || authedLegacy;
-
-  if (!authed) {
+  // Everything else: require the per-user session cookie. The proxy can't
+  // hit the DB, so we only check presence here; full validation runs in
+  // route handlers / server components via getSession().
+  const session = request.cookies.get("rivlr_auth")?.value;
+  if (!session) {
     const loginUrl = new URL("/login", request.url);
     if (pathname !== "/") {
       loginUrl.searchParams.set("next", pathname);

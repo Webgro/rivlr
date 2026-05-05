@@ -150,11 +150,12 @@ export const trackedProducts = pgTable(
   "tracked_products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    /** Owner. Nullable temporarily so the existing single-tenant data can
-     *  back-fill on first signup. The first verified user adopts every
-     *  NULL-userId row in one transaction. After that, NEW rows always
-     *  set userId. Future Drizzle migration will mark this NOT NULL. */
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    /** Owner. NOT NULL — the first-signup adoption pass + ongoing inserts
+     *  guarantee every row has a user. Pre-Phase-3 data was claimed by the
+     *  first verified user when they completed sign-in. */
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     handle: text("handle").notNull(), // shopify product handle
     storeDomain: text("store_domain").notNull(), // e.g. example.myshopify.com
@@ -502,7 +503,9 @@ export const crawlJobs = pgTable(
 export const appSettings = pgTable("app_settings", {
   id: text("id").primaryKey(),
   /** Owner reference. Same value as id — present for FK clarity in joins. */
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   notificationEmails: text("notification_emails")
     .array()
     .notNull()
@@ -543,9 +546,11 @@ export const appSettings = pgTable("app_settings", {
  */
 export const tags = pgTable("tags", {
   name: text("name").primaryKey(), // lowercase, trimmed
-  /** Owner. Existing rows back-filled on first signup. Tags are per-user
-   *  conceptually — your "premium" tag isn't my "premium" tag. */
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  /** Owner. Tags are per-user — your "premium" tag isn't my "premium"
+   *  tag. */
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   color: text("color").notNull().default("gray"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -557,8 +562,10 @@ export const tags = pgTable("tags", {
  */
 export const productGroups = pgTable("product_groups", {
   id: uuid("id").primaryKey().defaultRandom(),
-  /** Owner of the group. Same nullable-then-backfilled pattern. */
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  /** Owner of the group. */
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -616,7 +623,9 @@ export const linkSuggestions = pgTable(
     /** Owner of the suggestion. Derived from the products' owners (which
      *  must be the same user since we don't suggest cross-user links).
      *  Stored explicitly so /products/suggestions can scope cleanly. */
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     productAId: uuid("product_a_id")
       .notNull()
       .references(() => trackedProducts.id, { onDelete: "cascade" }),
@@ -698,8 +707,10 @@ export const discoveredProducts = pgTable(
   "discovered_products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    /** Owner. Same nullable-then-backfilled pattern as trackedProducts. */
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    /** Owner. */
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     storeDomain: text("store_domain").notNull(),
     handle: text("handle").notNull(),
     title: text("title"),

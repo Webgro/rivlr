@@ -30,12 +30,3 @@ export async function requireUser(returnTo?: string): Promise<User> {
   return user;
 }
 
-/**
- * Compatibility shim for the old isAuthed() boolean. Existing call sites
- * continue to work while we migrate them to requireUser/getCurrentUser
- * one at a time. Removed in Phase 3 commit 3.
- */
-export async function isAuthedNew(): Promise<boolean> {
-  const user = await getCurrentUser();
-  return user !== null;
-}
