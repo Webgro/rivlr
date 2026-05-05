@@ -105,6 +105,13 @@ export async function GET(request: Request) {
       .where(eq(schema.userEmails.email, email));
   }
 
+  // Idempotent post-deploy migration. Phase 3 part 2 adopted the
+  // tracked-products etc. but app_settings + stores prefs weren't part
+  // of that batch. This runs on every sign-in until the legacy state
+  // (singleton settings row, is_my_store flags on the stores table) is
+  // gone, then no-ops forever.
+  await migrateLegacyDataForUser(user.id);
+
   const h = await headers();
   await createSession({
     userId: user.id,
@@ -153,6 +160,7 @@ async function resolveUserByEmail(email: string) {
  */
 async function adoptAllExistingData(userId: string): Promise<void> {
   await db.transaction(async (tx) => {
+    // Per-row tables — null user_id rows become this user's.
     await tx.execute(sql`
       UPDATE tracked_products SET user_id = ${userId} WHERE user_id IS NULL
     `);
@@ -168,6 +176,137 @@ async function adoptAllExistingData(userId: string): Promise<void> {
     await tx.execute(sql`
       UPDATE link_suggestions SET user_id = ${userId} WHERE user_id IS NULL
     `);
+
+    // app_settings: pre-Phase-3 was a single 'singleton' row. Copy the
+    // singleton (if it exists) to a new row keyed by the user's id, then
+    // drop the singleton. After this, every read is by id = user.id.
+    await tx.execute(sql`
+      INSERT INTO app_settings (
+        id, user_id, notification_emails, crawl_cadence,
+        multi_market_countries, cart_probe_enabled,
+        days_cover_threshold, updated_at
+      )
+      SELECT
+        ${userId}, ${userId}::uuid, notification_emails, crawl_cadence,
+        multi_market_countries, cart_probe_enabled,
+        days_cover_threshold, updated_at
+      FROM app_settings
+      WHERE id = 'singleton'
+      ON CONFLICT (id) DO NOTHING
+    `);
+    await tx.execute(sql`
+      DELETE FROM app_settings WHERE id = 'singleton'
+    `);
+
+    // stores: per-user attributes (is_my_store, auto_track_new) move into
+    // the user_store_prefs junction. We read the existing flags from the
+    // global stores table and write one prefs row per (user, domain) pair
+    // that had ANY flag set true. Stores without flags don't need a
+    // prefs row — defaults of false apply.
+    await tx.execute(sql`
+      INSERT INTO user_store_prefs (user_id, domain, is_my_store, auto_track_new, set_at)
+      SELECT ${userId}::uuid, domain, is_my_store, auto_track_new, NOW()
+      FROM stores
+      WHERE is_my_store = true OR auto_track_new = true
+      ON CONFLICT DO NOTHING
+    `);
+  });
+}
+
+/**
+ * Idempotent migration for an existing user. Runs on every sign-in but
+ * is a fast no-op once the legacy state is cleaned up.
+ *
+ *   - Copies the legacy app_settings.id='singleton' row into a new row
+ *     keyed by user.id, then deletes the singleton.
+ *   - Copies stores.is_my_store / auto_track_new into the user_store_prefs
+ *     junction (only for THIS user, only for stores they actually have
+ *     tracked products on — to avoid claiming flags on stores that
+ *     belong to other users in a multi-user future).
+ */
+async function migrateLegacyDataForUser(userId: string): Promise<void> {
+  // Bail fast if user already has settings.
+  const [existing] = await db
+    .select({ id: schema.appSettings.id })
+    .from(schema.appSettings)
+    .where(eq(schema.appSettings.id, userId))
+    .limit(1);
+  const userHasSettings = !!existing;
+
+  // Check if there are stores with legacy flags this user should claim.
+  const [legacyStoresRow] = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count
+    FROM stores s
+    WHERE (s.is_my_store = true OR s.auto_track_new = true)
+      AND EXISTS (
+        SELECT 1 FROM tracked_products tp
+        WHERE tp.store_domain = s.domain AND tp.user_id = ${userId}::uuid
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM user_store_prefs usp
+        WHERE usp.user_id = ${userId}::uuid AND usp.domain = s.domain
+      )
+  `);
+  const hasLegacyStores = (legacyStoresRow?.count ?? 0) > 0;
+
+  if (userHasSettings && !hasLegacyStores) return;
+
+  await db.transaction(async (tx) => {
+    if (!userHasSettings) {
+      // Try copying from singleton; if that doesn't exist, just create
+      // a default empty settings row.
+      const [singleton] = await tx
+        .select()
+        .from(schema.appSettings)
+        .where(eq(schema.appSettings.id, "singleton"))
+        .limit(1);
+
+      if (singleton) {
+        await tx
+          .insert(schema.appSettings)
+          .values({
+            id: userId,
+            userId,
+            notificationEmails: singleton.notificationEmails,
+            crawlCadence: singleton.crawlCadence,
+            multiMarketCountries: singleton.multiMarketCountries,
+            cartProbeEnabled: singleton.cartProbeEnabled,
+            daysCoverThreshold: singleton.daysCoverThreshold,
+            updatedAt: singleton.updatedAt,
+          })
+          .onConflictDoNothing();
+        await tx
+          .delete(schema.appSettings)
+          .where(eq(schema.appSettings.id, "singleton"));
+      } else {
+        // No prior settings — create defaults.
+        await tx
+          .insert(schema.appSettings)
+          .values({ id: userId, userId })
+          .onConflictDoNothing();
+      }
+    }
+
+    if (hasLegacyStores) {
+      // Copy is_my_store / auto_track_new from stores rows where this user
+      // has tracked products. The double-EXISTS in the WHERE prevents
+      // claiming flags on stores that belong to a different user (defensive
+      // for the future-multi-user case).
+      await tx.execute(sql`
+        INSERT INTO user_store_prefs (user_id, domain, is_my_store, auto_track_new, set_at)
+        SELECT ${userId}::uuid, s.domain, s.is_my_store, s.auto_track_new, NOW()
+        FROM stores s
+        WHERE (s.is_my_store = true OR s.auto_track_new = true)
+          AND EXISTS (
+            SELECT 1 FROM tracked_products tp
+            WHERE tp.store_domain = s.domain AND tp.user_id = ${userId}::uuid
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM user_store_prefs usp
+            WHERE usp.user_id = ${userId}::uuid AND usp.domain = s.domain
+          )
+      `);
+    }
   });
 }
 

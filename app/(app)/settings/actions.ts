@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
-import { isAuthed } from "@/lib/auth";
+import { requireUser, getCurrentUser } from "@/lib/auth/current-user";
 import {
   type Cadence,
   isCadenceAllowed,
@@ -14,10 +13,35 @@ import { KNOWN_MARKETS } from "@/lib/crawler/multi-market";
 import { sendEmail } from "@/lib/email/send";
 import { testEmail } from "@/lib/email/templates";
 
-const SETTINGS_ID = "singleton";
+/**
+ * Per-user settings actions. Every read/write is keyed by user.id —
+ * the legacy 'singleton' row is migrated by /auth/verify on first
+ * sign-in after the Phase 3 part 3 deploy.
+ *
+ * upsert helper: app_settings.id == user.id by convention; user_id
+ * column duplicates that for FK clarity in joins.
+ */
+
+async function upsertSettings(
+  userId: string,
+  patch: Partial<typeof schema.appSettings.$inferInsert>,
+) {
+  await db
+    .insert(schema.appSettings)
+    .values({
+      id: userId,
+      userId,
+      updatedAt: new Date(),
+      ...patch,
+    })
+    .onConflictDoUpdate({
+      target: schema.appSettings.id,
+      set: { ...patch, updatedAt: new Date() },
+    });
+}
 
 export async function saveNotificationEmails(formData: FormData) {
-  if (!(await isAuthed())) redirect("/login");
+  const user = await requireUser();
   const raw = String(formData.get("emails") ?? "");
   const emails = Array.from(
     new Set(
@@ -29,28 +53,14 @@ export async function saveNotificationEmails(formData: FormData) {
         .filter((e) => e.length <= 254),
     ),
   );
-
-  // Upsert the singleton settings row.
-  await db
-    .insert(schema.appSettings)
-    .values({
-      id: SETTINGS_ID,
-      notificationEmails: emails,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: schema.appSettings.id,
-      set: { notificationEmails: emails, updatedAt: new Date() },
-    });
-
+  await upsertSettings(user.id, { notificationEmails: emails });
   revalidatePath("/settings");
 }
 
 /**
- * Fires a test email to every address in app_settings.notification_emails
+ * Fires a test email to every address in the user's notification_emails
  * so users can sanity-check their config without waiting for a real
- * price drop or stock change. Returns counts so the UI can show
- * "Sent to 2, skipped 1 (unsubscribed)" feedback.
+ * price drop or stock change.
  */
 export async function sendTestNotification(): Promise<{
   ok: boolean;
@@ -59,13 +69,14 @@ export async function sendTestNotification(): Promise<{
   recipients: number;
   error?: string;
 }> {
-  if (!(await isAuthed())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return { ok: false, sent: 0, skipped: 0, recipients: 0, error: "unauthorized" };
   }
   const [row] = await db
     .select()
     .from(schema.appSettings)
-    .where(eq(schema.appSettings.id, SETTINGS_ID))
+    .where(eq(schema.appSettings.id, user.id))
     .limit(1);
   const emails = row?.notificationEmails ?? [];
   if (emails.length === 0) {
@@ -94,106 +105,53 @@ export async function sendTestNotification(): Promise<{
 }
 
 export async function getSettings() {
+  const user = await getCurrentUser();
+  if (!user) return null;
   const [row] = await db
     .select()
     .from(schema.appSettings)
-    .where(eq(schema.appSettings.id, SETTINGS_ID))
+    .where(eq(schema.appSettings.id, user.id))
     .limit(1);
   return row ?? null;
 }
 
 const VALID_CADENCES: Cadence[] = ["daily", "every-6h", "hourly"];
 
-/**
- * Update crawl cadence. Plan-gated: silently rejects values not allowed by
- * the user's plan (UI never exposes them as picks anyway).
- */
 export async function updateCrawlCadence(formData: FormData) {
-  if (!(await isAuthed())) redirect("/login");
+  const user = await requireUser();
   const value = String(formData.get("cadence") ?? "");
   if (!VALID_CADENCES.includes(value as Cadence)) return;
   const cadence = value as Cadence;
   const plan = await getCurrentPlan();
   if (!isCadenceAllowed(cadence, plan)) return;
-
-  await db
-    .insert(schema.appSettings)
-    .values({ id: SETTINGS_ID, crawlCadence: cadence, updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: schema.appSettings.id,
-      set: { crawlCadence: cadence, updatedAt: new Date() },
-    });
+  await upsertSettings(user.id, { crawlCadence: cadence });
   revalidatePath("/settings");
 }
 
-/**
- * Update the days-cover threshold for the "About to go dark" Opportunities
- * section. Clamped to a sensible 1–90 day range.
- */
 export async function updateDaysCoverThreshold(formData: FormData) {
-  if (!(await isAuthed())) redirect("/login");
+  const user = await requireUser();
   const raw = String(formData.get("threshold") ?? "");
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n)) return;
   const clamped = Math.min(90, Math.max(1, n));
-  await db
-    .insert(schema.appSettings)
-    .values({
-      id: SETTINGS_ID,
-      daysCoverThreshold: clamped,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: schema.appSettings.id,
-      set: { daysCoverThreshold: clamped, updatedAt: new Date() },
-    });
+  await upsertSettings(user.id, { daysCoverThreshold: clamped });
   revalidatePath("/settings");
   revalidatePath("/opportunities");
 }
 
-/**
- * Toggle the global cart-add inventory probe. When off, the daily cron
- * skips probing entirely. When on, only products with hidden inventory
- * + non-blocked stores get probed (orchestrator handles those filters).
- */
 export async function updateCartProbeEnabled(formData: FormData) {
-  if (!(await isAuthed())) redirect("/login");
+  const user = await requireUser();
   const enabled = String(formData.get("enabled") ?? "") === "true";
-  await db
-    .insert(schema.appSettings)
-    .values({
-      id: SETTINGS_ID,
-      cartProbeEnabled: enabled,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: schema.appSettings.id,
-      set: { cartProbeEnabled: enabled, updatedAt: new Date() },
-    });
+  await upsertSettings(user.id, { cartProbeEnabled: enabled });
   revalidatePath("/settings");
 }
 
-/**
- * Update the list of countries the daily multi-market price scan polls.
- * Validated against the KNOWN_MARKETS whitelist; unknown codes are dropped.
- * Empty list reverts to defaults.
- */
 export async function updateMultiMarketCountries(formData: FormData) {
-  if (!(await isAuthed())) redirect("/login");
+  const user = await requireUser();
   const raw = formData.getAll("country").map((v) => String(v).toUpperCase());
   const cleaned = Array.from(
     new Set(raw.filter((c) => /^[A-Z]{2}$/.test(c) && KNOWN_MARKETS[c])),
   );
-  await db
-    .insert(schema.appSettings)
-    .values({
-      id: SETTINGS_ID,
-      multiMarketCountries: cleaned,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: schema.appSettings.id,
-      set: { multiMarketCountries: cleaned, updatedAt: new Date() },
-    });
+  await upsertSettings(user.id, { multiMarketCountries: cleaned });
   revalidatePath("/settings");
 }

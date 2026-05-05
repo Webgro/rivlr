@@ -28,4 +28,5 @@ export {
   type AuthSession,
   type AuthMagicLink,
   type UserEmail,
+  type UserStorePref,
 } from "./schema";

@@ -370,6 +370,39 @@ export const stores = pgTable(
 );
 
 /**
+ * Per-user attributes attached to a store. Lets two users mark different
+ * stores as "mine" or set their own auto-track preferences without the
+ * shared `stores` table getting tangled up in per-user state.
+ *
+ * Composite PK (user_id, domain) — no synthetic id needed, lookups are
+ * always "give me this user's prefs for this domain".
+ *
+ * `cart_probe_blocked_at` STAYS on the global `stores` table because
+ * bot-protection is a property of the store itself, not the user.
+ */
+export const userStorePrefs = pgTable(
+  "user_store_prefs",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    domain: text("domain").notNull(),
+    isMyStore: boolean("is_my_store").notNull().default(false),
+    autoTrackNew: boolean("auto_track_new").notNull().default(false),
+    setAt: timestamp("set_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_usp_user").on(t.userId),
+    index("idx_usp_user_my_store").on(t.userId, t.isMyStore),
+    // Composite primary key via unique index — Drizzle's pgTable doesn't
+    // expose composite PK syntax cleanly, so we add a unique covering both.
+    index("idx_usp_user_domain_unique").on(t.userId, t.domain),
+  ],
+);
+
+/**
  * Time-series snapshots of store-level metrics. Each row = one daily scan.
  * Used to plot "catalogue growth" and "stockout rate" trend lines on the
  * store profile page. Keeps history independent of the latest values on
@@ -460,11 +493,16 @@ export const crawlJobs = pgTable(
 );
 
 /**
- * App-wide settings (singleton row, id = 'singleton'). Phase 2 will move these
- * onto the `users` table as per-user preferences.
+ * Per-user preferences. `id` is the user's UUID as text — one row per user.
+ * Pre-Phase-3 there was a single 'singleton' row; the /auth/verify adoption
+ * migration on first signup copies that row to id=user.id and the singleton
+ * is then ignored. We keep `id` as text rather than uuid so existing rows
+ * don't fight a type change during the transition.
  */
 export const appSettings = pgTable("app_settings", {
-  id: text("id").primaryKey().default("singleton"),
+  id: text("id").primaryKey(),
+  /** Owner reference. Same value as id — present for FK clarity in joins. */
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   notificationEmails: text("notification_emails")
     .array()
     .notNull()
@@ -599,6 +637,7 @@ export type NewUser = typeof users.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
 export type AuthMagicLink = typeof authMagicLinks.$inferSelect;
 export type UserEmail = typeof userEmails.$inferSelect;
+export type UserStorePref = typeof userStorePrefs.$inferSelect;
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;
