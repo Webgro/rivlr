@@ -3,6 +3,7 @@ import { db, schema } from "@/lib/db";
 import { inArray, asc, eq, and } from "drizzle-orm";
 import { CompareChart } from "./compare-chart";
 import { requireUser } from "@/lib/auth/current-user";
+import { getPlanFeatures, suggestNextPlan } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,13 @@ export default async function ComparePage(props: {
 }) {
   const user = await requireUser();
   const params = await props.searchParams;
+
+  // Plan gate. Compare is a Growth+ feature — it's the headline reason
+  // to upgrade off Starter. Show a paywall card instead of the chart.
+  const { plan, features } = await getPlanFeatures();
+  if (!features.compare) {
+    return <ComparePaywall plan={plan} />;
+  }
 
   // Parse + validate IDs strictly. Anything that's not a UUID is dropped —
   // an invalid UUID in inArray would crash the whole query at Postgres level.
@@ -241,6 +249,64 @@ export default async function ComparePage(props: {
             </Link>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] }) {
+  const next = suggestNextPlan(plan);
+  const upgradeHref = next ? `/billing?upgrade=${next}` : "/billing";
+  return (
+    <section className="mx-auto max-w-3xl px-6 py-12">
+      <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+      <p className="mt-1 text-sm text-muted">
+        Overlay price history across multiple products on a single chart —
+        spot competitor pricing patterns at a glance.
+      </p>
+
+      <div className="mt-8 rounded-xl border border-signal/40 bg-signal/[0.03] p-6">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
+          Growth feature
+        </div>
+        <h2 className="mt-2 text-lg font-semibold tracking-tight">
+          Compare unlocks on Growth
+        </h2>
+        <p className="mt-2 text-sm text-muted leading-relaxed">
+          The side-by-side price chart is a Growth-tier feature. Upgrade to
+          plot up to 5 products on one timeline, with currency-normalised
+          prices and stockout markers per series.
+        </p>
+
+        <ul className="mt-5 space-y-1.5 text-sm text-muted">
+          <li className="flex gap-2">
+            <span className="text-signal">✓</span>
+            <span>Up to 5 products on a single chart</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-signal">✓</span>
+            <span>Stockout markers per series</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-signal">✓</span>
+            <span>Currency-normalised price comparison</span>
+          </li>
+        </ul>
+
+        <div className="mt-6 flex items-center gap-3 flex-wrap">
+          <Link
+            href={upgradeHref}
+            className="rounded-md bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition"
+          >
+            Upgrade{next ? ` to ${next.charAt(0).toUpperCase() + next.slice(1)}` : ""} →
+          </Link>
+          <Link
+            href="/products"
+            className="text-sm text-muted hover:text-foreground transition"
+          >
+            ← Back to products
+          </Link>
+        </div>
       </div>
     </section>
   );

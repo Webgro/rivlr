@@ -14,6 +14,7 @@ import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { generateLinkSuggestions } from "@/lib/crawler/link-suggestions";
 import { inArray, and, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth/current-user";
+import { getProductQuota } from "@/lib/plan";
 
 const MAX_PRODUCTS_PER_COLLECTION = 1000;
 
@@ -120,7 +121,29 @@ export async function addProducts(formData: FormData) {
       ),
     );
   const existingSet = new Set(existing.map((e) => e.url));
-  const toInsert = uniqueEntries.filter((e) => !existingSet.has(e.url));
+  let toInsert = uniqueEntries.filter((e) => !existingSet.has(e.url));
+
+  // Plan-limit enforcement. Count once, slice the insert list down to
+  // whatever capacity is left. We could reject the whole batch when it
+  // exceeds the cap, but partial-insert + clear messaging is friendlier
+  // for collection adds where most items would still fit.
+  const quota = await getProductQuota(user.id);
+  let blocked = 0;
+  if (quota.limit !== null) {
+    const capacity = Math.max(0, quota.limit - quota.current);
+    if (toInsert.length > capacity) {
+      blocked = toInsert.length - capacity;
+      toInsert = toInsert.slice(0, capacity);
+    }
+  }
+
+  // Hard-stop when the user is already at or over the cap and tried to
+  // add more. Dropping them on the upgrade page is the most direct fix.
+  if (toInsert.length === 0 && blocked > 0) {
+    redirect(
+      `/billing?reason=product-limit&blocked=${blocked}&plan=${quota.plan}`,
+    );
+  }
 
   const chunkSize = 500;
   let added = 0;
@@ -164,6 +187,6 @@ export async function addProducts(formData: FormData) {
   revalidatePath("/products");
   revalidatePath("/dashboard");
   redirect(
-    `/products?added=${added}&failed=${invalid + collectionFailed}&dup=${existingSet.size}&col=${collectionEntries.length}&exp=${expanded}`,
+    `/products?added=${added}&failed=${invalid + collectionFailed}&dup=${existingSet.size}&col=${collectionEntries.length}&exp=${expanded}&blocked=${blocked}`,
   );
 }

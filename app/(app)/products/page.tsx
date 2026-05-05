@@ -7,6 +7,8 @@ import { ProductsTable, type DashboardRow } from "./products-table";
 import { InsightsRow } from "./insights-row";
 import { getDashboardInsights } from "@/lib/dashboard-insights";
 import { SubmitButton } from "@/components/submit-button";
+import { getProductQuota } from "@/lib/plan";
+import { QuotaBar } from "@/components/quota-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -362,6 +364,7 @@ export default async function DashboardPage(props: {
   const banner = buildBanner(params);
 
   const insights = await getDashboardInsights(user.id).catch(() => null);
+  const quota = await getProductQuota(user.id);
 
   // Build CSV export URL preserving current filters.
   const exportParams = new URLSearchParams();
@@ -413,6 +416,12 @@ export default async function DashboardPage(props: {
           </Link>
         </div>
       </div>
+
+      {/* Quota nudge — only when warning or full. Otherwise the
+          Add button is enough signal that everything's fine. */}
+      {(quota.warning || quota.full) && (
+        <QuotaBar quota={quota} compact className="mt-6" />
+      )}
 
       {banner && (
         <div className="mt-6 rounded-md border border-default bg-elevated px-4 py-3 text-sm text-muted-strong">

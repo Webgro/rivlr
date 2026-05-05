@@ -6,6 +6,8 @@ import { InsightsRow } from "@/app/(app)/products/insights-row";
 import { OnboardingChecklist } from "./onboarding-checklist";
 import { FavouritesWidget } from "./favourites-widget";
 import { requireUser } from "@/lib/auth/current-user";
+import { getProductQuota } from "@/lib/plan";
+import { QuotaBar } from "@/components/quota-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -299,6 +301,7 @@ export default async function DashboardPage() {
   }
 
   const insights = await getDashboardInsights(user.id).catch(() => null);
+  const quota = await getProductQuota(user.id);
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">
@@ -347,6 +350,12 @@ export default async function DashboardPage() {
       )}
 
       {insights && <InsightsRow insights={insights} />}
+
+      {/* Plan-quota indicator. Surfaces approaching/at the product limit
+          so the upgrade prompt arrives BEFORE the user hits the wall. */}
+      {(quota.warning || quota.full) && (
+        <QuotaBar quota={quota} compact className="mt-6" />
+      )}
 
       {/* Step-by-step onboarding — auto-hides once all 5 steps are done. */}
       <OnboardingChecklist />

@@ -119,9 +119,13 @@ export function Sidebar() {
 
       {/* Bottom: Settings + Help + Theme + Sign out */}
       <div className="border-t border-default px-3 py-3 space-y-0.5">
-        {SECONDARY_NAV.map((item) => (
-          <NavLink key={item.href} item={item} active={isActive(item)} />
-        ))}
+        {/* NavLink renders <li>, so wrap it in a <ul> to suppress the
+            browser's default disc bullets that show up on orphan <li>. */}
+        <ul className="space-y-0.5">
+          {SECONDARY_NAV.map((item) => (
+            <NavLink key={item.href} item={item} active={isActive(item)} />
+          ))}
+        </ul>
 
         <ThemeToggle />
 

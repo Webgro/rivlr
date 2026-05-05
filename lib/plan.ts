@@ -1,5 +1,5 @@
 import { db, schema } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
 /**
@@ -134,4 +134,83 @@ export async function getCurrentPlan(): Promise<Plan> {
 export async function getPlanFeatures() {
   const plan = await getCurrentPlan();
   return { plan, features: PLAN_FEATURES[plan] };
+}
+
+/* ─── Product quota ─────────────────────────────────────────────── */
+
+export interface ProductQuota {
+  /** Number of active tracked products belonging to the user. */
+  current: number;
+  /** Plan-imposed cap; null = unlimited (owner only). */
+  limit: number | null;
+  /** How many more they can add before hitting the cap. null = unlimited. */
+  remaining: number | null;
+  /** 0..1 used fraction; 0 when limit is null. */
+  fraction: number;
+  /** True when current >= limit (no further inserts permitted). */
+  full: boolean;
+  /** Surfaces an "approaching limit" warning above 80%. */
+  warning: boolean;
+  plan: Plan;
+}
+
+/**
+ * Pull the user's tracked-product count and compare it against their
+ * plan limit. Cheap — single COUNT(*) keyed on the user_id index.
+ *
+ * Used by:
+ *  - addProducts server action (hard cap before insert)
+ *  - QuotaBar component on /dashboard, /billing, /products
+ */
+export async function getProductQuota(userId: string): Promise<ProductQuota> {
+  const plan = await getPlanForUser(userId);
+  const limit = PLAN_FEATURES[plan].productLimit;
+
+  const [row] = await db.execute<{ n: number }>(sql`
+    SELECT COUNT(*)::int AS n
+    FROM tracked_products
+    WHERE user_id = ${userId}::uuid AND active = true
+  `);
+  const current = row?.n ?? 0;
+
+  if (limit === null) {
+    return {
+      current,
+      limit: null,
+      remaining: null,
+      fraction: 0,
+      full: false,
+      warning: false,
+      plan,
+    };
+  }
+
+  const fraction = limit > 0 ? current / limit : 1;
+  return {
+    current,
+    limit,
+    remaining: Math.max(0, limit - current),
+    fraction: Math.min(1, fraction),
+    full: current >= limit,
+    warning: fraction >= 0.8,
+    plan,
+  };
+}
+
+/**
+ * Suggest the next plan up from the user's current one. Used in upgrade
+ * CTAs so the link can deep-link directly at the appropriate tier.
+ * Owner / Pro return null (no upgrade above them).
+ */
+export function suggestNextPlan(plan: Plan): "starter" | "growth" | "pro" | null {
+  switch (plan) {
+    case "free":
+      return "starter";
+    case "starter":
+      return "growth";
+    case "growth":
+      return "pro";
+    default:
+      return null;
+  }
 }

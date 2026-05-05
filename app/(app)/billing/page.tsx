@@ -1,8 +1,9 @@
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth/current-user";
-import { getPlanForUser, type Plan } from "@/lib/plan";
+import { getPlanForUser, getProductQuota, type Plan } from "@/lib/plan";
 import { isStripeConfigured } from "@/lib/stripe";
+import { QuotaBar } from "@/components/quota-bar";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Billing · Rivlr" };
@@ -65,12 +66,18 @@ const PLAN_CARDS: PlanCard[] = [
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    reason?: string;
+    blocked?: string;
+    upgrade?: string;
+  }>;
 }) {
   const user = await requireUser("/billing");
   const plan = await getPlanForUser(user.id);
   const stripeConfigured = isStripeConfigured();
   const params = await searchParams;
+  const quota = await getProductQuota(user.id);
 
   // Look up the persisted subscription row (populated by webhooks in
   // Stage 4). Its presence is the signal that the user has an existing
@@ -108,6 +115,18 @@ export default async function BillingPage({
         </StatusBanner>
       )}
 
+      {/* Hard-redirect from /products/new when the user hit their cap. */}
+      {params.reason === "product-limit" && (
+        <StatusBanner tone="warning">
+          You&apos;re at the {quota.limit ?? "—"}-product limit on your{" "}
+          <strong>{plan}</strong> plan
+          {params.blocked && Number(params.blocked) > 0
+            ? ` — ${params.blocked} item${Number(params.blocked) === 1 ? "" : "s"} couldn't be added.`
+            : "."}{" "}
+          Upgrade below to track more.
+        </StatusBanner>
+      )}
+
       {/* Owner override — gives the founder account a clear "you don't pay" cue
           and hides upgrade buttons. */}
       {plan === "owner" && (
@@ -142,6 +161,10 @@ export default async function BillingPage({
           stripeConfigured={stripeConfigured}
         />
       )}
+
+      {/* Quota indicator — usable as upgrade prompt regardless of
+          subscription state. Hidden for owner (unlimited). */}
+      {plan !== "owner" && <QuotaBar quota={quota} className="mt-6" />}
 
       {/* Plan grid */}
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -355,18 +378,14 @@ function StatusBanner({
   tone,
   children,
 }: {
-  tone: "ok" | "muted";
+  tone: "ok" | "muted" | "warning";
   children: React.ReactNode;
 }) {
-  return (
-    <div
-      className={`mt-6 rounded-lg border px-5 py-4 text-sm ${
-        tone === "ok"
-          ? "border-green-500/30 bg-green-500/[0.04] text-foreground"
-          : "border-default bg-elevated text-muted"
-      }`}
-    >
-      {children}
-    </div>
-  );
+  const styles =
+    tone === "ok"
+      ? "border-green-500/30 bg-green-500/[0.04] text-foreground"
+      : tone === "warning"
+        ? "border-amber-500/40 bg-amber-500/[0.05] text-foreground"
+        : "border-default bg-elevated text-muted";
+  return <div className={`mt-6 rounded-lg border px-5 py-4 text-sm ${styles}`}>{children}</div>;
 }
