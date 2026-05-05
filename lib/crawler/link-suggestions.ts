@@ -1,5 +1,5 @@
 import { db, schema } from "@/lib/db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 /**
  * Looks for tracked products that are likely the same item across stores
@@ -44,7 +44,32 @@ const SCORE_GTIN = 1.0;
  *  collisions across different SKUs that share a part). */
 const SCORE_MPN = 0.95;
 
-export async function generateLinkSuggestions() {
+/**
+ * Generate link suggestions, scoped to a single user. We only consider
+ * the user's own tracked_products and their existing link_suggestions —
+ * there's no cross-user matching (one user's products never get suggested
+ * to link with another user's).
+ *
+ * Optional `userId` argument: when omitted, runs across all users (fan-out
+ * pattern used by post-add hooks where the calling context already
+ * narrowed scope). When passed, runs for that one user only.
+ */
+export async function generateLinkSuggestions(userId?: string) {
+  // If no user specified, generate for every user with products. Used by
+  // hooks that fire after bulk operations affecting multiple users.
+  if (!userId) {
+    const userRows = await db
+      .selectDistinct({ userId: schema.trackedProducts.userId })
+      .from(schema.trackedProducts);
+    let total = 0;
+    for (const row of userRows) {
+      if (!row.userId) continue;
+      const r = await generateLinkSuggestions(row.userId);
+      total += r.suggested;
+    }
+    return { suggested: total };
+  }
+
   const products = await db
     .select({
       id: schema.trackedProducts.id,
@@ -55,17 +80,19 @@ export async function generateLinkSuggestions() {
       gtin: schema.trackedProducts.gtin,
       mpn: schema.trackedProducts.mpn,
     })
-    .from(schema.trackedProducts);
+    .from(schema.trackedProducts)
+    .where(eq(schema.trackedProducts.userId, userId));
 
   if (products.length < 2) return { suggested: 0 };
 
-  // Existing pending / accepted / dismissed suggestions to avoid dupes.
+  // Existing pending / accepted / dismissed suggestions for THIS user.
   const existing = await db
     .select({
       a: schema.linkSuggestions.productAId,
       b: schema.linkSuggestions.productBId,
     })
-    .from(schema.linkSuggestions);
+    .from(schema.linkSuggestions)
+    .where(eq(schema.linkSuggestions.userId, userId));
   const existingPairs = new Set(
     existing.map(({ a, b }) => pairKey(a, b)),
   );
@@ -156,6 +183,7 @@ export async function generateLinkSuggestions() {
     .insert(schema.linkSuggestions)
     .values(
       top.map((s) => ({
+        userId,
         productAId: s.a,
         productBId: s.b,
         score: s.score.toFixed(3),

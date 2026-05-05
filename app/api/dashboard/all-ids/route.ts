@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { isAuthed } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Returns the IDs of every product matching the given dashboard filters,
  * across all pages. Used by the 'select all <N> across all pages' option
- * in the bulk action bar.
+ * in the bulk action bar. Scoped to the current user.
  */
 export async function GET(request: Request) {
-  if (!(await isAuthed())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
   const store = url.searchParams.get("store") ?? "";
   const tag = url.searchParams.get("tag") ?? "";
 
-  const conditions: ReturnType<typeof sql>[] = [sql`TRUE`];
+  const conditions: ReturnType<typeof sql>[] = [sql`user_id = ${user.id}::uuid`];
   if (store) conditions.push(sql`store_domain = ${store}`);
   if (tag) conditions.push(sql`${tag} = ANY(tags)`);
   if (q) {

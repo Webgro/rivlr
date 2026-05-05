@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { isAuthed } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { getLinkCandidates } from "@/app/(app)/products/[id]/data";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!(await isAuthed())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const url = new URL(request.url);
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "missing id" }, { status: 400 });
   }
-  const candidates = await getLinkCandidates(id, {
+  const candidates = await getLinkCandidates(user.id, id, {
     limit: 50,
     query: q,
     store,

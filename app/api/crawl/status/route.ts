@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
-import { sql, isNull } from "drizzle-orm";
-import { isAuthed } from "@/lib/auth";
+import { sql, isNull, eq, and } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Polled by the dashboard's progress widget. Returns counts of crawl jobs in
- * each status, plus how many products are still awaiting their first crawl
- * (last_crawled_at IS NULL). Cheap query — runs many times per second when
- * the widget is open.
+ * Polled by the dashboard's progress widget. Returns counts of crawl jobs
+ * in each status (across all users — the crawler is shared infra) plus
+ * how many of THIS user's products are still awaiting their first crawl.
  */
 export async function GET() {
-  if (!(await isAuthed())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -34,7 +34,12 @@ export async function GET() {
   const [pendingFirstCrawl] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
     .from(schema.trackedProducts)
-    .where(isNull(schema.trackedProducts.lastCrawledAt));
+    .where(
+      and(
+        isNull(schema.trackedProducts.lastCrawledAt),
+        eq(schema.trackedProducts.userId, user.id),
+      ),
+    );
 
   const c = counts[0] ?? { pending: 0, running: 0, ok: 0, failed: 0 };
   return NextResponse.json({

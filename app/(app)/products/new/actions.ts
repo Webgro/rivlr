@@ -12,7 +12,8 @@ import {
 } from "@/lib/crawler/shopify";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { generateLinkSuggestions } from "@/lib/crawler/link-suggestions";
-import { inArray } from "drizzle-orm";
+import { inArray, and, eq } from "drizzle-orm";
+import { requireUser } from "@/lib/auth/current-user";
 
 const MAX_PRODUCTS_PER_COLLECTION = 1000;
 
@@ -27,6 +28,7 @@ const MAX_PRODUCTS_PER_COLLECTION = 1000;
  * intercepted route can share a single action.
  */
 export async function addProducts(formData: FormData) {
+  const user = await requireUser();
   const raw = String(formData.get("urls") ?? "").trim();
   if (!raw) redirect("/products");
 
@@ -104,13 +106,17 @@ export async function addProducts(formData: FormData) {
     return true;
   });
 
+  // Dedupe scoped per-user — two users can track the same URL.
   const existing = await db
     .select({ url: schema.trackedProducts.url })
     .from(schema.trackedProducts)
     .where(
-      inArray(
-        schema.trackedProducts.url,
-        uniqueEntries.map((e) => e.url),
+      and(
+        inArray(
+          schema.trackedProducts.url,
+          uniqueEntries.map((e) => e.url),
+        ),
+        eq(schema.trackedProducts.userId, user.id),
       ),
     );
   const existingSet = new Set(existing.map((e) => e.url));
@@ -126,6 +132,7 @@ export async function addProducts(formData: FormData) {
         slice.map(({ url, parsed: p }) => {
           const market = inferMarketFromDomain(p.storeDomain);
           return {
+            userId: user.id,
             url,
             handle: p.handle,
             storeDomain: p.storeDomain,
@@ -148,7 +155,7 @@ export async function addProducts(formData: FormData) {
       /* cron will pick up regardless */
     }
     try {
-      await generateLinkSuggestions();
+      await generateLinkSuggestions(user.id);
     } catch {
       /* non-critical */
     }

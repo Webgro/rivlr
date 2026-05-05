@@ -1,15 +1,17 @@
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { isAuthed } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Streams a CSV of products matching the given dashboard filters. One row
- * per tracked product with current price, stock, store, currency, etc.
+ * Streams a CSV of THIS user's products matching the given dashboard
+ * filters. One row per tracked product with current price, stock, store,
+ * currency, etc.
  */
 export async function GET(request: Request) {
-  if (!(await isAuthed())) {
+  const user = await getCurrentUser();
+  if (!user) {
     return new Response("unauthorized", { status: 401 });
   }
 
@@ -18,7 +20,9 @@ export async function GET(request: Request) {
   const store = url.searchParams.get("store") ?? "";
   const tag = url.searchParams.get("tag") ?? "";
 
-  const conditions: ReturnType<typeof sql>[] = [sql`TRUE`];
+  const conditions: ReturnType<typeof sql>[] = [
+    sql`p.user_id = ${user.id}::uuid`,
+  ];
   if (store) conditions.push(sql`p.store_domain = ${store}`);
   if (tag) conditions.push(sql`${tag} = ANY(p.tags)`);
   if (q) {

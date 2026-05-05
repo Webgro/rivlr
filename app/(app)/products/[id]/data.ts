@@ -150,11 +150,12 @@ interface LinkCandidatesOpts {
  * comparison ("My £30 vs their £25").
  */
 export async function getLinkCandidates(
+  userId: string,
   productId: string,
   optsOrLimit?: number | LinkCandidatesOpts,
   legacyQuery?: string,
 ): Promise<LinkCandidate[]> {
-  // Backwards-compat: old callers passed (id, limit, query).
+  // Backwards-compat: old callers passed (userId, id, limit, query).
   const opts: LinkCandidatesOpts =
     typeof optsOrLimit === "number"
       ? { limit: optsOrLimit, query: legacyQuery }
@@ -166,7 +167,12 @@ export async function getLinkCandidates(
   const [self] = await db
     .select()
     .from(schema.trackedProducts)
-    .where(eq(schema.trackedProducts.id, productId))
+    .where(
+      and(
+        eq(schema.trackedProducts.id, productId),
+        eq(schema.trackedProducts.userId, userId),
+      ),
+    )
     .limit(1);
   if (!self) return [];
 
@@ -204,6 +210,7 @@ export async function getLinkCandidates(
         WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
       ) ls ON true
       WHERE p.id != ${productId}::uuid
+        AND p.user_id = ${userId}::uuid
         AND p.active = true
         AND (p.group_id IS NULL OR p.group_id != COALESCE(${self.groupId}::uuid, '00000000-0000-0000-0000-000000000000'::uuid))
         ${ownStoreFilter}
@@ -246,6 +253,7 @@ export async function getLinkCandidates(
       WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
     ) ls ON true
     WHERE p.id != ${productId}::uuid
+      AND p.user_id = ${userId}::uuid
       AND p.active = true
       AND (p.group_id IS NULL OR p.group_id != COALESCE(${self.groupId}::uuid, '00000000-0000-0000-0000-000000000000'::uuid))
       ${ownStoreFilter}
