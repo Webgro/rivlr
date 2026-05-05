@@ -1,31 +1,52 @@
-import { db, schema } from "@/lib/db";
+import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import { sendEmail } from "./send";
 import { weeklyDigestEmail, type DigestPayload } from "./templates";
 
 /**
  * Weekly digest. Fires Monday 09:00 UTC (when most people open inbox
- * for the working week). Pulls:
- *  - tracked product count
- *  - price + stock changes from last 7 days
- *  - new discoveries from last 7 days
- *  - top movers (biggest % swing in either direction)
- *  - currently OOS competitors (capped 5)
+ * for the working week). Iterates users — each gets a digest computed
+ * from their own tracked products only, sent to their own
+ * notification_emails recipients.
  *
- * One email per recipient address; no per-product dedupe needed since
- * the digest IS the dedupe (one email per week regardless of activity).
+ * One email per user (with their addresses as recipients). No per-product
+ * dedupe needed; the digest IS the dedupe (one email per week regardless
+ * of activity).
  */
 
-export async function sendWeeklyDigest(): Promise<{
+interface DigestResult {
   ok: boolean;
   recipients: number;
   sent: number;
-}> {
-  const [settings] = await db.select().from(schema.appSettings).limit(1);
-  if (!settings || settings.notificationEmails.length === 0) {
-    return { ok: true, recipients: 0, sent: 0 };
+}
+
+export async function sendWeeklyDigest(): Promise<DigestResult> {
+  const userRows = await db.execute<{
+    user_id: string;
+    notification_emails: string[];
+  }>(sql`
+    SELECT user_id, notification_emails
+    FROM app_settings
+    WHERE user_id IS NOT NULL
+      AND array_length(notification_emails, 1) > 0
+  `);
+
+  let totalRecipients = 0;
+  let totalSent = 0;
+
+  for (const u of userRows) {
+    const r = await sendForUser(u.user_id, u.notification_emails);
+    totalRecipients += r.recipients;
+    totalSent += r.sent;
   }
 
+  return { ok: true, recipients: totalRecipients, sent: totalSent };
+}
+
+async function sendForUser(
+  userId: string,
+  notificationEmails: string[],
+): Promise<{ recipients: number; sent: number }> {
   const weekStart = new Date();
   weekStart.setUTCDate(weekStart.getUTCDate() - 7);
 
@@ -36,13 +57,17 @@ export async function sendWeeklyDigest(): Promise<{
     new_discoveries: number;
   }>(sql`
     SELECT
-      (SELECT COUNT(*)::int FROM tracked_products WHERE active = true) AS total_active,
-      (SELECT COUNT(*)::int FROM alert_log
-        WHERE kind = 'price_drop' AND sent_at >= NOW() - INTERVAL '7 days') AS price_changes,
-      (SELECT COUNT(*)::int FROM alert_log
-        WHERE kind IN ('stock_in','stock_out') AND sent_at >= NOW() - INTERVAL '7 days') AS stock_changes,
+      (SELECT COUNT(*)::int FROM tracked_products
+        WHERE active = true AND user_id = ${userId}::uuid) AS total_active,
+      (SELECT COUNT(*)::int FROM alert_log al
+        JOIN tracked_products tp ON tp.id = al.product_id AND tp.user_id = ${userId}::uuid
+        WHERE al.kind = 'price_drop' AND al.sent_at >= NOW() - INTERVAL '7 days') AS price_changes,
+      (SELECT COUNT(*)::int FROM alert_log al
+        JOIN tracked_products tp ON tp.id = al.product_id AND tp.user_id = ${userId}::uuid
+        WHERE al.kind IN ('stock_in','stock_out') AND al.sent_at >= NOW() - INTERVAL '7 days') AS stock_changes,
       (SELECT COUNT(*)::int FROM discovered_products
-        WHERE first_seen >= NOW() - INTERVAL '7 days') AS new_discoveries
+        WHERE first_seen >= NOW() - INTERVAL '7 days'
+          AND user_id = ${userId}::uuid) AS new_discoveries
   `);
 
   const moverRows = await db.execute<{
@@ -56,6 +81,7 @@ export async function sendWeeklyDigest(): Promise<{
     WITH price_pairs AS (
       SELECT po.product_id, po.price AS new_price, prev.price AS prev_price
       FROM price_observations po
+      JOIN tracked_products tp ON tp.id = po.product_id AND tp.user_id = ${userId}::uuid
       JOIN LATERAL (
         SELECT price FROM price_observations
         WHERE product_id = po.product_id AND observed_at < po.observed_at
@@ -77,9 +103,11 @@ export async function sendWeeklyDigest(): Promise<{
       b.direction
     FROM biggest b
     JOIN tracked_products tp ON tp.id = b.product_id
-    LEFT JOIN stores st ON st.domain = tp.store_domain
+    LEFT JOIN user_store_prefs usp
+      ON usp.user_id = ${userId}::uuid AND usp.domain = tp.store_domain
     WHERE tp.active = true
-      AND COALESCE(st.is_my_store, false) = false
+      AND tp.user_id = ${userId}::uuid
+      AND COALESCE(usp.is_my_store, false) = false
     ORDER BY b.delta_pct DESC
     LIMIT 5
   `);
@@ -93,10 +121,11 @@ export async function sendWeeklyDigest(): Promise<{
   }>(sql`
     WITH oos_runs AS (
       SELECT
-        product_id, observed_at, available,
-        SUM(CASE WHEN available THEN 1 ELSE 0 END)
-          OVER (PARTITION BY product_id ORDER BY observed_at DESC) AS run_grp
-      FROM stock_observations
+        so.product_id, so.observed_at, so.available,
+        SUM(CASE WHEN so.available THEN 1 ELSE 0 END)
+          OVER (PARTITION BY so.product_id ORDER BY so.observed_at DESC) AS run_grp
+      FROM stock_observations so
+      JOIN tracked_products tp ON tp.id = so.product_id AND tp.user_id = ${userId}::uuid
     ),
     oos_since AS (
       SELECT product_id, MIN(observed_at) AS since
@@ -109,9 +138,11 @@ export async function sendWeeklyDigest(): Promise<{
       EXTRACT(DAY FROM NOW() - oos.since)::int AS days_oos
     FROM oos_since oos
     JOIN tracked_products tp ON tp.id = oos.product_id
-    LEFT JOIN stores st ON st.domain = tp.store_domain
+    LEFT JOIN user_store_prefs usp
+      ON usp.user_id = ${userId}::uuid AND usp.domain = tp.store_domain
     WHERE tp.active = true
-      AND COALESCE(st.is_my_store, false) = false
+      AND tp.user_id = ${userId}::uuid
+      AND COALESCE(usp.is_my_store, false) = false
     ORDER BY oos.since ASC
     LIMIT 5
   `);
@@ -146,20 +177,19 @@ export async function sendWeeklyDigest(): Promise<{
     payload.topMovers.length === 0 &&
     payload.oosNow.length === 0
   ) {
-    return { ok: true, recipients: settings.notificationEmails.length, sent: 0 };
+    return { recipients: notificationEmails.length, sent: 0 };
   }
 
   const built = weeklyDigestEmail(payload);
   const result = await sendEmail({
-    to: settings.notificationEmails,
+    to: notificationEmails,
     subject: built.subject,
     html: built.html,
     text: built.text,
   });
 
   return {
-    ok: true,
-    recipients: settings.notificationEmails.length,
+    recipients: notificationEmails.length,
     sent: result.sent,
   };
 }

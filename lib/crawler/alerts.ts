@@ -38,7 +38,11 @@ export async function sendAlertsForChange(input: AlertInput): Promise<void> {
 
   // Bail early if no notifications enabled OR no recipients configured.
   if (!product.notifyStockChanges && !product.notifyPriceDrops) return;
-  const settings = await getSettings();
+  // Per-user lookup — recipients live on the owning user's app_settings.
+  // Orphaned products (no user_id) get no alerts; they shouldn't exist
+  // post-adoption but we still gate defensively.
+  if (!product.userId) return;
+  const settings = await getSettings(product.userId);
   if (settings.notificationEmails.length === 0) return;
 
   const events: PendingAlert[] = [];
@@ -114,7 +118,11 @@ export async function sendAlertsForChange(input: AlertInput): Promise<void> {
   }
 }
 
-async function getSettings() {
-  const [row] = await db.select().from(schema.appSettings).limit(1);
+async function getSettings(userId: string) {
+  const [row] = await db
+    .select()
+    .from(schema.appSettings)
+    .where(eq(schema.appSettings.id, userId))
+    .limit(1);
   return row ?? { notificationEmails: [] as string[] };
 }

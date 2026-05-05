@@ -403,14 +403,18 @@ export async function scanAllStores(): Promise<{
         appsCount: result.apps.length,
       });
 
-      // Best-seller probe: only meaningful for the user's own store. Cheap
-      // when skipped (one column lookup), so safe to gate inside the loop.
-      const [own] = await db
-        .select({ isMine: schema.stores.isMyStore })
-        .from(schema.stores)
-        .where(eq(schema.stores.domain, domain))
-        .limit(1);
-      if (own?.isMine) {
+      // Best-seller probe: only meaningful when at least one user has
+      // marked this domain as their own store. Run once per domain — the
+      // is_bestseller flag lives on tracked_products rows which already
+      // carry user_id, so a single UPDATE flags the right rows for every
+      // owner.
+      const [anyOwner] = await db.execute<{ has_owner: boolean }>(sql`
+        SELECT EXISTS (
+          SELECT 1 FROM user_store_prefs
+          WHERE domain = ${domain} AND is_my_store = true
+        ) AS has_owner
+      `);
+      if (anyOwner?.has_owner) {
         try {
           await scanBestsellerCollections(domain);
         } catch {
