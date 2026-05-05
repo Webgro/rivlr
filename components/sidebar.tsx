@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "./theme-toggle";
 import { Wordmark } from "./wordmark";
 import {
   DashboardIcon,
@@ -18,7 +17,6 @@ import {
   ProfileIcon,
   BillingIcon,
   HelpIcon,
-  SignOutIcon,
 } from "./sidebar-icons";
 
 interface NavItem {
@@ -117,8 +115,9 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Bottom: Settings + Help + Theme + Sign out */}
-      <div className="border-t border-default px-3 py-3 space-y-0.5">
+      {/* Bottom: Profile / Billing / Settings / Help. Theme toggle now
+          lives under /settings; Sign out under /profile. */}
+      <div className="border-t border-default px-3 py-3">
         {/* NavLink renders <li>, so wrap it in a <ul> to suppress the
             browser's default disc bullets that show up on orphan <li>. */}
         <ul className="space-y-0.5">
@@ -126,19 +125,6 @@ export function Sidebar() {
             <NavLink key={item.href} item={item} active={isActive(item)} />
           ))}
         </ul>
-
-        <ThemeToggle />
-
-        {/* Sign out */}
-        <form action="/api/auth/logout" method="post">
-          <button
-            type="submit"
-            className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted hover:bg-surface hover:text-foreground transition"
-          >
-            <SignOutIcon className="text-muted opacity-70 group-hover:opacity-100" size={20} />
-            Sign out
-          </button>
-        </form>
       </div>
     </aside>
   );

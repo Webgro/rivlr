@@ -9,6 +9,7 @@ import {
 } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SendTestEmailButton } from "./send-test-email-button";
 import {
   PLAN_FEATURES,
@@ -74,6 +75,7 @@ export default async function SettingsPage() {
       <nav className="sticky top-0 z-10 -mx-6 px-6 mt-6 py-3 bg-surface/90 backdrop-blur border-b border-default flex flex-wrap gap-2 text-xs">
         <SectionLink href="#crawling" label="Crawling" />
         <SectionLink href="#alerts" label="Alerts" />
+        <SectionLink href="#appearance" label="Appearance" />
         <Link
           href="/billing"
           className="ml-auto self-center text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono hover:text-foreground transition"
@@ -244,6 +246,16 @@ export default async function SettingsPage() {
           <span className="ml-auto" />
           <SaveButton />
         </form>
+      </Card>
+
+      {/* ═══ APPEARANCE ══════════════════════════════════════════════ */}
+      <SectionHeading id="appearance" title="Appearance" />
+
+      <Card
+        title="Theme"
+        description="Choose between light and dark mode. Saved per-browser, applied immediately."
+      >
+        <ThemeToggle />
       </Card>
 
       <p className="mt-12 text-xs text-muted font-mono">
