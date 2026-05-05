@@ -15,6 +15,7 @@ import {
   MyProductsIcon,
   OpportunitiesIcon,
   SettingsIcon,
+  ProfileIcon,
   HelpIcon,
   SignOutIcon,
 } from "./sidebar-icons";
@@ -63,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
 const PRIMARY_NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 const SECONDARY_NAV: NavItem[] = [
+  { href: "/profile", label: "Profile", Icon: ProfileIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
   { href: "/help", label: "Help", Icon: HelpIcon },
 ];

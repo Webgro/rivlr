@@ -10,8 +10,6 @@ import {
 import { SubmitButton } from "@/components/submit-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
 import { SendTestEmailButton } from "./send-test-email-button";
-import { TeamPanel } from "./team-panel";
-import { listTeamMembers } from "./team-actions";
 import {
   PLAN_FEATURES,
   CADENCE_LABELS,
@@ -23,11 +21,25 @@ import {
 import { KNOWN_MARKETS } from "@/lib/crawler/multi-market";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Settings · Rivlr" };
 
+/**
+ * Settings — app-wide configuration shared by the whole account.
+ *
+ * Two sections: Crawling and Alerts. Identity / team / sign-out lives on
+ * /profile. Sticky pill nav at top of the content lets the user jump.
+ *
+ * CTA hygiene:
+ *  - Toggles auto-save (no button).
+ *  - Cadence cards submit on click (no separate save).
+ *  - The remaining forms each have a single, identically-styled "Save"
+ *    button right-aligned inside the card. Keeps the button count low
+ *    and the visual rhythm consistent.
+ */
 export default async function SettingsPage() {
   const settings = await getSettings();
-  const current = (settings?.notificationEmails ?? []).join(", ");
   const plan = await getCurrentPlan();
+  const current = (settings?.notificationEmails ?? []).join(", ");
   const currentCadence: Cadence =
     (settings?.crawlCadence as Cadence) ?? PLAN_FEATURES[plan].cadence;
   const currentCountries = settings?.multiMarketCountries ?? [
@@ -41,71 +53,43 @@ export default async function SettingsPage() {
   ];
   const cartProbeEnabled = settings?.cartProbeEnabled ?? true;
   const daysCoverThreshold = settings?.daysCoverThreshold ?? 7;
-  const teamMembers = await listTeamMembers();
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
-      <div>
+      <header>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted">
-          Plan: <span className="font-mono uppercase">{plan}</span>.
+          App-wide configuration. Account, sign-in access, and team are on{" "}
+          <Link
+            href="/profile"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Profile
+          </Link>
+          .
         </p>
+      </header>
 
-        {/* Group nav — anchor links to skip the wall-of-sections */}
-        <nav className="mt-5 flex flex-wrap gap-2 text-xs">
-          <a href="#account" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
-            Account
-          </a>
-          <a href="#crawling" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
-            Crawling
-          </a>
-          <a href="#data" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
-            Data
-          </a>
-          <a href="#alerts" className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong">
-            Alerts
-          </a>
-        </nav>
-      </div>
+      {/* Sticky pill nav — quick links to each section. */}
+      <nav className="sticky top-0 z-10 -mx-6 px-6 mt-6 py-3 bg-surface/90 backdrop-blur border-b border-default flex flex-wrap gap-2 text-xs">
+        <SectionLink href="#crawling" label="Crawling" />
+        <SectionLink href="#alerts" label="Alerts" />
+        <span className="ml-auto self-center text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+          Plan: <span className="text-muted">{plan}</span>
+        </span>
+      </nav>
 
-      {/* ─── Account ─────────────────────────────────────────────────── */}
-      <div id="account" className="mt-12 pt-2 border-t border-default">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
-          Account
-        </div>
-      </div>
+      {/* ═══ CRAWLING ════════════════════════════════════════════════ */}
+      <SectionHeading id="crawling" title="Crawling" />
 
-      {/* Team access */}
-      <section className="mt-6">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Team access
-        </h2>
-        <p className="mt-2 text-sm text-muted leading-relaxed">
-          Share this Rivlr account with staff or partners. Each invited
-          email gets its own magic-link sign-in into <em>your</em> account
-          — same products, same stores, same data. Up to 10 additional
-          emails per account.
-        </p>
-        <TeamPanel initial={teamMembers} />
-      </section>
-
-      {/* ─── Crawling ────────────────────────────────────────────────── */}
-      <div id="crawling" className="mt-12 pt-2 border-t border-default">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
-          Crawling
-        </div>
-      </div>
-
-      {/* Crawl cadence */}
-      <section className="mt-6">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Crawl cadence
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          How often Rivlr re-checks every tracked product for price and stock
-          changes. Faster cadences mean earlier alerts; cost more compute.
-        </p>
-        <form action={updateCrawlCadence} className="mt-4 grid gap-3 sm:grid-cols-3">
+      <Card
+        title="Crawl cadence"
+        description="How often Rivlr re-checks every tracked product for price and stock changes. Faster cadences mean earlier alerts; cost more compute."
+      >
+        <form
+          action={updateCrawlCadence}
+          className="grid gap-3 sm:grid-cols-3"
+        >
           {(["daily", "every-6h", "hourly"] as Cadence[]).map((c) => (
             <CadenceCard
               key={c}
@@ -115,28 +99,13 @@ export default async function SettingsPage() {
             />
           ))}
         </form>
-      </section>
+      </Card>
 
-      {/* ─── Data ────────────────────────────────────────────────────── */}
-      <div id="data" className="mt-12 pt-2 border-t border-default">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
-          Data
-        </div>
-      </div>
-
-      {/* Multi-market scan */}
-      <section className="mt-6">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Multi-market price scan
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          Markets the daily 05:30 UTC scan polls for cross-market price /
-          stock comparison. Each adds ~1 fetch per product per day.
-        </p>
-        <form
-          action={updateMultiMarketCountries}
-          className="mt-4 rounded-lg border border-default bg-elevated p-4"
-        >
+      <Card
+        title="Multi-market price scan"
+        description="Markets the daily 05:30 UTC scan polls for cross-market price / stock comparison. Each adds ~1 fetch per product per day."
+      >
+        <form action={updateMultiMarketCountries}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {Object.entries(KNOWN_MARKETS).map(([code, m]) => {
               const checked = currentCountries.includes(code);
@@ -167,79 +136,35 @@ export default async function SettingsPage() {
               );
             })}
           </div>
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs text-muted">
-              Tip: include only markets your competitors actually sell in —
-              extra markets are wasted fetches.
-            </span>
-            <SubmitButton
-              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
-              pendingLabel="Saving…"
+          <CardFooter
+            hint="Tip: include only markets your competitors actually sell in — extra markets are wasted fetches."
+          >
+            <SaveButton />
+          </CardFooter>
+        </form>
+      </Card>
+
+      <Card
+        title="Inventory probe"
+        description={
+          <>
+            For products where the public Shopify endpoints don&apos;t expose
+            inventory, Rivlr performs a single polite cart-add probe daily
+            and reads the exact stock from Shopify&apos;s response. The probe
+            never completes a checkout. Read more on the{" "}
+            <Link
+              href="/bot"
+              className="text-foreground underline-offset-4 hover:underline"
             >
-              Save markets
-            </SubmitButton>
-          </div>
-        </form>
-      </section>
-
-      {/* Days-cover threshold */}
-      <section className="mt-10">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Opportunities · stockout warning
-        </h2>
-        <p className="mt-2 text-sm text-muted leading-relaxed">
-          Surface competitor products on the Opportunities page when their
-          remaining stock divided by their daily sales velocity drops below
-          this many days. Lower = earlier warning, fewer matches. Higher =
-          more matches, less urgency.
-        </p>
-        <form
-          action={updateDaysCoverThreshold}
-          className="mt-4 flex items-center gap-3 rounded-lg border border-default bg-elevated p-4"
-        >
-          <label className="text-sm flex items-center gap-2">
-            Warn when days cover &lt;
-            <input
-              type="number"
-              name="threshold"
-              defaultValue={daysCoverThreshold}
-              min={1}
-              max={90}
-              step={1}
-              className="w-20 rounded-md border border-default bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-strong"
-            />
-            days
-          </label>
-          <SubmitButton
-            className="ml-auto rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
-            pendingLabel="Saving…"
-          >
-            Save threshold
-          </SubmitButton>
-        </form>
-      </section>
-
-      {/* Inventory probe */}
-      <section className="mt-10">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Inventory probe
-        </h2>
-        <p className="mt-2 text-sm text-muted leading-relaxed">
-          For products where the public Shopify endpoints don't expose
-          inventory, Rivlr performs a single polite cart-add probe daily
-          and reads the exact stock from Shopify's response. The probe
-          never completes a checkout. Read more on the{" "}
-          <Link
-            href="/bot"
-            className="text-foreground underline-offset-4 hover:underline"
-          >
-            bot info page
-          </Link>
-          .
-        </p>
+              bot info page
+            </Link>
+            .
+          </>
+        }
+      >
         <form
           action={updateCartProbeEnabled}
-          className="mt-4 rounded-lg border border-default bg-elevated p-4 flex items-center justify-between gap-4"
+          className="flex items-center justify-between gap-4"
         >
           <div>
             <div className="text-sm font-medium">
@@ -247,7 +172,7 @@ export default async function SettingsPage() {
             </div>
             <div className="mt-1 text-xs text-muted">
               {cartProbeEnabled
-                ? "On — exact quantity revealed when possible. Probe results show a 'probed' badge."
+                ? "On — exact quantity revealed when possible."
                 : "Off — Rivlr only uses inventory the merchant publishes via /products.json."}
             </div>
           </div>
@@ -263,56 +188,137 @@ export default async function SettingsPage() {
             ariaLabel="Probe hidden inventory"
           />
         </form>
-      </section>
+      </Card>
 
-      {/* ─── Alerts ──────────────────────────────────────────────────── */}
-      <div id="alerts" className="mt-12 pt-2 border-t border-default">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
-          Alerts
-        </div>
-      </div>
+      {/* ═══ ALERTS ══════════════════════════════════════════════════ */}
+      <SectionHeading id="alerts" title="Alerts" />
 
-      {/* Notification emails */}
-      <section className="mt-6">
-        <h2 className="text-xs uppercase tracking-wider font-mono text-muted">
-          Notification emails
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          Where to send price-drop, stock-change, and days-cover-warning
-          alerts. Comma-separated. We dedupe within 24 hours per product so
-          you won&apos;t get the same alert twice.
-        </p>
-
-        <form action={saveNotificationEmails} className="mt-4 space-y-3">
+      <Card
+        title="Notification emails"
+        description="Where to send price-drop, stock-change, and days-cover-warning alerts. Comma-separated. We dedupe within 24 hours per product so you won't get the same alert twice."
+      >
+        <form action={saveNotificationEmails} className="space-y-3">
           <textarea
             name="emails"
             defaultValue={current}
             rows={3}
             placeholder="you@example.com, partner@example.com"
-            className="block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground outline-none focus:border-foreground"
+            className="block w-full rounded-md border border-default bg-surface px-3 py-2.5 text-sm text-foreground outline-none focus:border-foreground"
           />
-          <div className="flex items-center gap-2 flex-wrap">
-            <SubmitButton
-              className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
-              pendingLabel="Saving…"
-            >
-              Save emails
-            </SubmitButton>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <SendTestEmailButton hasRecipients={current.length > 0} />
+            <SaveButton />
           </div>
         </form>
         <p className="mt-3 text-[11px] text-muted/80 leading-relaxed">
           One-click unsubscribe in every email · weekly digest sent
           Mondays 09:00 UTC · daily days-cover warnings 09:00 UTC.
         </p>
-      </section>
+      </Card>
 
-      <p className="mt-10 text-xs text-muted font-mono">
+      <Card
+        title="Days-cover warning threshold"
+        description="Surface competitor products on the Opportunities page when their remaining stock divided by their daily sales velocity drops below this many days. Lower = earlier warning, fewer matches."
+      >
+        <form
+          action={updateDaysCoverThreshold}
+          className="flex items-center gap-3 flex-wrap"
+        >
+          <label className="text-sm flex items-center gap-2">
+            Warn when days cover &lt;
+            <input
+              type="number"
+              name="threshold"
+              defaultValue={daysCoverThreshold}
+              min={1}
+              max={90}
+              step={1}
+              className="w-20 rounded-md border border-default bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-strong"
+            />
+            days
+          </label>
+          <span className="ml-auto" />
+          <SaveButton />
+        </form>
+      </Card>
+
+      <p className="mt-12 text-xs text-muted font-mono">
         {settings
           ? `Last saved ${new Date(settings.updatedAt).toLocaleString()}`
           : "Not yet configured"}
       </p>
     </main>
+  );
+}
+
+/* ─── Layout primitives ──────────────────────────────────────────── */
+
+function SectionLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      className="rounded-md border border-default bg-elevated px-3 py-1.5 hover:border-strong transition"
+    >
+      {label}
+    </a>
+  );
+}
+
+function SectionHeading({ id, title }: { id: string; title: string }) {
+  return (
+    <div id={id} className="mt-12 pt-1 scroll-mt-20">
+      <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+        {title}
+      </div>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-5 rounded-lg border border-default bg-elevated p-5">
+      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+      <p className="mt-1.5 text-xs text-muted leading-relaxed">{description}</p>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function CardFooter({
+  hint,
+  children,
+}: {
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+      {hint ? (
+        <span className="text-xs text-muted">{hint}</span>
+      ) : (
+        <span />
+      )}
+      {children}
+    </div>
+  );
+}
+
+function SaveButton() {
+  return (
+    <SubmitButton
+      className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
+      pendingLabel="Saving…"
+    >
+      Save
+    </SubmitButton>
   );
 }
 
@@ -340,8 +346,8 @@ function CadenceCard({
         isSelected
           ? "border-signal bg-signal/[0.04]"
           : allowed
-            ? "border-default bg-elevated hover:border-strong"
-            : "border-default bg-elevated opacity-60 cursor-not-allowed"
+            ? "border-default bg-surface hover:border-strong"
+            : "border-default bg-surface opacity-60 cursor-not-allowed"
       }`}
     >
       <div className="flex items-center justify-between">

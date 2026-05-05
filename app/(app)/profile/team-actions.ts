@@ -175,7 +175,7 @@ export async function addAuthorisedEmail(formData: FormData): Promise<{
     expiresInDays: INVITE_TTL_DAYS,
   });
 
-  revalidatePath("/settings");
+  revalidatePath("/profile");
 
   return {
     ok: true,
@@ -215,6 +215,6 @@ export async function removeAuthorisedEmail(formData: FormData): Promise<{
         eq(schema.userEmails.email, email),
       ),
     );
-  revalidatePath("/settings");
+  revalidatePath("/profile");
   return { ok: true };
 }
