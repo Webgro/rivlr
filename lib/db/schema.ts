@@ -641,12 +641,65 @@ export const linkSuggestions = pgTable(
   (t) => [index("idx_suggestions_status").on(t.status)],
 );
 
+/**
+ * Per-user Stripe subscription state. One row per paying user; absence of
+ * a row = free plan. Mirrors the bits of Stripe's subscription object we
+ * actually consult for entitlement checks. Authoritative copy is Stripe's,
+ * but we cache locally so plan resolution never has to round-trip.
+ *
+ * Updated by the /api/billing/webhook handler on every subscription event.
+ */
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    /** Composite key + FK in one. One subscription per user. */
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Stripe subscription id (sub_…). Unique across the system. */
+    stripeSubscriptionId: text("stripe_subscription_id").unique(),
+    /** Which paid tier they're on. Mirrors lib/plan.ts Plan minus 'free'
+     *  (no row = free) and 'owner' (env var override, never persisted). */
+    plan: text("plan", { enum: ["starter", "growth", "pro"] }).notNull(),
+    /** Stripe subscription status. We treat 'active' and 'trialing' as
+     *  entitled; everything else falls back to free until resolved. */
+    status: text("status", {
+      enum: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "incomplete",
+        "incomplete_expired",
+        "unpaid",
+      ],
+    })
+      .notNull()
+      .default("active"),
+    /** End of the current billing period — when the next invoice fires
+     *  (or the cancellation takes effect, if cancel_at_period_end is set). */
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    /** Customer scheduled cancellation; access continues until
+     *  currentPeriodEnd, then drops to free. */
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("idx_subscriptions_status").on(t.status)],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
 export type AuthMagicLink = typeof authMagicLinks.$inferSelect;
 export type UserEmail = typeof userEmails.$inferSelect;
 export type UserStorePref = typeof userStorePrefs.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type NewSubscription = typeof subscriptions.$inferInsert;
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;

@@ -1,10 +1,21 @@
+import { db, schema } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth/current-user";
+
 /**
- * Plan / entitlement gating. Phase 1 has no real users yet, so this returns
- * the 'owner' tier for everyone signed in. When Phase 3 (Stripe billing)
- * lands, this becomes the source of truth for what each user can access.
+ * Plan / entitlement gating.
  *
- * Pre-built so all feature-gated code already calls into this — switching
- * to real plan logic is a one-file change later.
+ * Resolution order:
+ *   1. Not signed in → 'free' (UI rarely renders for unauthed users; this
+ *      keeps gates safe by default).
+ *   2. user.id === OWNER_USER_ID → 'owner' (founder bypass; never billed).
+ *   3. subscriptions row with an entitled status → row.plan.
+ *   4. Otherwise → 'free'.
+ *
+ * "Entitled" = `active` or `trialing`. Anything else (past_due, canceled,
+ * incomplete, etc.) drops back to free until the user resolves it via
+ * the Customer Portal. Hard but predictable; no ambiguous "kinda paid"
+ * state to reason about.
  */
 
 export type Plan = "free" | "starter" | "growth" | "pro" | "owner";
@@ -90,12 +101,34 @@ export function isCadenceAllowed(cadence: Cadence, plan: Plan): boolean {
   return CADENCE_RANK[cadence] <= CADENCE_RANK[PLAN_FEATURES[plan].maxCadence];
 }
 
+/** Statuses that grant entitlement. Everything else drops to free. */
+const ENTITLED_STATUSES = new Set(["active", "trialing"]);
+
 /**
- * Returns the current user's plan. For Phase 1 this is always 'owner'
- * because there's only one user (you) on the password gate.
+ * Resolve a user id to a plan. Pure function over the DB — used by both
+ * the request-time `getCurrentPlan()` (which loads the user first) and
+ * by admin tooling that operates on arbitrary user ids.
  */
+export async function getPlanForUser(userId: string): Promise<Plan> {
+  const ownerId = process.env.OWNER_USER_ID;
+  if (ownerId && userId === ownerId) return "owner";
+
+  const [row] = await db
+    .select({ plan: schema.subscriptions.plan, status: schema.subscriptions.status })
+    .from(schema.subscriptions)
+    .where(eq(schema.subscriptions.userId, userId))
+    .limit(1);
+
+  if (!row) return "free";
+  if (!ENTITLED_STATUSES.has(row.status)) return "free";
+  return row.plan;
+}
+
+/** Returns the currently signed-in user's plan. Free when unauthed. */
 export async function getCurrentPlan(): Promise<Plan> {
-  return "owner";
+  const user = await getCurrentUser();
+  if (!user) return "free";
+  return getPlanForUser(user.id);
 }
 
 export async function getPlanFeatures() {
