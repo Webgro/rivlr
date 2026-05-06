@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server";
  * magic-link session.
  *
  * - Public paths: /login, /signup, /auth/verify, marketing landing,
- *   /legal/*, /help/*, /unsubscribe, /api/auth/*, /api/preview,
+ *   /legal/*, /unsubscribe, /api/auth/*, /api/preview,
  *   /api/waitlist, /api/public/*, Vercel cron endpoints, _next assets.
  * - Everything else requires the `rivlr_auth` cookie. Cookie presence is
  *   checked here; full session validation (auth_sessions row + sliding
@@ -62,9 +62,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith("/api/waitlist") ||
     pathname.startsWith("/api/public/") ||
     pathname.startsWith("/legal/") ||
-    pathname === "/legal" ||
-    pathname.startsWith("/help/") ||
-    pathname === "/help"
+    pathname === "/legal"
   ) {
     return NextResponse.next();
   }

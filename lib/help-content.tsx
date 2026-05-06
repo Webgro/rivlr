@@ -2,26 +2,25 @@
  * Help-article content as JSX components, keyed by slug. Separate from
  * lib/help-articles.ts so the metadata file stays plain TS (importable
  * from server components without React deps).
+ *
+ * UI mocks live in lib/help-mocks.tsx — each mock renders an
+ * approximation of the actual app surface in plain Tailwind so the
+ * help articles never go stale relative to a binary screenshot.
  */
 
-function Screenshot({
-  caption,
-}: {
-  caption: string;
-}) {
-  return (
-    <div className="screenshot-placeholder">
-      <strong>📷 {caption}</strong>
-      <div className="mt-2 text-[11px]">
-        Drop a PNG at{" "}
-        <code style={{ fontSize: 10 }}>
-          /public/help/screenshots/{caption.toLowerCase().replace(/\s+/g, "-")}.png
-        </code>
-        {" "}and reference it here.
-      </div>
-    </div>
-  );
-}
+import {
+  MockAddProduct,
+  MockMultipleUrls,
+  MockMixedCollection,
+  MockCsvUpload,
+  MockDashboardInsights,
+  MockTagsPage,
+  MockLinkModal,
+  MockNotificationEmails,
+  MockNotesEditor,
+  MockCompareChart,
+  MockAutoPaused,
+} from "./help-mocks";
 
 export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
   "getting-started": () => (
@@ -51,7 +50,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
         </li>
       </ol>
 
-      <Screenshot caption="Add product flow" />
+      <MockAddProduct />
 
       <h2>Where to look next</h2>
       <ul>
@@ -99,7 +98,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
         format only at submit time, then queued for background crawling.
       </p>
 
-      <Screenshot caption="Multiple URLs paste" />
+      <MockMultipleUrls />
 
       <h2>What happens after submitting</h2>
       <p>
@@ -150,7 +149,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
         skipped
       </blockquote>
 
-      <Screenshot caption="Mixed paste with collection URLs" />
+      <MockMixedCollection />
 
       <h2>Caps and rate limits</h2>
       <p>
@@ -193,7 +192,7 @@ https://store-b.com/collections/dog-food
 https://store-c.com/products/another-widget`}
       </pre>
 
-      <Screenshot caption="CSV upload button" />
+      <MockCsvUpload />
 
       <h2>What happens next</h2>
       <p>
@@ -226,7 +225,7 @@ https://store-c.com/products/another-widget`}
         shows the last known price as a benchmark.
       </p>
 
-      <Screenshot caption="Dashboard insights and opportunities" />
+      <MockDashboardInsights />
 
       <h3>3. Top movers (7 days)</h3>
       <p>
@@ -270,7 +269,7 @@ https://store-c.com/products/another-widget`}
         your team will see and use the same set.
       </p>
 
-      <Screenshot caption="Tags management page" />
+      <MockTagsPage />
 
       <h2>Applying tags</h2>
       <p>
@@ -315,7 +314,7 @@ https://store-c.com/products/another-widget`}
         joins it.
       </p>
 
-      <Screenshot caption="Link product modal" />
+      <MockLinkModal />
 
       <h2>Suggested links</h2>
       <p>
@@ -359,7 +358,7 @@ https://store-c.com/products/another-widget`}
         comma-separated.
       </p>
 
-      <Screenshot caption="Settings. notification emails" />
+      <MockNotificationEmails />
 
       <h2>Per-product toggles</h2>
       <p>
@@ -412,7 +411,7 @@ https://store-c.com/products/another-widget`}
         or just click outside the box (auto-save on blur).
       </p>
 
-      <Screenshot caption="Notes editor" />
+      <MockNotesEditor />
 
       <h2>Format</h2>
       <p>
@@ -448,7 +447,7 @@ https://store-c.com/products/another-widget`}
         </li>
       </ol>
 
-      <Screenshot caption="Compare chart" />
+      <MockCompareChart />
 
       <h2>Currency warning</h2>
       <p>
@@ -501,7 +500,7 @@ https://store-c.com/products/another-widget`}
         the visible price is one variant while we report another.
       </p>
 
-      <Screenshot caption="Auto-paused product" />
+      <MockAutoPaused />
 
       <h2>Manually triggering a crawl</h2>
       <p>
