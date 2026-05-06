@@ -164,7 +164,7 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
                 <div className="text-[10px] uppercase tracking-[0.2em] text-signal font-mono">
                   Plan limit
                 </div>
-                <h3 className="mt-2 text-lg font-semibold tracking-tight">
+                <h3 className="mt-2 text-xl font-semibold tracking-tight">
                   Unlock all {totalCount} discoveries
                 </h3>
                 <p className="mt-2 text-sm text-muted max-w-md mx-auto">

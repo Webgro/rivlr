@@ -51,7 +51,7 @@ export function OveragePackPicker({
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
             Overage packs
           </div>
-          <h2 className="mt-1.5 text-sm font-semibold tracking-tight">
+          <h2 className="mt-1.5 text-xl font-semibold tracking-tight">
             Track more than 400 products
           </h2>
         </div>

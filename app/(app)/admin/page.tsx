@@ -74,7 +74,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-sm font-semibold tracking-tight">
+        <h2 className="text-xl font-semibold tracking-tight">
           Plan breakdown (active + trialing)
         </h2>
         <div className="mt-3 rounded-lg border border-default bg-elevated overflow-hidden">

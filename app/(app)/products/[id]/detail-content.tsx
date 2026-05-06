@@ -313,7 +313,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {/* Linked products */}
       <div className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
+          <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
             Linked products {linkedProducts.length > 0 && `(${linkedProducts.length})`}
           </h2>
           <LinkProductButton productId={product.id} />
@@ -412,7 +412,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {/* Variants — only when there's more than one. */}
       {product.variantsSnapshot && product.variantsSnapshot.length > 1 && (
         <div className="mt-8">
-          <h2 className="mb-3 text-xs uppercase tracking-wider text-muted font-mono">
+          <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
             Variants ({product.variantsSnapshot.length})
           </h2>
           <div className="overflow-hidden rounded-lg border border-default">
@@ -453,14 +453,14 @@ export function DetailContent({ data, variant }: DetailContentProps) {
 
       {/* Charts */}
       <div className="mt-8">
-        <h2 className="mb-3 text-xs uppercase tracking-wider text-muted font-mono">
+        <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
           Price history
         </h2>
         <PriceChart data={priceData} currencySymbol={symbol} />
       </div>
 
       <div className="mt-8">
-        <h2 className="mb-3 text-xs uppercase tracking-wider text-muted font-mono">
+        <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
           {hasQuantity ? "Inventory history" : "Stock availability"}
         </h2>
         <StockChart data={stockData} hasQuantity={hasQuantity} />
@@ -475,7 +475,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {/* Observations table — hidden in panel to keep it compact */}
       {variant === "page" && recent.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-3 text-xs uppercase tracking-wider text-muted font-mono">
+          <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
             Recent observations
           </h2>
           <div className="overflow-hidden rounded-lg border border-default">
@@ -525,7 +525,7 @@ function AcrossMarketsPanel({
   if (populated.length === 0) {
     return (
       <div className="mt-6">
-        <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
           Other market prices
         </h2>
         <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-5 text-center text-xs text-muted">
@@ -579,7 +579,7 @@ function AcrossMarketsPanel({
   return (
     <div className="mt-6">
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-xs uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
           Other market prices · daily snapshot
         </h2>
         <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">

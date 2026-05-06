@@ -301,7 +301,7 @@ function Card({
 }) {
   return (
     <section className="mt-5 rounded-lg border border-default bg-elevated p-5">
-      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+      <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
       <p className="mt-1.5 text-xs text-muted leading-relaxed">{description}</p>
       <div className="mt-4">{children}</div>
     </section>

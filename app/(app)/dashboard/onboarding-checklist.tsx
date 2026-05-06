@@ -36,7 +36,7 @@ export async function OnboardingChecklist() {
       <div className="px-5 py-4 border-b border-default flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-xl font-semibold tracking-tight">
               Getting started
             </h2>
             <span className="rounded-full bg-surface border border-default px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted font-mono">

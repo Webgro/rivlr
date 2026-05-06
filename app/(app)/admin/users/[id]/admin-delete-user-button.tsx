@@ -73,7 +73,7 @@ export function AdminDeleteUserButton({
           }}
         >
           <div className="w-full max-w-md rounded-xl border border-signal/40 bg-elevated p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold tracking-tight text-signal">
+            <h2 className="text-xl font-semibold tracking-tight text-signal">
               Delete this user?
             </h2>
             <p className="mt-2 text-sm text-muted leading-relaxed">

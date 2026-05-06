@@ -204,7 +204,7 @@ export default async function BillingPage({
 
       {/* Plan grid */}
       <section className="mt-8">
-        <h2 className="text-sm font-semibold tracking-tight">
+        <h2 className="text-xl font-semibold tracking-tight">
           {hasSubscription ? "Switch plan" : "Choose a plan"}
         </h2>
         <p className="mt-1 text-xs text-muted">

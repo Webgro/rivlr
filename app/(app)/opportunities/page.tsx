@@ -273,7 +273,7 @@ export default async function OpportunitiesPage() {
       <section className="mt-10">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono">
+            <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono">
               About to go dark · &lt; {daysCoverThreshold} days cover
             </h2>
             <p className="mt-1 text-xs text-muted">
@@ -361,7 +361,7 @@ export default async function OpportunitiesPage() {
       <section className="mt-12">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono">
+            <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono">
               {mine ? (
                 <>
                   Pricing disadvantage on{" "}

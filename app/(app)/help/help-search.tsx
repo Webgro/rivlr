@@ -99,7 +99,7 @@ function CategoryGroups({
         .filter((c) => byCategory.get(c)?.length)
         .map((category) => (
           <section key={category}>
-            <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mb-4">
+            <h2 className="text-xs uppercase tracking-[0.2em] text-muted/70 font-mono mb-4">
               {category}
             </h2>
             <ul className="grid gap-3 md:grid-cols-2">

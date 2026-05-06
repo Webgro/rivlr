@@ -118,7 +118,7 @@ export default async function ProfilePage() {
       {/* ─── Danger zone ─────────────────────────────────────────────── */}
       <SectionHeading id="danger" title="Danger zone" />
       <section className="mt-6 rounded-lg border border-signal/30 bg-signal/[0.03] p-5">
-        <h3 className="text-sm font-semibold tracking-tight">Delete account</h3>
+        <h3 className="text-lg font-semibold tracking-tight">Delete account</h3>
         <p className="mt-1.5 text-xs text-muted leading-relaxed">
           Permanently removes your account, all tracked products, observation
           history, settings, team-access emails, and Stripe customer record.

@@ -269,7 +269,7 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
         <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
           Growth feature
         </div>
-        <h2 className="mt-2 text-lg font-semibold tracking-tight">
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">
           Compare unlocks on Growth
         </h2>
         <p className="mt-2 text-sm text-muted leading-relaxed">

@@ -265,7 +265,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
         <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
           Danger zone
         </div>
-        <h3 className="mt-2 text-sm font-semibold tracking-tight">
+        <h3 className="mt-2 text-lg font-semibold tracking-tight">
           Delete this user
         </h3>
         <p className="mt-1.5 text-xs text-muted leading-relaxed">

@@ -335,7 +335,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
 
       {/* Apps detected */}
       <section className="mt-10">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+        <h2 className="text-sm uppercase tracking-[0.18em] text-muted font-mono">
           Tech stack {apps.length > 0 && `(${apps.length})`}
         </h2>
         {apps.length === 0 ? (
@@ -374,13 +374,13 @@ export default async function StoreProfilePage(props: { params: Params }) {
       {snapshotsAsc.length >= 2 && (
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+            <h2 className="text-sm uppercase tracking-[0.18em] text-muted font-mono">
               Catalogue size · 30 days
             </h2>
             <CatalogueTrendChart data={snapshotsAsc} />
           </div>
           <div>
-            <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+            <h2 className="text-sm uppercase tracking-[0.18em] text-muted font-mono">
               Out of stock · 30 days
             </h2>
             <StockoutTrendChart data={snapshotsAsc} />
@@ -390,7 +390,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
 
       {/* Tracked products on this store */}
       <section className="mt-10">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+        <h2 className="text-sm uppercase tracking-[0.18em] text-muted font-mono">
           Tracked here ({products.length})
         </h2>
         {products.length === 0 ? (
@@ -466,7 +466,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
       <section className="mt-10">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.18em] text-muted font-mono">
+            <h2 className="text-sm uppercase tracking-[0.18em] text-muted font-mono">
               Not tracked yet ({untracked.length})
             </h2>
             <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">

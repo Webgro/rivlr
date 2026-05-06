@@ -370,7 +370,7 @@ export default async function DashboardPage() {
             <section className="mt-8">
               <div className="flex items-end justify-between mb-3">
                 <div>
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono">
+                  <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono">
                     Opportunities
                   </h2>
                   <p className="mt-1 text-xs text-muted">
@@ -416,7 +416,7 @@ export default async function DashboardPage() {
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {/* Top movers (7d) */}
             <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono mb-3">
+              <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono mb-3">
                 Top movers (7 days)
               </h2>
               {data.movers.length === 0 ? (
@@ -466,7 +466,7 @@ export default async function DashboardPage() {
 
             {/* Recent activity */}
             <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted font-mono mb-3">
+              <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono mb-3">
                 Recent activity
               </h2>
               {data.activity.length === 0 ? (

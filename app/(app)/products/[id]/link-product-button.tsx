@@ -123,7 +123,7 @@ export function LinkProductButton({
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-default px-5 py-3 flex-shrink-0">
-              <h3 className="text-sm font-semibold">{modalTitle}</h3>
+              <h3 className="text-lg font-semibold">{modalTitle}</h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

@@ -150,7 +150,7 @@ html {
   line-height: 1.6;
 }
 .prose-rivlr h1 {
-  font-size: 32px;
+  font-size: 36px;
   letter-spacing: -0.025em;
   font-weight: 600;
   margin-bottom: 8px;
@@ -162,14 +162,21 @@ html {
   margin-bottom: 32px;
 }
 .prose-rivlr h2 {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 600;
-  margin-top: 32px;
-  margin-bottom: 8px;
-  letter-spacing: -0.01em;
+  margin-top: 36px;
+  margin-bottom: 10px;
+  letter-spacing: -0.012em;
 }
 .prose-rivlr h3 {
-  font-size: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 6px;
+  letter-spacing: -0.005em;
+}
+.prose-rivlr h4 {
+  font-size: 16px;
   font-weight: 600;
   margin-top: 20px;
   margin-bottom: 4px;
