@@ -20,9 +20,53 @@ export async function getProductData(userId: string, id: string) {
 
   if (!product) return null;
 
-  const multiMarket = await getLatestMultiMarketForProduct(id);
+  // Linked products query — only fires when product is in a group.
+  type LinkedRow = {
+    id: string;
+    title: string | null;
+    handle: string;
+    store_domain: string;
+    image_url: string | null;
+    currency: string;
+    price: string | null;
+    available: boolean | null;
+    quantity: number | null;
+  };
+  const linkedQuery: Promise<readonly LinkedRow[]> = product.groupId
+    ? db
+        .execute<LinkedRow>(sql`
+          SELECT
+            p.id, p.title, p.handle, p.store_domain, p.image_url, p.currency,
+            lp.price, ls.available, ls.quantity
+          FROM tracked_products p
+          LEFT JOIN LATERAL (
+            SELECT price FROM price_observations
+            WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
+          ) lp ON true
+          LEFT JOIN LATERAL (
+            SELECT available, quantity FROM stock_observations
+            WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
+          ) ls ON true
+          WHERE p.group_id = ${product.groupId}::uuid
+            AND p.user_id = ${userId}::uuid
+            AND p.id != ${id}::uuid
+          ORDER BY p.added_at ASC
+        `)
+        .then((r) => Array.from(r))
+    : Promise.resolve([] as LinkedRow[]);
 
-  const [priceObs, stockObs, recent, tagMeta] = await Promise.all([
+  // All independent fan-out reads — fire in parallel. Previously
+  // multiMarket and linkedProducts each blocked the page on their own
+  // round trip; folding them into a single Promise.all eliminates 2
+  // sequential round trips per page load.
+  const [
+    priceObs,
+    stockObs,
+    recent,
+    tagMeta,
+    multiMarket,
+    linkedProducts,
+  ] = await Promise.all([
     db
       .select({
         observedAt: schema.priceObservations.observedAt,
@@ -57,46 +101,12 @@ export async function getProductData(userId: string, id: string) {
           .from(schema.tags)
           .where(eq(schema.tags.userId, userId))
       : Promise.resolve([] as Array<{ name: string; color: string }>),
+    getLatestMultiMarketForProduct(id),
+    linkedQuery,
   ]);
 
   const tagColors: Record<string, TagColor> = {};
   for (const t of tagMeta) tagColors[t.name] = (t.color as TagColor) ?? "gray";
-
-  // Linked products (same group_id, excluding this one) with current price/stock.
-  type LinkedRow = {
-    id: string;
-    title: string | null;
-    handle: string;
-    store_domain: string;
-    image_url: string | null;
-    currency: string;
-    price: string | null;
-    available: boolean | null;
-    quantity: number | null;
-  };
-
-  let linkedProducts: LinkedRow[] = [];
-  if (product.groupId) {
-    const linked = await db.execute<LinkedRow>(sql`
-      SELECT
-        p.id, p.title, p.handle, p.store_domain, p.image_url, p.currency,
-        lp.price, ls.available, ls.quantity
-      FROM tracked_products p
-      LEFT JOIN LATERAL (
-        SELECT price FROM price_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) lp ON true
-      LEFT JOIN LATERAL (
-        SELECT available, quantity FROM stock_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) ls ON true
-      WHERE p.group_id = ${product.groupId}::uuid
-        AND p.user_id = ${userId}::uuid
-        AND p.id != ${id}::uuid
-      ORDER BY p.added_at ASC
-    `);
-    linkedProducts = Array.from(linked);
-  }
 
   return {
     product,
