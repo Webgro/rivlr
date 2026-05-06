@@ -8,6 +8,9 @@ type SearchParams = Promise<{
   sent?: string;
   error?: string;
   email?: string;
+  /** Set by /api/account/delete after a successful account deletion so
+   *  the sign-in screen can show a goodbye banner. */
+  deleted?: string;
 }>;
 
 /**
@@ -61,7 +64,13 @@ async function sendLoginLink(formData: FormData) {
 }
 
 export default async function LoginPage(props: { searchParams: SearchParams }) {
-  const { next = "/dashboard", sent, error, email } = await props.searchParams;
+  const {
+    next = "/dashboard",
+    sent,
+    error,
+    email,
+    deleted,
+  } = await props.searchParams;
 
   return (
     <main
@@ -75,6 +84,14 @@ export default async function LoginPage(props: { searchParams: SearchParams }) {
             <span className="h-2 w-2 rounded-full bg-signal inline-block translate-y-[-1px]" aria-hidden />
           </span>
         </div>
+
+        {deleted === "1" && (
+          <div className="mb-6 rounded-md border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm text-neutral-400">
+            <span className="text-paper font-medium">Account deleted.</span>{" "}
+            Your data and Stripe customer record have been removed. Thanks
+            for using Rivlr.
+          </div>
+        )}
 
         {sent === "1" ? (
           <CheckYourInbox email={email ?? ""} next={next} />

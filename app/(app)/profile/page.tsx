@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/current-user";
 import { listTeamMembers } from "./team-actions";
 import { TeamPanel } from "./team-panel";
+import { DeleteAccountButton } from "./delete-account-button";
 import { getCurrentPlan, PLAN_FEATURES } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function ProfilePage() {
       <nav className="sticky top-0 z-10 -mx-6 px-6 mt-6 py-3 bg-surface/90 backdrop-blur border-b border-default flex flex-wrap gap-2 text-xs">
         <SectionLink href="#account" label="Account" />
         <SectionLink href="#team" label="Team access" />
+        <SectionLink href="#danger" label="Danger zone" />
       </nav>
 
       {/* ─── Account ─────────────────────────────────────────────────── */}
@@ -111,6 +113,21 @@ export default async function ProfilePage() {
           emails per account.
         </p>
         <TeamPanel initial={teamMembers} />
+      </section>
+
+      {/* ─── Danger zone ─────────────────────────────────────────────── */}
+      <SectionHeading id="danger" title="Danger zone" />
+      <section className="mt-6 rounded-lg border border-signal/30 bg-signal/[0.03] p-5">
+        <h3 className="text-sm font-semibold tracking-tight">Delete account</h3>
+        <p className="mt-1.5 text-xs text-muted leading-relaxed">
+          Permanently removes your account, all tracked products, observation
+          history, settings, team-access emails, and Stripe customer record.
+          Active subscriptions are canceled immediately with no refund. There&apos;s
+          no undo.
+        </p>
+        <div className="mt-4">
+          <DeleteAccountButton email={user.email} />
+        </div>
       </section>
     </main>
   );

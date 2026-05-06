@@ -433,6 +433,62 @@ export async function setOveragePacks({
 }
 
 /**
+ * Cancel the subscription immediately (no period-end grace, no refund
+ * for the unused portion). Used by account deletion — we can't retain
+ * a billable subscription pointing at a user row that's about to be
+ * cascaded out of existence.
+ *
+ * No-op when the user has no subscription. Errors from Stripe are
+ * caught and logged so account deletion can proceed regardless — a
+ * dangling subscription on Stripe's side is recoverable; failing to
+ * delete the user row when they asked for it is not.
+ */
+export async function cancelSubscriptionImmediately(
+  userId: string,
+): Promise<void> {
+  if (!stripe) return; // not configured, nothing to cancel
+  const [row] = await db
+    .select({ stripeSubscriptionId: schema.subscriptions.stripeSubscriptionId })
+    .from(schema.subscriptions)
+    .where(eq(schema.subscriptions.userId, userId))
+    .limit(1);
+  if (!row?.stripeSubscriptionId) return;
+  try {
+    await stripe.subscriptions.cancel(row.stripeSubscriptionId, {
+      // We're deleting the account — no benefit in invoicing one last
+      // time. Stripe still keeps the historical record on its side.
+      invoice_now: false,
+      prorate: false,
+    });
+  } catch (err) {
+    console.warn(
+      `[stripe] subscription cancel failed for user ${userId}:`,
+      err,
+    );
+  }
+}
+
+/**
+ * Delete the Stripe customer record so no payment-instrument or
+ * email-address details remain (right-to-be-forgotten compliance).
+ * Stripe still retains historical events / invoices for its own
+ * audit trail; that's their responsibility, not ours.
+ *
+ * No-op + log on failure — same reasoning as cancelSubscriptionImmediately:
+ * never block the user-row deletion on a Stripe API error.
+ */
+export async function deleteStripeCustomer(
+  customerId: string | null,
+): Promise<void> {
+  if (!stripe || !customerId) return;
+  try {
+    await stripe.customers.del(customerId);
+  } catch (err) {
+    console.warn(`[stripe] customer delete failed (${customerId}):`, err);
+  }
+}
+
+/**
  * Read the user's default payment method as { brand, last4, expMonth,
  * expYear }. Returns null when no card is on file or the customer
  * hasn't been created yet. Used by the /billing UI to render a
