@@ -102,10 +102,10 @@ export default function BotInfoPage() {
           <p className="text-sm text-neutral-300 leading-relaxed">
             Email{" "}
             <a
-              href="mailto:support@rivlr.app?subject=Opt%20out%20RivlrBot"
+              href="mailto:hello@rivlr.app?subject=Opt%20out%20RivlrBot"
               className="text-paper underline-offset-4 hover:underline"
             >
-              support@rivlr.app
+              hello@rivlr.app
             </a>{" "}
             with the domain you'd like us to stop tracking. We comply within
             10 working days. If you'd prefer to block at the network layer

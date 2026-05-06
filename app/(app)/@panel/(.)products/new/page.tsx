@@ -1,5 +1,5 @@
 import { SlideOver } from "@/components/slide-over";
-import { NewProductForm } from "@/app/(app)/products/new/new-product-form";
+import { AddTabs } from "@/app/(app)/products/new/add-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +20,12 @@ export default function PanelNewProductPage() {
           Track competitor products
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Paste product URLs or collection URLs. Collection links expand
-          into every product in the collection. Mix both freely.
+          Paste URLs or scan a whole store catalogue.
         </p>
 
-        <NewProductForm inPanel />
+        <div className="mt-6">
+          <AddTabs inPanel />
+        </div>
       </div>
     </SlideOver>
   );

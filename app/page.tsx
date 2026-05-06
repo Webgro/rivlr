@@ -511,7 +511,7 @@ export default async function MarketingPage() {
           Need more than 400 products? Pro lets you stack overage packs
           inside the app — £15 per 100 extra, monthly, up to 5,000 total.
           Beyond that, <a
-            href="mailto:support@rivlr.app?subject=Rivlr%20Custom%20plan"
+            href="mailto:hello@rivlr.app?subject=Rivlr%20Custom%20plan"
             className="underline underline-offset-4 hover:text-paper"
           >
             talk to us
@@ -674,10 +674,10 @@ export default async function MarketingPage() {
                 Cookies
               </Link>
               <a
-                href="mailto:support@rivlr.app"
+                href="mailto:hello@rivlr.app"
                 className="text-neutral-400 hover:text-paper col-span-2 sm:col-span-1"
               >
-                support@rivlr.app
+                hello@rivlr.app
               </a>
             </div>
           </div>

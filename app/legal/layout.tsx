@@ -34,7 +34,7 @@ export default function LegalLayout({
       <footer className="border-t border-default mt-12">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6 text-xs text-muted font-mono">
           <span>© Webgro Ltd · Rivlr</span>
-          <span>support@rivlr.app</span>
+          <span>hello@rivlr.app</span>
         </div>
       </footer>
     </div>

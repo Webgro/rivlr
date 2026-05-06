@@ -35,10 +35,10 @@ export default async function UnsubscribePage(props: {
           This unsubscribe link couldn&apos;t be verified. If you no longer
           want emails from Rivlr, email{" "}
           <a
-            href="mailto:support@rivlr.app?subject=Unsubscribe"
+            href="mailto:hello@rivlr.app?subject=Unsubscribe"
             className="text-paper underline-offset-4 hover:underline"
           >
-            support@rivlr.app
+            hello@rivlr.app
           </a>{" "}
           and we&apos;ll handle it manually within 1 working day.
         </p>

@@ -512,7 +512,7 @@ https://store-c.com/products/another-widget`}
 
       <h2>Still stuck?</h2>
       <p>
-        Email <a href="mailto:support@rivlr.app">support@rivlr.app</a>{" "}
+        Email <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>{" "}
         with the product URL and the "last error" message from the detail
         page. We'll dig in.
       </p>

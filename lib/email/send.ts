@@ -20,7 +20,7 @@ import { unsubscribeUrl } from "./unsubscribe";
 
 const FROM_ADDRESS =
   process.env.RESEND_FROM ?? "Rivlr Intel <alerts@rivlr.app>";
-const REPLY_TO = process.env.RESEND_REPLY_TO ?? "support@rivlr.app";
+const REPLY_TO = process.env.RESEND_REPLY_TO ?? "hello@rivlr.app";
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rivlr.app";
 
 interface SendArgs {

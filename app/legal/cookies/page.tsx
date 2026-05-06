@@ -77,7 +77,7 @@ export default function CookiesPage() {
       <h2>Contact</h2>
       <p>
         Questions about cookies?{" "}
-        <a href="mailto:support@rivlr.app">support@rivlr.app</a>
+        <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>
       </p>
     </article>
   );

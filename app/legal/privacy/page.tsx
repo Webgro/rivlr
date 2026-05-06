@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       <p>
         Webgro Ltd is the data controller for personal data processed
         through the Service. Contact:{" "}
-        <a href="mailto:support@rivlr.app">support@rivlr.app</a>.
+        <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>.
       </p>
 
       <h2>What We Collect</h2>
@@ -125,7 +125,7 @@ export default function PrivacyPage() {
       </ul>
       <p>
         To exercise any of these, email{" "}
-        <a href="mailto:support@rivlr.app">support@rivlr.app</a>. We'll
+        <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>. We'll
         respond within 30 days.
       </p>
 
@@ -162,7 +162,7 @@ export default function PrivacyPage() {
       <h2>Contact</h2>
       <p>
         Privacy questions: {" "}
-        <a href="mailto:support@rivlr.app">support@rivlr.app</a>
+        <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>
       </p>
 
       <p className="text-sm text-muted mt-12">

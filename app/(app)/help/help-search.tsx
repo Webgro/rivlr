@@ -132,10 +132,10 @@ function FilteredResults({
         <p className="mt-2 text-xs text-muted">
           Try a different keyword, or email{" "}
           <a
-            href="mailto:support@rivlr.app"
+            href="mailto:hello@rivlr.app"
             className="text-foreground underline-offset-4 hover:underline"
           >
-            support@rivlr.app
+            hello@rivlr.app
           </a>{" "}
           and we&apos;ll write the article.
         </p>

@@ -103,10 +103,10 @@ export default async function HelpArticlePage(props: { params: Params }) {
       <p className="mt-10 text-sm text-muted leading-relaxed">
         Was this helpful? If something was missing or unclear, email{" "}
         <a
-          href="mailto:support@rivlr.app"
+          href="mailto:hello@rivlr.app"
           className="text-foreground underline-offset-4 hover:underline"
         >
-          support@rivlr.app
+          hello@rivlr.app
         </a>{" "}
         and we&apos;ll fix the article.
       </p>

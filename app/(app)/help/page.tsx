@@ -46,10 +46,10 @@ export default function HelpIndexPage() {
           Short guides for the things people ask about most. Can&apos;t find
           what you need? Email{" "}
           <a
-            href="mailto:support@rivlr.app"
+            href="mailto:hello@rivlr.app"
             className="text-foreground underline-offset-4 hover:underline"
           >
-            support@rivlr.app
+            hello@rivlr.app
           </a>
           .
         </p>

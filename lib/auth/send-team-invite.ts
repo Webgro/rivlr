@@ -8,7 +8,7 @@ import { teamInviteEmail } from "@/lib/email/templates";
 
 const FROM_ADDRESS =
   process.env.RESEND_FROM ?? "Rivlr Intel <alerts@rivlr.app>";
-const REPLY_TO = process.env.RESEND_REPLY_TO ?? "support@rivlr.app";
+const REPLY_TO = process.env.RESEND_REPLY_TO ?? "hello@rivlr.app";
 
 export async function sendTeamInviteEmail(opts: {
   inviterEmail: string;

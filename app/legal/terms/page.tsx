@@ -79,7 +79,7 @@ export default function TermsPage() {
         respect rate limits and use polite crawling practices. If a store
         owner requests we stop tracking their site, we'll comply within
         10 working days of receiving a verifiable request to{" "}
-        <a href="mailto:support@rivlr.app">support@rivlr.app</a>.
+        <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>.
       </p>
 
       <h2>8. Service Availability</h2>
@@ -124,7 +124,7 @@ export default function TermsPage() {
       <h2>13. Contact</h2>
       <p>
         Webgro Ltd · England and Wales · {" "}
-        <a href="mailto:support@rivlr.app">support@rivlr.app</a>
+        <a href="mailto:hello@rivlr.app">hello@rivlr.app</a>
       </p>
 
       <p className="text-sm text-muted mt-12">
