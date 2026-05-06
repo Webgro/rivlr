@@ -9,6 +9,7 @@ import {
   setCompPlan,
   clearCompPlan,
   setIsAdmin,
+  sendMagicLinkAsAdmin,
   writeAudit,
   type CompPlan,
 } from "@/lib/admin";
@@ -64,6 +65,30 @@ export async function toggleAdminFlag(formData: FormData) {
   if (!targetUserId) throw new Error("Missing user id.");
   await setIsAdmin({ actor: me, targetUserId, isAdmin: grant });
   revalidatePath(`/admin/users/${targetUserId}`);
+}
+
+/**
+ * Send a fresh sign-in link to the target. Used at the handover moment
+ * after building out a prospect's account: admin clicks this, prospect
+ * gets a magic link, lands signed in to their workspace.
+ */
+export async function sendSigninLink(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const me = await requireAdmin();
+  const targetUserId = String(formData.get("user-id") ?? "");
+  if (!targetUserId) return { ok: false, error: "Missing user id." };
+
+  try {
+    await sendMagicLinkAsAdmin({ actor: me, targetUserId });
+    revalidatePath(`/admin/users/${targetUserId}`);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Couldn't send link.",
+    };
+  }
 }
 
 /**

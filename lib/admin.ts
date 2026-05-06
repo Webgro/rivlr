@@ -126,6 +126,151 @@ export async function clearCompPlan({
 
 /* ─── Admin role toggle ───────────────────────────────────────────── */
 
+/* ─── Account creation ───────────────────────────────────────────── */
+
+import { createMagicLink } from "@/lib/auth/magic-link";
+import { sendMagicLinkEmail } from "@/lib/auth/send-magic-link";
+
+export interface CreateUserResult {
+  ok: true;
+  userId: string;
+  email: string;
+}
+
+/**
+ * Admin-initiated account creation. Builds a users row for a prospect
+ * email — no magic link sent, no Stripe customer, no automatic comp.
+ * Caller decides whether to apply a comp or send an invite afterwards.
+ *
+ * Refuses if the email is already on a users row OR a user_emails
+ * row — single-account-mode is enforced everywhere.
+ */
+export async function createUserOnBehalf({
+  actor,
+  email,
+  compPlan,
+  compReason,
+}: {
+  actor: User;
+  email: string;
+  compPlan?: CompPlan;
+  compReason?: string;
+}): Promise<CreateUserResult> {
+  const cleaned = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) {
+    throw new Error("Invalid email address.");
+  }
+  // Same uniqueness checks the team-invite flow does — primary AND
+  // secondary emails across the whole system.
+  const [existingPrimary] = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.email, cleaned))
+    .limit(1);
+  if (existingPrimary) {
+    throw new Error("An account already exists for that email.");
+  }
+  const [existingSecondary] = await db
+    .select({ userId: schema.userEmails.userId })
+    .from(schema.userEmails)
+    .where(eq(schema.userEmails.email, cleaned))
+    .limit(1);
+  if (existingSecondary) {
+    throw new Error(
+      "That email is already a team-access email on another account.",
+    );
+  }
+
+  const [newUser] = await db
+    .insert(schema.users)
+    .values({
+      email: cleaned,
+    })
+    .returning({ id: schema.users.id, email: schema.users.email });
+
+  // Apply optional comp atomically with the create — admin doesn't have
+  // to run a second action.
+  if (compPlan) {
+    if (!compReason || !compReason.trim()) {
+      throw new Error("Comp reason is required when applying a comp plan.");
+    }
+    await db
+      .update(schema.users)
+      .set({
+        compPlan,
+        compReason: compReason.trim(),
+        compSetAt: new Date(),
+      })
+      .where(eq(schema.users.id, newUser.id));
+  }
+
+  await writeAudit({
+    actor,
+    targetUserId: newUser.id,
+    targetEmail: newUser.email,
+    action: "create_user",
+    payload: compPlan
+      ? { with_comp: compPlan, comp_reason: compReason }
+      : undefined,
+  });
+
+  return { ok: true, userId: newUser.id, email: newUser.email };
+}
+
+/**
+ * Send a fresh sign-in magic link to a user — used at the handover
+ * moment when an admin's done populating a prospect's account and
+ * wants the prospect to log in for the first time.
+ *
+ * Throws on rate-limit / invalid-email; caller surfaces the error.
+ * Audit-logged so we know when handovers happened.
+ */
+export async function sendMagicLinkAsAdmin({
+  actor,
+  targetUserId,
+}: {
+  actor: User;
+  targetUserId: string;
+}): Promise<void> {
+  const [target] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, targetUserId))
+    .limit(1);
+  if (!target) throw new Error("User not found.");
+
+  const link = await createMagicLink({
+    email: target.email,
+    redirectTo: "/dashboard",
+  });
+  if (!link.ok) {
+    throw new Error(
+      link.error === "rate-limited"
+        ? "Too many sign-in links sent to that address recently. Try again in an hour."
+        : "Couldn't generate a sign-in link.",
+    );
+  }
+
+  // Build the absolute URL the same way /login does.
+  // We can't use next/headers here (lib code, no request context) —
+  // fall back to APP_URL env or rivlr.app default.
+  const origin = process.env.APP_URL ?? "https://rivlr.app";
+  const url = `${origin}/auth/verify?token=${link.token}`;
+
+  await sendMagicLinkEmail({
+    email: target.email,
+    url,
+    expiresInMinutes: 15,
+  });
+
+  await writeAudit({
+    actor,
+    targetUserId: target.id,
+    targetEmail: target.email,
+    action: "send_signin_link",
+  });
+}
+
 /* ─── Impersonation ──────────────────────────────────────────────── */
 
 /**

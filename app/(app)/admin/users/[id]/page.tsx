@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/current-user";
 import { CompPlanForm } from "./comp-plan-form";
 import { AdminToggleForm } from "./admin-toggle-form";
 import { AdminDeleteUserButton } from "./admin-delete-user-button";
+import { HandoverCard } from "./handover-card";
 
 export const metadata = { title: "User · Admin · Rivlr" };
 export const dynamic = "force-dynamic";
@@ -218,6 +219,15 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
           />
         </div>
       </section>
+
+      {/* ─── Handover (send sign-in link) ────────────────────────────── */}
+      {!isSelf && (
+        <HandoverCard
+          userId={target.id}
+          email={target.email}
+          lastLoginAt={target.lastLoginAt}
+        />
+      )}
 
       {/* ─── Admin role ──────────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-default bg-elevated p-5">

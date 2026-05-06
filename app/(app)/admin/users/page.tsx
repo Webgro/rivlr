@@ -76,6 +76,14 @@ export default async function AdminUsersPage(props: {
             {totalCount} total · page {page} of {totalPages}
           </p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/admin/users/new"
+            className="rounded-md bg-foreground px-3.5 py-1.5 text-xs font-medium text-surface hover:opacity-90 transition"
+          >
+            + New user
+          </Link>
+        </div>
         <form method="get" className="flex items-center gap-2">
           <input
             type="search"

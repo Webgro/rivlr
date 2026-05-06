@@ -34,6 +34,12 @@ export default async function AdminLayout({
           >
             Users
           </Link>
+          <Link
+            href="/admin/users/new"
+            className="text-signal/80 hover:text-signal transition"
+          >
+            + New user
+          </Link>
         </div>
         <Link
           href="/dashboard"
