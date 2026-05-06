@@ -10,8 +10,10 @@ import { PRODUCTS_PER_OVERAGE_PACK } from "@/lib/stripe";
  *   1. Not signed in → 'free' (UI rarely renders for unauthed users; this
  *      keeps gates safe by default).
  *   2. user.id === OWNER_USER_ID → 'owner' (founder bypass; never billed).
- *   3. subscriptions row with an entitled status → row.plan.
- *   4. Otherwise → 'free'.
+ *   3. users.comp_plan set → that plan (admin override; e.g. comping a
+ *      strategic customer to Pro without a Stripe subscription).
+ *   4. subscriptions row with an entitled status → row.plan.
+ *   5. Otherwise → 'free'.
  *
  * "Entitled" = `active` or `trialing`. Anything else (past_due, canceled,
  * incomplete, etc.) drops back to free until the user resolves it via
@@ -113,6 +115,15 @@ const ENTITLED_STATUSES = new Set(["active", "trialing"]);
 export async function getPlanForUser(userId: string): Promise<Plan> {
   const ownerId = process.env.OWNER_USER_ID;
   if (ownerId && userId === ownerId) return "owner";
+
+  // Admin comp override (set via /admin) — beats subscription state.
+  // Cheaper than joining: one extra single-row read on the indexed PK.
+  const [userRow] = await db
+    .select({ compPlan: schema.users.compPlan })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+  if (userRow?.compPlan) return userRow.compPlan;
 
   const [row] = await db
     .select({ plan: schema.subscriptions.plan, status: schema.subscriptions.status })

@@ -39,6 +39,24 @@ export const users = pgTable(
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     /** Phase 4 — Stripe customer id. NULL until first successful payment. */
     stripeCustomerId: text("stripe_customer_id"),
+    /** Superadmin flag. Admins can read all users, override plans,
+     *  comp accounts, and delete users from /admin. NULL/false for the
+     *  vast majority of accounts. Falls back to ADMIN_USER_IDS env var
+     *  for bootstrap (when the DB is unreachable or no admin exists yet). */
+    isAdmin: boolean("is_admin").notNull().default(false),
+    /** Admin override of the plan resolver — when set, this user is
+     *  treated as if they're on this plan regardless of subscription
+     *  state. Used for comping strategic customers, extending trials,
+     *  bespoke enterprise deals, or fixing post-Stripe-incident drift.
+     *  NULL = fall through to subscription-based resolution. */
+    compPlan: text("comp_plan", {
+      enum: ["free", "starter", "growth", "pro", "owner"],
+    }),
+    /** Free-text rationale shown alongside the comp in /admin and the
+     *  audit log. Required when compPlan is set; nulled when removed. */
+    compReason: text("comp_reason"),
+    /** When the comp was last set. NULL when no comp active. */
+    compSetAt: timestamp("comp_set_at", { withTimezone: true }),
   },
   (t) => [index("idx_users_email").on(t.email)],
 );
@@ -698,6 +716,51 @@ export const subscriptions = pgTable(
 );
 
 /**
+ * Audit log for superadmin actions. Every action that mutates another
+ * user's state (override plan, delete, etc.) writes a row. Read-only
+ * actions (view user) are NOT logged — they'd flood the table without
+ * adding much value. Future feature: scope view-actions behind an
+ * "audit access" toggle for compliance-heavy customers.
+ *
+ * FK retention: actor / target are nullable + onDelete: set null so
+ * deleting either user (admin or target) doesn't cascade-wipe the
+ * audit history. We also stamp `actorEmail` / `targetEmail` on the
+ * row at write time so the log stays human-readable forever.
+ */
+export const adminAuditLog = pgTable(
+  "admin_audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Captured at write time so the log stays readable after the
+     *  admin's account is deleted. */
+    actorEmail: text("actor_email").notNull(),
+    targetUserId: uuid("target_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    targetEmail: text("target_email"),
+    /** Short verb identifying the action — e.g. "override_plan",
+     *  "clear_comp", "delete_user". Matches the helper that wrote it. */
+    action: text("action").notNull(),
+    /** JSON blob with action-specific context. Examples:
+     *  { from: "free", to: "growth", reason: "trial extension" } */
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("idx_audit_target_time").on(t.targetUserId, t.occurredAt),
+    index("idx_audit_actor_time").on(t.actorUserId, t.occurredAt),
+  ],
+);
+
+/**
  * Stripe webhook idempotency log. One row per processed event id, written
  * after the handler runs. Stripe retries failed webhooks aggressively;
  * checking this table early in the route handler turns retries into
@@ -728,6 +791,8 @@ export type UserEmail = typeof userEmails.$inferSelect;
 export type UserStorePref = typeof userStorePrefs.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type NewSubscription = typeof subscriptions.$inferInsert;
+export type AdminAuditLogEntry = typeof adminAuditLog.$inferSelect;
+export type NewAdminAuditLogEntry = typeof adminAuditLog.$inferInsert;
 export type TrackedProduct = typeof trackedProducts.$inferSelect;
 export type NewTrackedProduct = typeof trackedProducts.$inferInsert;
 export type PriceObservation = typeof priceObservations.$inferSelect;

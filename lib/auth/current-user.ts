@@ -30,3 +30,38 @@ export async function requireUser(returnTo?: string): Promise<User> {
   return user;
 }
 
+/**
+ * True when the given user has admin access. Two signals, either grants:
+ *   1. users.is_admin = true (the canonical source).
+ *   2. user.id is in ADMIN_USER_IDS (comma-separated env var) — bootstrap
+ *      escape hatch for cases where the DB flag isn't set yet (e.g. a
+ *      fresh deploy with no admin row).
+ *
+ * Designed to fail closed: a missing env var + missing flag = no admin.
+ */
+export function isAdminUser(user: User): boolean {
+  if (user.isAdmin) return true;
+  const env = process.env.ADMIN_USER_IDS ?? "";
+  if (!env.trim()) return false;
+  const allowed = new Set(
+    env
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  return allowed.has(user.id);
+}
+
+/**
+ * requireUser + admin gate. Redirects unauthed → /login; signed-in but
+ * non-admin → /dashboard (we don't want to advertise that /admin even
+ * exists by 404'ing). Returns the User for downstream use.
+ */
+export async function requireAdmin(): Promise<User> {
+  const user = await requireUser();
+  if (!isAdminUser(user)) {
+    redirect("/dashboard");
+  }
+  return user;
+}
+

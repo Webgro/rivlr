@@ -31,4 +31,6 @@ export {
   type UserStorePref,
   type Subscription,
   type NewSubscription,
+  type AdminAuditLogEntry,
+  type NewAdminAuditLogEntry,
 } from "./schema";
