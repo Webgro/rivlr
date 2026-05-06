@@ -25,17 +25,29 @@ export const stripe: Stripe | null = apiKey
   : null;
 
 /**
- * Price IDs for each paid tier. NULL when the env var is missing — the
- * /billing page will hide the corresponding upgrade card to keep the UI
- * honest.
+ * Price IDs for each paid tier + overage SKUs. NULL when the env var
+ * is missing — the /billing page will hide the corresponding control
+ * to keep the UI honest.
+ *
+ * `proOverage` is the Pro-tier overage pack (1 pack = +100 products,
+ * billed monthly). Only Pro carries overage in v1; lower tiers must
+ * upgrade rather than buy packs at the cheap plan's price.
  */
 export const PRICE_IDS = {
   starter: process.env.STRIPE_PRICE_STARTER ?? null,
   growth: process.env.STRIPE_PRICE_GROWTH ?? null,
   pro: process.env.STRIPE_PRICE_PRO ?? null,
+  proOverage: process.env.STRIPE_PRICE_PRO_OVERAGE ?? null,
 } as const;
 
 export type PaidPlan = "starter" | "growth" | "pro";
+
+/** Hard ceiling on overage packs per subscription. Anything above this
+ *  is bespoke pricing — UI surfaces a "contact us" prompt rather than
+ *  letting customers auto-bill themselves into four-figure invoices. */
+export const MAX_OVERAGE_PACKS = 50;
+/** Each pack adds this many products to the effective tracked-product cap. */
+export const PRODUCTS_PER_OVERAGE_PACK = 100;
 
 export function isStripeConfigured(): boolean {
   return (
@@ -47,13 +59,28 @@ export function isStripeConfigured(): boolean {
 }
 
 /**
+ * True only when the overage SKU is also configured. /billing falls back
+ * to a "coming soon" pill on the overage control if this is false.
+ */
+export function isOverageConfigured(): boolean {
+  return isStripeConfigured() && !!PRICE_IDS.proOverage;
+}
+
+/**
  * Map a Stripe Price ID back to our internal plan name. Used by the
- * webhook handler in Stage 4 to translate subscription items into our
- * plan column.
+ * webhook handler to translate subscription items into our plan
+ * column. Overage packs return null (they're not a tier change).
  */
 export function planFromPriceId(priceId: string): PaidPlan | null {
   if (priceId === PRICE_IDS.starter) return "starter";
   if (priceId === PRICE_IDS.growth) return "growth";
   if (priceId === PRICE_IDS.pro) return "pro";
   return null;
+}
+
+/** True when this Price ID is an overage SKU (so the webhook handler
+ *  knows to read its quantity into subscriptions.overage_packs rather
+ *  than treating it as the base plan price). */
+export function isOveragePriceId(priceId: string): boolean {
+  return priceId === PRICE_IDS.proOverage;
 }

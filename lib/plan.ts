@@ -1,6 +1,7 @@
 import { db, schema } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { PRODUCTS_PER_OVERAGE_PACK } from "@/lib/stripe";
 
 /**
  * Plan / entitlement gating.
@@ -155,16 +156,48 @@ export interface ProductQuota {
 }
 
 /**
+ * Resolve a user's effective product limit — base plan cap plus any
+ * overage packs they've bought. Owner is unlimited (returns null).
+ * Free / Starter / Growth always equal their base; only Pro can stack
+ * overage packs.
+ */
+export async function getEffectiveProductLimit(
+  userId: string,
+): Promise<{ plan: Plan; baseLimit: number | null; overagePacks: number; effectiveLimit: number | null }> {
+  const plan = await getPlanForUser(userId);
+  const baseLimit = PLAN_FEATURES[plan].productLimit;
+
+  // Overage only matters on Pro. On other plans we ignore any
+  // (legacy / drifted) overage_packs value defensively.
+  let overagePacks = 0;
+  if (plan === "pro") {
+    const [row] = await db
+      .select({ packs: schema.subscriptions.overagePacks })
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.userId, userId))
+      .limit(1);
+    overagePacks = row?.packs ?? 0;
+  }
+
+  const effectiveLimit =
+    baseLimit === null
+      ? null
+      : baseLimit + overagePacks * PRODUCTS_PER_OVERAGE_PACK;
+
+  return { plan, baseLimit, overagePacks, effectiveLimit };
+}
+
+/**
  * Pull the user's tracked-product count and compare it against their
- * plan limit. Cheap — single COUNT(*) keyed on the user_id index.
+ * effective plan limit (base + overage). Cheap — two single-row
+ * lookups on indexed columns.
  *
  * Used by:
  *  - addProducts server action (hard cap before insert)
  *  - QuotaBar component on /dashboard, /billing, /products
  */
 export async function getProductQuota(userId: string): Promise<ProductQuota> {
-  const plan = await getPlanForUser(userId);
-  const limit = PLAN_FEATURES[plan].productLimit;
+  const { plan, effectiveLimit } = await getEffectiveProductLimit(userId);
 
   const [row] = await db.execute<{ n: number }>(sql`
     SELECT COUNT(*)::int AS n
@@ -173,7 +206,7 @@ export async function getProductQuota(userId: string): Promise<ProductQuota> {
   `);
   const current = row?.n ?? 0;
 
-  if (limit === null) {
+  if (effectiveLimit === null) {
     return {
       current,
       limit: null,
@@ -185,13 +218,13 @@ export async function getProductQuota(userId: string): Promise<ProductQuota> {
     };
   }
 
-  const fraction = limit > 0 ? current / limit : 1;
+  const fraction = effectiveLimit > 0 ? current / effectiveLimit : 1;
   return {
     current,
-    limit,
-    remaining: Math.max(0, limit - current),
+    limit: effectiveLimit,
+    remaining: Math.max(0, effectiveLimit - current),
     fraction: Math.min(1, fraction),
-    full: current >= limit,
+    full: current >= effectiveLimit,
     warning: fraction >= 0.8,
     plan,
   };
