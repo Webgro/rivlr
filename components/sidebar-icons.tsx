@@ -135,6 +135,15 @@ export function BillingIcon({ className, size = 20 }: IconProps) {
   );
 }
 
+export function AdminIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>
+      <path d="M12 2 L19 5 V12 a7 7 0 0 1 -14 0 V5 z" />
+      <path d="M9 12 l2 2 l4 -4" />
+    </svg>
+  );
+}
+
 export function ProfileIcon({ className, size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...baseProps}>

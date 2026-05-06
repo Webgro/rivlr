@@ -16,6 +16,7 @@ import {
   SettingsIcon,
   ProfileIcon,
   BillingIcon,
+  AdminIcon,
   HelpIcon,
 } from "./sidebar-icons";
 
@@ -69,12 +70,19 @@ const SECONDARY_NAV: NavItem[] = [
   { href: "/help", label: "Help", Icon: HelpIcon },
 ];
 
-export function Sidebar() {
+const ADMIN_NAV: NavItem = {
+  href: "/admin",
+  label: "Admin",
+  Icon: AdminIcon,
+};
+
+export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
+  const secondary = isAdmin ? [...SECONDARY_NAV, ADMIN_NAV] : SECONDARY_NAV;
 
   // Pick the longest matching nav item as 'active' so /products/suggestions
   // doesn't also light up /products.
-  const allNav = [...PRIMARY_NAV, ...SECONDARY_NAV];
+  const allNav = [...PRIMARY_NAV, ...secondary];
   const candidates = allNav.filter(
     (n) => pathname === n.href || pathname.startsWith(n.href + "/"),
   );
@@ -121,7 +129,7 @@ export function Sidebar() {
         {/* NavLink renders <li>, so wrap it in a <ul> to suppress the
             browser's default disc bullets that show up on orphan <li>. */}
         <ul className="space-y-0.5">
-          {SECONDARY_NAV.map((item) => (
+          {secondary.map((item) => (
             <NavLink key={item.href} item={item} active={isActive(item)} />
           ))}
         </ul>
