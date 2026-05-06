@@ -39,9 +39,19 @@ export async function POST(request: Request) {
   const host = h.get("host") ?? "rivlr.app";
   const origin = `${proto}://${host}`;
 
+  // Optional deep-link target. The /billing page uses these to land
+  // the user directly on the right Portal step (e.g. card update)
+  // rather than the Portal home page. Anything unrecognised falls
+  // through to the home page.
+  const formData = await request.formData().catch(() => null);
+  const flowRaw = formData ? String(formData.get("flow") ?? "") : "";
+  const flow =
+    flowRaw === "update-card" || flowRaw === "invoices" ? flowRaw : undefined;
+
   const url = await createPortalSession({
     customerId: user.stripeCustomerId,
     returnUrl: `${origin}/billing`,
+    flow,
   });
 
   return NextResponse.redirect(url, { status: 303 });
