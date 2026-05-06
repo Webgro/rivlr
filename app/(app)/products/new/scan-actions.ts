@@ -10,17 +10,27 @@ import { getProductQuota, type Plan } from "@/lib/plan";
  * Scans up to SCAN_MAX_PRODUCTS via the public /collections/all/products.json
  * endpoint, returns:
  *   - total found,
- *   - first PREVIEW_CAP products (image + title + URL only — no price/stock,
- *     this is just discovery; the user picks which to actually track),
+ *   - the FULL product list (handle + title + image URL — no price/stock,
+ *     this is just discovery; the user picks which to actually track or
+ *     bulk-tracks the lot),
  *   - the user's current quota so the client can render the plan
  *     recommendation banner without a second round-trip.
  *
- * No DB writes here. Selected products go through the existing
- * addProducts action when the user confirms.
+ * The client renders only the first GRID_CAP products in the
+ * selection grid — but unlimited / high-quota users can still
+ * "Track all N" via a separate primary CTA, which submits the full
+ * URL list. So sending all of them up here is essential.
+ *
+ * No DB writes here. Selected (or all) products go through the
+ * existing addProducts action when the user confirms.
  */
 
 const SCAN_MAX_PRODUCTS = 1000;
-const PREVIEW_CAP = 50;
+/** UI grid cap — how many products the client renders in the visual
+ *  selection grid. Not exported (Next.js "use server" files can only
+ *  export async functions); the client reads the value off the
+ *  ScanResult.gridCap field instead. */
+const SCAN_GRID_CAP = 50;
 
 export interface ScanProduct {
   handle: string;
@@ -37,9 +47,11 @@ export type ScanResult =
        *  store has more — `capped` lets the UI signal that. */
       total: number;
       capped: boolean;
-      /** First N products for the selection grid. */
-      preview: ScanProduct[];
-      previewCap: number;
+      /** Every product the scan fetched. Client renders only the first
+       *  SCAN_GRID_CAP in the visual grid but uses the full list for the
+       *  "Track all N" bulk action. */
+      products: ScanProduct[];
+      gridCap: number;
       quota: {
         plan: Plan;
         current: number;
@@ -99,8 +111,8 @@ export async function scanStoreCatalogue(
     storeDomain: domain,
     total: products.length,
     capped: products.length === SCAN_MAX_PRODUCTS,
-    previewCap: PREVIEW_CAP,
-    preview: products.slice(0, PREVIEW_CAP).map((p) => ({
+    gridCap: SCAN_GRID_CAP,
+    products: products.map((p) => ({
       handle: p.handle,
       title: p.title,
       imageUrl: p.imageUrl,

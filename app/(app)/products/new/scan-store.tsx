@@ -118,28 +118,102 @@ function ScanResultsView({
 }: {
   result: Extract<ScanResult, { ok: true }>;
 }) {
-  const { storeDomain, total, capped, preview, quota } = result;
+  const { storeDomain, total, capped, products, gridCap, quota } = result;
   const remaining = quota.remaining; // null = unlimited
   const limit = quota.limit;
+  // Whether the user's plan can fit every product the scan returned.
+  // Drives the "Track all N" primary CTA.
+  const canTrackAll = remaining === null || total <= remaining;
+
+  // First N products for the visual grid. Bulk track-all uses the full
+  // `products` array.
+  const visible = products.slice(0, gridCap);
 
   // Default selection: first N visible products, capped at quota.remaining.
   const initialSelected = (() => {
-    const cap = remaining === null ? preview.length : Math.min(preview.length, remaining);
-    return new Set(preview.slice(0, cap).map((p) => p.handle));
+    const cap = remaining === null ? visible.length : Math.min(visible.length, remaining);
+    return new Set(visible.slice(0, cap).map((p) => p.handle));
   })();
 
   return (
     <div className="mt-8 space-y-6">
       <ResultsHeader storeDomain={storeDomain} total={total} capped={capped} />
       <PlanBanner total={total} quota={quota} />
+      {canTrackAll && (
+        <TrackAllButton
+          products={products}
+          total={total}
+          storeDomain={storeDomain}
+        />
+      )}
       <SelectionGrid
-        preview={preview}
+        visible={visible}
         total={total}
         initialSelected={initialSelected}
         remaining={remaining}
         limit={limit}
+        canTrackAll={canTrackAll}
       />
     </div>
+  );
+}
+
+/* ─── Bulk track-all CTA ──────────────────────────────────────────── */
+
+function TrackAllButton({
+  products,
+  total,
+  storeDomain,
+}: {
+  products: ScanProduct[];
+  total: number;
+  storeDomain: string;
+}) {
+  const [submitting, startSubmit] = useTransition();
+
+  function trackAll(e: React.FormEvent) {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.set("urls", products.map((p) => p.url).join("\n"));
+    startSubmit(async () => {
+      await addProducts(fd);
+    });
+  }
+
+  return (
+    <form
+      onSubmit={trackAll}
+      className="rounded-xl border border-signal/30 bg-signal/[0.04] p-5 flex items-center justify-between gap-4 flex-wrap"
+    >
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
+          One-click bulk
+        </div>
+        <div className="mt-1.5 text-base font-semibold tracking-tight">
+          Track every product on{" "}
+          <span className="font-mono text-muted-strong">{storeDomain}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted leading-relaxed">
+          Adds all {total} products to your watchlist. The first crawl
+          starts immediately — prices and stock will populate within a
+          few minutes.
+        </p>
+      </div>
+      <button
+        type="submit"
+        disabled={submitting}
+        className="rounded-md bg-signal px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition disabled:opacity-50 inline-flex items-center gap-2 flex-shrink-0"
+      >
+        {submitting ? (
+          <>
+            <span className="rivlr-spinner" aria-hidden />
+            Adding {total}…
+          </>
+        ) : (
+          <>Track all {total} →</>
+        )}
+      </button>
+    </form>
   );
 }
 
@@ -281,17 +355,22 @@ function PlanBanner({
 /* ─── Selection grid ──────────────────────────────────────────────── */
 
 function SelectionGrid({
-  preview,
+  visible,
   total,
   initialSelected,
   remaining,
   limit,
+  canTrackAll,
 }: {
-  preview: ScanProduct[];
+  visible: ScanProduct[];
   total: number;
   initialSelected: Set<string>;
   remaining: number | null;
   limit: number | null;
+  /** True when the user's plan covers everything — flips the
+   *  "more than shown" footer copy from "upgrade or paste URLs"
+   *  to "use Track all N above". */
+  canTrackAll: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(initialSelected);
   const [submitting, startSubmit] = useTransition();
@@ -311,8 +390,8 @@ function SelectionGrid({
   }
 
   function selectMax() {
-    const cap = remaining === null ? preview.length : Math.min(preview.length, remaining);
-    setSelected(new Set(preview.slice(0, cap).map((p) => p.handle)));
+    const cap = remaining === null ? visible.length : Math.min(visible.length, remaining);
+    setSelected(new Set(visible.slice(0, cap).map((p) => p.handle)));
   }
 
   function clear() {
@@ -323,7 +402,7 @@ function SelectionGrid({
     e.preventDefault();
     if (selected.size === 0) return;
     const fd = new FormData();
-    const urls = preview
+    const urls = visible
       .filter((p) => selected.has(p.handle))
       .map((p) => p.url)
       .join("\n");
@@ -335,10 +414,10 @@ function SelectionGrid({
 
   const maxSelectable =
     remaining === null
-      ? preview.length
-      : Math.min(preview.length, remaining);
+      ? visible.length
+      : Math.min(visible.length, remaining);
   const atCap = remaining !== null && selected.size >= remaining;
-  const moreThanShown = total > preview.length;
+  const moreThanShown = total > visible.length;
 
   return (
     <form onSubmit={onSubmit}>
@@ -381,10 +460,16 @@ function SelectionGrid({
         </div>
       </div>
 
+      {/* Pick-from-list explainer */}
+      <div className="border-x border-default bg-elevated px-4 py-2 text-[11px] text-muted/80 font-mono">
+        Or pick specific products below ({visible.length} shown
+        {moreThanShown && total > visible.length ? ` of ${total}` : ""}):
+      </div>
+
       {/* Grid */}
       <div className="border-x border-default bg-elevated">
         <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 p-3">
-          {preview.map((p) => {
+          {visible.map((p) => {
             const isSelected = selected.has(p.handle);
             const blockedByCap = !isSelected && atCap;
             return (
@@ -453,10 +538,12 @@ function SelectionGrid({
         </ul>
 
         {moreThanShown && (
-          <div className="px-4 py-3 border-t border-default text-xs text-muted">
-            Showing first {preview.length} of {total} products. Upgrade to a
-            plan that covers more, or use the URLs tab to paste specific
-            handles.
+          <div className="px-4 py-3 border-t border-default text-xs text-muted leading-relaxed">
+            Showing the first {visible.length} of {total} products in the
+            grid.{" "}
+            {canTrackAll
+              ? "To bulk-track everything, use the “Track all” button above the grid."
+              : "Upgrade to a plan that covers more, or use the URLs tab to paste specific handles."}
           </div>
         )}
       </div>
