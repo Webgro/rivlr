@@ -30,12 +30,30 @@ type StoreRow = {
  */
 export default async function StoresPage() {
   const user = await requireUser();
-  // Per-user store list. The is_my_store flag now comes from
-  // user_store_prefs (per-user) rather than the legacy global stores
-  // column. Tracked counts are scoped to this user's products.
+  // Per-user store list. Two sources merged:
+  //   1. Stores the user has tracked products on.
+  //   2. Stores the user explicitly added via /stores/new (rows in
+  //      user_store_prefs even without any products yet).
+  // The is_my_store flag is per-user via user_store_prefs (not the
+  // legacy global stores column).
   const rows = await db.execute<StoreRow>(sql`
+    WITH user_domains AS (
+      SELECT DISTINCT store_domain AS domain
+      FROM tracked_products
+      WHERE user_id = ${user.id}::uuid AND active = true
+      UNION
+      SELECT domain
+      FROM user_store_prefs
+      WHERE user_id = ${user.id}::uuid
+    ),
+    tracked_counts AS (
+      SELECT store_domain, COUNT(*)::int AS n
+      FROM tracked_products
+      WHERE user_id = ${user.id}::uuid AND active = true
+      GROUP BY store_domain
+    )
     SELECT
-      tp.store_domain AS domain,
+      ud.domain,
       s.display_name,
       s.total_product_count,
       s.out_of_stock_count,
@@ -46,18 +64,13 @@ export default async function StoresPage() {
       s.free_shipping_threshold,
       s.free_shipping_currency,
       s.last_scanned_at,
-      COUNT(tp.id)::int AS tracked_count
-    FROM tracked_products tp
-    LEFT JOIN stores s ON s.domain = tp.store_domain
+      COALESCE(tc.n, 0)::int AS tracked_count
+    FROM user_domains ud
+    LEFT JOIN stores s ON s.domain = ud.domain
     LEFT JOIN user_store_prefs usp
-      ON usp.user_id = ${user.id}::uuid AND usp.domain = tp.store_domain
-    WHERE tp.user_id = ${user.id}::uuid
-      AND tp.active = true
-    GROUP BY tp.store_domain, s.display_name, s.total_product_count,
-             s.out_of_stock_count, s.apps_detected, s.is_shopify_plus,
-             usp.is_my_store, s.platform_currency, s.free_shipping_threshold,
-             s.free_shipping_currency, s.last_scanned_at
-    ORDER BY usp.is_my_store DESC NULLS LAST, tracked_count DESC, tp.store_domain ASC
+      ON usp.user_id = ${user.id}::uuid AND usp.domain = ud.domain
+    LEFT JOIN tracked_counts tc ON tc.store_domain = ud.domain
+    ORDER BY usp.is_my_store DESC NULLS LAST, tracked_count DESC, ud.domain ASC
   `);
   const stores = Array.from(rows);
 
@@ -84,19 +97,43 @@ export default async function StoresPage() {
             </span>
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <SummaryStat label="Stores" value={total.toString()} />
-          <SummaryStat label="Tracked products" value={totalTracked.toString()} />
-          <SummaryStat
-            label="Catalogue (total)"
-            value={totalCatalogue > 0 ? totalCatalogue.toLocaleString() : "—"}
-          />
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
+            <SummaryStat label="Stores" value={total.toString()} />
+            <SummaryStat label="Tracked products" value={totalTracked.toString()} />
+            <SummaryStat
+              label="Catalogue (total)"
+              value={totalCatalogue > 0 ? totalCatalogue.toLocaleString() : "—"}
+            />
+          </div>
+          <Link
+            href="/stores/new"
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition"
+          >
+            + Add store
+          </Link>
         </div>
       </div>
 
       {stores.length === 0 ? (
         <div className="mt-12 rounded-lg border border-dashed border-default bg-elevated px-6 py-12 text-center text-sm text-muted">
-          No tracked stores yet. Add a competitor product to start watching.
+          <p>No stores yet.</p>
+          <p className="mt-2">
+            <Link
+              href="/stores/new"
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              + Add your store
+            </Link>{" "}
+            to import your catalogue, or{" "}
+            <Link
+              href="/products/new"
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              track a competitor product
+            </Link>{" "}
+            to start watching theirs.
+          </p>
         </div>
       ) : (
         <div className="mt-10 overflow-hidden rounded-xl border border-default">

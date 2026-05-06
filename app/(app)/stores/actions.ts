@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq, and, sql, inArray, ne } from "drizzle-orm";
@@ -274,6 +275,99 @@ async function importOwnStoreCatalogue(userId: string, domain: string) {
       AND store_domain = ${domain}
       AND status = 'new'
   `);
+}
+
+/**
+ * Add a store to the user's store list without first tracking a
+ * product. Use cases:
+ *   - Adding your own store before tracking competitors (so you can
+ *     mark it as "my store" and trigger catalogue auto-import).
+ *   - Pre-loading a competitor store you'll explore later via the
+ *     store-scan flow.
+ *
+ * Validates the domain looks like a Shopify storefront by doing a
+ * cheap GET on /products.json?limit=1. No DB writes if that fails.
+ *
+ * isMyStore=true triggers the same catalogue auto-import + bestseller
+ * probe path that markStoreAsMine uses, so the user lands on
+ * /my-products with their products already populating.
+ */
+export async function addStore(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const rawDomain = String(formData.get("domain") ?? "");
+  const isMyStore = String(formData.get("is-my-store") ?? "") === "true";
+
+  const domain = parseStoreDomain(rawDomain);
+  if (!domain) {
+    redirect(`/stores/new?error=invalid-url`);
+  }
+
+  // Verify it's a real, reachable Shopify store. Cheap probe — one
+  // page-1 request, single product.
+  try {
+    const res = await fetch(
+      `https://${domain}/products.json?limit=1`,
+      { headers: { Accept: "application/json" }, cache: "no-store" },
+    );
+    if (!res.ok) {
+      redirect(`/stores/new?error=unreachable&domain=${encodeURIComponent(domain)}`);
+    }
+    const data = (await res.json().catch(() => null)) as
+      | { products?: unknown[] }
+      | null;
+    if (!data || !Array.isArray(data.products)) {
+      redirect(`/stores/new?error=not-shopify&domain=${encodeURIComponent(domain)}`);
+    }
+  } catch {
+    redirect(`/stores/new?error=unreachable&domain=${encodeURIComponent(domain)}`);
+  }
+
+  // Insert the store row if it doesn't exist (other users may already
+  // have it — global store-level intel is shared).
+  await db
+    .insert(schema.stores)
+    .values({ domain })
+    .onConflictDoNothing();
+
+  if (isMyStore) {
+    // Reuse the markStoreAsMine plumbing — clears any other my-store
+    // flag for this user, sets is_my_store, kicks off the catalogue
+    // import + bestseller probe in `after()`.
+    const fd = new FormData();
+    fd.set("domain", domain);
+    await markStoreAsMine(fd);
+  } else {
+    // Just a pref row so the store appears on /stores. Otherwise the
+    // user can browse to /stores/[domain] and explore from there.
+    await upsertStorePref(user.id, domain, {});
+    // Quick metadata scan in the background so the row populates with
+    // catalogue size, apps, etc.
+    after(async () => {
+      try {
+        await scanStoreNow(domain);
+      } catch {
+        // best-effort — daily cron will catch anything we missed
+      }
+      revalidatePath(`/stores/${domain}`);
+    });
+  }
+
+  revalidatePath("/stores");
+  redirect(`/stores/${domain}?added=1`);
+}
+
+/**
+ * Normalise a user-typed store URL down to a bare domain. Same parser
+ * shape as scan-actions.ts — accepts bare domains, www., https://, and
+ * URLs with paths.
+ */
+function parseStoreDomain(input: string): string | null {
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) return null;
+  let domain = trimmed.replace(/^https?:\/\//, "").replace(/^www\./, "");
+  domain = domain.split("/")[0].split("?")[0].split("#")[0];
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(domain)) return null;
+  return domain;
 }
 
 /**
