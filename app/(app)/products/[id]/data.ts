@@ -1,6 +1,14 @@
 import { db, schema, type TagColor } from "@/lib/db";
-import { eq, asc, desc, and, ne, sql } from "drizzle-orm";
+import { eq, asc, desc, and, ne, gt, sql } from "drizzle-orm";
 import { getLatestMultiMarketForProduct } from "@/lib/crawler/multi-market";
+
+/**
+ * Recent-history window for the product-detail chart. Plenty for the
+ * "what's the trend lately" use case without dragging the page-load
+ * cost up with thousands of rows on long-running products. Full
+ * history is still available via the dedicated endpoint when needed.
+ */
+const HISTORY_DAYS = 90;
 
 export type ProductDetailData = NonNullable<
   Awaited<ReturnType<typeof getProductData>>
@@ -74,7 +82,15 @@ export async function getProductData(userId: string, id: string) {
         currency: schema.priceObservations.currency,
       })
       .from(schema.priceObservations)
-      .where(eq(schema.priceObservations.productId, id))
+      .where(
+        and(
+          eq(schema.priceObservations.productId, id),
+          gt(
+            schema.priceObservations.observedAt,
+            sql`NOW() - (${HISTORY_DAYS}::int || ' days')::interval`,
+          ),
+        ),
+      )
       .orderBy(asc(schema.priceObservations.observedAt)),
     db
       .select({
@@ -84,7 +100,15 @@ export async function getProductData(userId: string, id: string) {
         quantitySource: schema.stockObservations.quantitySource,
       })
       .from(schema.stockObservations)
-      .where(eq(schema.stockObservations.productId, id))
+      .where(
+        and(
+          eq(schema.stockObservations.productId, id),
+          gt(
+            schema.stockObservations.observedAt,
+            sql`NOW() - (${HISTORY_DAYS}::int || ' days')::interval`,
+          ),
+        ),
+      )
       .orderBy(asc(schema.stockObservations.observedAt)),
     db
       .select({
