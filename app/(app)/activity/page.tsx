@@ -147,7 +147,7 @@ export default async function ActivityPage(props: {
 
   return (
     <section className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Activity</h1>
       <p className="mt-1 text-sm text-muted">
         Every detected price and stock change in the last 30 days.
       </p>

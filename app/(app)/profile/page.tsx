@@ -16,7 +16,7 @@ export default async function ProfilePage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
         <p className="mt-1 text-sm text-muted">
           Your account, sign-in access, and team. Anything that affects how
           Rivlr crawls or alerts lives in{" "}

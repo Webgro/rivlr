@@ -58,7 +58,7 @@ export default async function SettingsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted">
           App-wide configuration. Account, sign-in access, and team are on{" "}
           <Link

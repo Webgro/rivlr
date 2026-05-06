@@ -518,7 +518,7 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
       <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
         {label}
       </div>
-      <div className="mt-0.5 text-2xl font-semibold tracking-tight">
+      <div className="mt-0.5 text-3xl font-semibold tracking-tight">
         {value}
       </div>
     </div>

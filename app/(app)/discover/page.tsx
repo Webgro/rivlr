@@ -83,7 +83,7 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
     <section className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Discover
           </h1>
           <p className="mt-1 text-sm text-muted">

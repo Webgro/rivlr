@@ -71,7 +71,7 @@ export default async function AdminUsersPage(props: {
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-muted">
             {totalCount} total · page {page} of {totalPages}
           </p>

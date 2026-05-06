@@ -307,7 +307,7 @@ export default async function DashboardPage() {
     <section className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-sm text-muted">
             {data
               ? `Tracking ${data.stats.totalActive} product${data.stats.totalActive === 1 ? "" : "s"} across ${data.stats.totalStores} store${data.stats.totalStores === 1 ? "" : "s"}.`

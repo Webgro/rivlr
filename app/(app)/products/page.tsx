@@ -378,7 +378,7 @@ export default async function DashboardPage(props: {
     <section className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Competitors
           </h1>
           <p className="mt-1 text-sm text-muted">

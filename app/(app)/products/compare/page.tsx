@@ -108,7 +108,7 @@ export default async function ComparePage(props: {
   if (loadError) {
     return (
       <section className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
         <div className="mt-6 rounded-md border border-signal/40 bg-signal/5 px-4 py-4 text-sm">
           <div className="text-signal font-medium">Couldn&apos;t load this comparison.</div>
           <p className="mt-2 text-muted">
@@ -132,7 +132,7 @@ export default async function ComparePage(props: {
   if (products.length === 0) {
     return (
       <section className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
         <div className="mt-6 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
           None of the selected products were found.
           <div className="mt-4">
@@ -155,7 +155,7 @@ export default async function ComparePage(props: {
     <section className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Compare {products.length} product{products.length === 1 ? "" : "s"}
           </h1>
           <p className="mt-1 text-sm text-muted">
@@ -259,7 +259,7 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
   const upgradeHref = next ? `/billing?upgrade=${next}` : "/billing";
   return (
     <section className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
       <p className="mt-1 text-sm text-muted">
         Overlay price history across multiple products on a single chart —
         spot competitor pricing patterns at a glance.
@@ -315,7 +315,7 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
 function EmptyState({ droppedInvalid }: { droppedInvalid: number }) {
   return (
     <section className="mx-auto max-w-4xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
       <p className="mt-1 text-sm text-muted">
         Select 2–5 products from the products page (tick the checkboxes,
         then use the &ldquo;Compare&rdquo; bulk action) to overlay their

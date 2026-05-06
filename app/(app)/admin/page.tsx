@@ -43,7 +43,7 @@ export default async function AdminOverviewPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-semibold tracking-tight">
           Admin overview
         </h1>
         <p className="mt-1 text-sm text-muted">
@@ -109,7 +109,7 @@ function Stat({ label, value }: { label: string; value: number }) {
       <div className="text-[11px] uppercase tracking-[0.18em] text-muted/70 font-mono">
         {label}
       </div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight">
+      <div className="mt-1.5 text-3xl font-semibold tracking-tight">
         {value.toLocaleString()}
       </div>
     </div>

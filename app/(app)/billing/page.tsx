@@ -117,7 +117,7 @@ export default async function BillingPage({
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
         <p className="mt-1 text-sm text-muted">
           Choose the plan that matches your catalogue size and how fast you
           need new prices. Change anytime.
@@ -553,7 +553,7 @@ function PlanCardComponent({
 
       <div className="text-sm font-semibold">{card.name}</div>
       <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-2xl font-semibold tracking-tight">
+        <span className="text-3xl font-semibold tracking-tight">
           {card.price}
         </span>
         {isPaid && <span className="text-xs text-muted">/ month</span>}

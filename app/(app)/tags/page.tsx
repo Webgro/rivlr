@@ -10,7 +10,7 @@ export default async function TagsPage() {
   return (
     <section className="mx-auto max-w-4xl px-6 py-12">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Tags</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Tags</h1>
         <p className="mt-1 text-sm text-muted">
           Organise tracked products with colour-coded labels. Apply tags from
           the dashboard's bulk action bar.
