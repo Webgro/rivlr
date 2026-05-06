@@ -122,57 +122,63 @@ function ScanResultsView({
   const remaining = quota.remaining; // null = unlimited
   const limit = quota.limit;
   // Whether the user's plan can fit every product the scan returned.
-  // Drives the "Track all N" primary CTA.
   const canTrackAll = remaining === null || total <= remaining;
-
-  // First N products for the visual grid. Bulk track-all uses the full
-  // `products` array.
   const visible = products.slice(0, gridCap);
-
-  // Default selection: first N visible products, capped at quota.remaining.
-  const initialSelected = (() => {
-    const cap = remaining === null ? visible.length : Math.min(visible.length, remaining);
-    return new Set(visible.slice(0, cap).map((p) => p.handle));
-  })();
 
   return (
     <div className="mt-8 space-y-6">
       <ResultsHeader storeDomain={storeDomain} total={total} capped={capped} />
       <PlanBanner total={total} quota={quota} />
-      {canTrackAll && (
-        <TrackAllButton
-          products={products}
-          total={total}
-          storeDomain={storeDomain}
-        />
-      )}
-      <SelectionGrid
-        visible={visible}
+      <ChooseAction
         total={total}
-        initialSelected={initialSelected}
+        canTrackAll={canTrackAll}
+        products={products}
+        visible={visible}
         remaining={remaining}
         limit={limit}
-        canTrackAll={canTrackAll}
       />
     </div>
   );
 }
 
-/* ─── Bulk track-all CTA ──────────────────────────────────────────── */
+/* ─── Decision: track all OR pick selected ────────────────────────── */
 
-function TrackAllButton({
-  products,
+/**
+ * Two paths after a scan:
+ *
+ *   1. Track all N — single click, sends every URL through addProducts.
+ *      Only enabled when the user's plan covers everything; otherwise
+ *      shown disabled with a tooltip pointing at the plan banner above.
+ *
+ *   2. Pick selected — reveals the visual grid with first M preselected
+ *      (M = remaining quota, or visible count when unlimited). User can
+ *      adjust then submit.
+ *
+ * When the user can't track-all, the grid auto-opens since picking is
+ * their only path forward — no point hiding it behind another click.
+ */
+function ChooseAction({
   total,
-  storeDomain,
+  canTrackAll,
+  products,
+  visible,
+  remaining,
+  limit,
 }: {
-  products: ScanProduct[];
   total: number;
-  storeDomain: string;
+  canTrackAll: boolean;
+  products: ScanProduct[];
+  visible: ScanProduct[];
+  remaining: number | null;
+  limit: number | null;
 }) {
+  // Default to grid-open when can't-track-all, so the user isn't
+  // staring at a disabled primary button. Open on-click otherwise.
+  const [picking, setPicking] = useState<boolean>(!canTrackAll);
   const [submitting, startSubmit] = useTransition();
 
-  function trackAll(e: React.FormEvent) {
-    e.preventDefault();
+  function trackAll() {
+    if (!canTrackAll) return;
     const fd = new FormData();
     fd.set("urls", products.map((p) => p.url).join("\n"));
     startSubmit(async () => {
@@ -180,40 +186,83 @@ function TrackAllButton({
     });
   }
 
+  // First M selected as default in the grid (M = remaining, or all
+  // visible when unlimited).
+  const initialSelected = (() => {
+    const cap = remaining === null ? visible.length : Math.min(visible.length, remaining);
+    return new Set(visible.slice(0, cap).map((p) => p.handle));
+  })();
+
   return (
-    <form
-      onSubmit={trackAll}
-      className="rounded-xl border border-signal/30 bg-signal/[0.04] p-5 flex items-center justify-between gap-4 flex-wrap"
-    >
-      <div className="min-w-0">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
-          One-click bulk
-        </div>
-        <div className="mt-1.5 text-base font-semibold tracking-tight">
-          Track every product on{" "}
-          <span className="font-mono text-muted-strong">{storeDomain}</span>
-        </div>
-        <p className="mt-1 text-xs text-muted leading-relaxed">
-          Adds all {total} products to your watchlist. The first crawl
-          starts immediately — prices and stock will populate within a
-          few minutes.
-        </p>
+    <div className="space-y-4">
+      {/* Two-button decision row */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* Track all */}
+        <button
+          type="button"
+          onClick={trackAll}
+          disabled={!canTrackAll || submitting}
+          title={
+            canTrackAll
+              ? `Adds every product to your watchlist. The first crawl starts immediately.`
+              : `Your plan covers ${remaining ?? 0} products. Upgrade to track all ${total}, or pick from the list.`
+          }
+          className={`rounded-xl border p-5 text-left transition ${
+            canTrackAll
+              ? "border-signal/40 bg-signal/[0.04] hover:border-signal hover:bg-signal/[0.07] cursor-pointer"
+              : "border-default bg-elevated opacity-50 cursor-not-allowed"
+          }`}
+        >
+          <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
+            Bulk
+          </div>
+          <div className="mt-1.5 text-base font-semibold tracking-tight">
+            {submitting ? `Adding ${total}…` : `Track all ${total} products`}
+          </div>
+          <div className="mt-1 text-xs text-muted leading-relaxed">
+            {canTrackAll
+              ? `One click. The first crawl starts immediately — prices and stock will populate within a few minutes.`
+              : `Disabled — your plan only covers ${remaining ?? 0}. Upgrade or pick specific products instead.`}
+          </div>
+        </button>
+
+        {/* Pick selected */}
+        <button
+          type="button"
+          onClick={() => setPicking(true)}
+          disabled={picking || submitting}
+          className={`rounded-xl border p-5 text-left transition ${
+            picking
+              ? "border-default bg-surface opacity-60 cursor-default"
+              : "border-default bg-elevated hover:border-strong cursor-pointer"
+          }`}
+        >
+          <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+            Pick from list
+          </div>
+          <div className="mt-1.5 text-base font-semibold tracking-tight">
+            Track selected products
+          </div>
+          <div className="mt-1 text-xs text-muted leading-relaxed">
+            {limit === null
+              ? `Choose any combination from the catalogue.`
+              : `First ${Math.min(visible.length, remaining ?? 0)} preselected — your plan covers up to ${remaining}. Adjust below.`}
+          </div>
+        </button>
       </div>
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-md bg-signal px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition disabled:opacity-50 inline-flex items-center gap-2 flex-shrink-0"
-      >
-        {submitting ? (
-          <>
-            <span className="rivlr-spinner" aria-hidden />
-            Adding {total}…
-          </>
-        ) : (
-          <>Track all {total} →</>
-        )}
-      </button>
-    </form>
+
+      {/* Grid — opens on demand or auto when can't track-all */}
+      {picking && (
+        <SelectionGrid
+          visible={visible}
+          total={total}
+          initialSelected={initialSelected}
+          remaining={remaining}
+          limit={limit}
+          canTrackAll={canTrackAll}
+        />
+      )}
+    </div>
   );
 }
 
@@ -458,12 +507,6 @@ function SelectionGrid({
             {limit === null ? "Select all" : `Select ${maxSelectable}`}
           </button>
         </div>
-      </div>
-
-      {/* Pick-from-list explainer */}
-      <div className="border-x border-default bg-elevated px-4 py-2 text-[11px] text-muted/80 font-mono">
-        Or pick specific products below ({visible.length} shown
-        {moreThanShown && total > visible.length ? ` of ${total}` : ""}):
       </div>
 
       {/* Grid */}
