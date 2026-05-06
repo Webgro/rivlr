@@ -1,7 +1,9 @@
 import { Sidebar } from "@/components/sidebar";
 import { CrawlProgress } from "@/components/crawl-progress";
 import { CookieBanner } from "@/components/cookie-banner";
-import { getCurrentUser, isAdminUser } from "@/lib/auth/current-user";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { isAdminUser } from "@/lib/auth/current-user";
+import { getSession } from "@/lib/auth/session";
 
 /**
  * Layout for everything behind the password gate. Login lives outside this
@@ -11,6 +13,10 @@ import { getCurrentUser, isAdminUser } from "@/lib/auth/current-user";
  * @panel/(.)products/[id]/page.tsx) to render product detail as a slide-over
  * when navigated from within the group, while still allowing direct URLs to
  * render the standalone page.
+ *
+ * Reads the full session here so we can also surface the impersonation
+ * banner when an admin has used /admin → "Sign in as" — that banner sits
+ * above the sidebar so it's impossible to miss.
  */
 export default async function AppLayout({
   children,
@@ -19,14 +25,22 @@ export default async function AppLayout({
   children: React.ReactNode;
   panel: React.ReactNode;
 }) {
-  // Resolve admin status server-side so the (client) sidebar can render
-  // the /admin link without an extra DB call. Anonymous users never reach
-  // this layout — proxy.ts redirects them to /login.
-  const user = await getCurrentUser();
+  // Single getSession call — covers user + impersonator + (via isAdminUser)
+  // admin status. Anonymous users never reach this layout — proxy.ts
+  // redirects them to /login.
+  const session = await getSession();
+  const user = session?.user ?? null;
+  const impersonator = session?.impersonator ?? null;
   const isAdmin = !!user && isAdminUser(user);
 
   return (
     <div className="min-h-screen bg-surface text-foreground">
+      {impersonator && user && (
+        <ImpersonationBanner
+          targetEmail={user.email}
+          adminEmail={impersonator.email}
+        />
+      )}
       <Sidebar isAdmin={isAdmin} />
       <main className="md:ml-60">{children}</main>
       {panel}

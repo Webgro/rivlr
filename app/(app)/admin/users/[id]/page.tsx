@@ -70,19 +70,36 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
         </Link>
       </div>
 
-      <header className="mt-3 flex items-baseline justify-between gap-4 flex-wrap">
+      <header className="mt-3 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight font-mono">
             {target.email}
           </h1>
           <p className="mt-1 text-xs text-muted font-mono">{target.id}</p>
+          {target.isAdmin && (
+            <span className="mt-2 inline-block rounded bg-signal/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-signal font-mono">
+              admin
+            </span>
+          )}
         </div>
-        {target.isAdmin && (
-          <span className="rounded bg-signal/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-signal font-mono">
-            admin
-          </span>
+        {!isSelf && (
+          <form
+            action="/api/admin/impersonate"
+            method="post"
+            className="flex-shrink-0"
+          >
+            <input type="hidden" name="user-id" value={target.id} />
+            <button
+              type="submit"
+              className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs font-medium text-amber-500 hover:bg-amber-500/20 transition"
+              title="Drop your session and sign in as this user. A banner stays visible across the app until you stop."
+            >
+              Sign in as user →
+            </button>
+          </form>
         )}
       </header>
+
 
       {/* ─── Account facts ───────────────────────────────────────────── */}
       <section className="mt-8 rounded-lg border border-default bg-elevated p-5">

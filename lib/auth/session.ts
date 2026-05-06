@@ -22,12 +22,21 @@ const REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000; // refresh if <1d since last e
 export interface SessionWithUser {
   sessionId: string;
   user: User;
+  /** When non-null, this session is an admin impersonating `user`.
+   *  The impersonator is the admin acting on the target's behalf;
+   *  the (app) layout reads this to render the impersonation banner
+   *  and the audit log uses it when stamping actions. */
+  impersonator: User | null;
 }
 
 export async function createSession(opts: {
   userId: string;
   ip?: string | null;
   userAgent?: string | null;
+  /** Set this when an admin starts impersonating another user — stored
+   *  on the session row so getSession() can flag it everywhere and
+   *  the audit log keeps a complete record. */
+  impersonatorUserId?: string | null;
 }): Promise<string> {
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
   const [row] = await db
@@ -37,6 +46,7 @@ export async function createSession(opts: {
       expiresAt,
       ip: opts.ip ?? null,
       userAgent: opts.userAgent ?? null,
+      impersonatorUserId: opts.impersonatorUserId ?? null,
     })
     .returning({ id: schema.authSessions.id });
 
@@ -81,8 +91,15 @@ export async function getSession(): Promise<SessionWithUser | null> {
   if (!row) return null;
 
   // Sliding refresh — only when stale enough to be worth a write.
+  // Skip the refresh on impersonation sessions so they don't outlive the
+  // admin's intent (they're meant to be short-lived; admin clicks Stop
+  // when done, otherwise the original 30-day expiry from create still
+  // applies).
   const sinceLastSeen = now.getTime() - row.session.lastSeenAt.getTime();
-  if (sinceLastSeen > REFRESH_THRESHOLD_MS) {
+  if (
+    !row.session.impersonatorUserId &&
+    sinceLastSeen > REFRESH_THRESHOLD_MS
+  ) {
     const newExpires = new Date(now.getTime() + SESSION_TTL_MS);
     await db
       .update(schema.authSessions)
@@ -90,7 +107,19 @@ export async function getSession(): Promise<SessionWithUser | null> {
       .where(eq(schema.authSessions.id, row.session.id));
   }
 
-  return { sessionId: row.session.id, user: row.user };
+  // Resolve the impersonator user if present. Separate query is fine —
+  // happens at most once per request, only on impersonation sessions.
+  let impersonator: User | null = null;
+  if (row.session.impersonatorUserId) {
+    const [imp] = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, row.session.impersonatorUserId))
+      .limit(1);
+    impersonator = imp ?? null;
+  }
+
+  return { sessionId: row.session.id, user: row.user, impersonator };
 }
 
 /** Delete the current session row + clear the cookie. Idempotent. */

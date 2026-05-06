@@ -1,5 +1,10 @@
 import { db, schema, type User } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import {
+  createSession,
+  destroyCurrentSession,
+  getSession,
+} from "@/lib/auth/session";
 
 /**
  * Admin helpers — write the audit log + apply state changes against
@@ -120,6 +125,82 @@ export async function clearCompPlan({
 }
 
 /* ─── Admin role toggle ───────────────────────────────────────────── */
+
+/* ─── Impersonation ──────────────────────────────────────────────── */
+
+/**
+ * Start impersonating another user. Destroys the admin's current
+ * session, creates a fresh session for the target user with
+ * impersonator_user_id = admin, and writes an audit row.
+ *
+ * After this returns, the cookie points to the impersonation session.
+ * Admin browses the app as the target user; banner in (app) layout
+ * surfaces the override.
+ */
+export async function startImpersonation({
+  actor,
+  targetUserId,
+}: {
+  actor: User;
+  targetUserId: string;
+}): Promise<void> {
+  if (actor.id === targetUserId) {
+    throw new Error("You're already signed in as yourself.");
+  }
+  const [target] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, targetUserId))
+    .limit(1);
+  if (!target) throw new Error("User not found.");
+
+  // Drop the admin's current session — they're switching identity.
+  // Their other tabs / devices are unaffected because each session is
+  // its own row.
+  await destroyCurrentSession();
+  await createSession({
+    userId: target.id,
+    impersonatorUserId: actor.id,
+  });
+
+  await writeAudit({
+    actor,
+    targetUserId: target.id,
+    targetEmail: target.email,
+    action: "start_impersonation",
+  });
+}
+
+/**
+ * Stop the current impersonation. Destroys the impersonation session,
+ * creates a fresh session for the original admin, writes an audit row.
+ *
+ * No-op + throws when called outside an impersonation session — guards
+ * against the route handler being hit by a regular user.
+ */
+export async function stopImpersonation(): Promise<{
+  adminUserId: string;
+  targetEmail: string;
+}> {
+  const session = await getSession();
+  if (!session?.impersonator) {
+    throw new Error("Not currently impersonating anyone.");
+  }
+  const admin = session.impersonator;
+  const targetEmail = session.user.email;
+
+  await destroyCurrentSession();
+  await createSession({ userId: admin.id });
+
+  await writeAudit({
+    actor: admin,
+    targetUserId: session.user.id,
+    targetEmail,
+    action: "stop_impersonation",
+  });
+
+  return { adminUserId: admin.id, targetEmail };
+}
 
 /** Promote / demote a user to admin. Self-demotion is allowed but
  *  obviously discouraged — the bootstrap env var is the recovery

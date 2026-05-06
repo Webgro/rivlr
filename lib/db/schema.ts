@@ -88,6 +88,17 @@ export const authSessions = pgTable(
      *  sessions" page in Settings so the user can revoke remotely. */
     ip: text("ip"),
     userAgent: text("user_agent"),
+    /** When set, this session was created by an admin impersonating
+     *  the userId account. Plain user logins leave this null. The
+     *  (app) layout uses presence of this to render the impersonation
+     *  banner; "stop impersonating" destroys this session and starts
+     *  a fresh one for the impersonator. set null on FK retention so
+     *  deleting the admin doesn't cascade-kill running impersonation
+     *  sessions (their target_user_id stays valid). */
+    impersonatorUserId: uuid("impersonator_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
   },
   (t) => [
     index("idx_sessions_user").on(t.userId),
