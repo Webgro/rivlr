@@ -25,7 +25,20 @@ import { probeVariantInventory } from "@/lib/crawler/cart-probe";
  */
 export async function probeInventoryNow(productId: string): Promise<{
   ok: boolean;
+  /** Sum of variants we got an exact reading for. Null only when NO
+   *  variants returned exact data (i.e. all blocked / unbounded /
+   *  unknown). When some-but-not-all variants are exact this is the
+   *  partial sum and `incomplete` is true. */
   totalQuantity: number | null;
+  /** True when at least one variant is blocked / unknown / unbounded —
+   *  the total reflects only the variants we could read. UI shows
+   *  "X+ units" rather than "X units" when this is set. */
+  incomplete: boolean;
+  /** Number of variants we got an exact reading for. Lets the UI say
+   *  "X+ units across 4 of 5 variants". */
+  exactCount: number;
+  /** Total variants probed. */
+  totalCount: number;
   variants: Array<{
     id: string;
     title: string;
@@ -42,6 +55,9 @@ export async function probeInventoryNow(productId: string): Promise<{
     return {
       ok: false,
       totalQuantity: null,
+      incomplete: false,
+      exactCount: 0,
+      totalCount: 0,
       variants: [],
       written: false,
       error: "unauthorized",
@@ -51,6 +67,9 @@ export async function probeInventoryNow(productId: string): Promise<{
     return {
       ok: false,
       totalQuantity: null,
+      incomplete: false,
+      exactCount: 0,
+      totalCount: 0,
       variants: [],
       written: false,
       error: "invalid id",
@@ -71,6 +90,9 @@ export async function probeInventoryNow(productId: string): Promise<{
     return {
       ok: false,
       totalQuantity: null,
+      incomplete: false,
+      exactCount: 0,
+      totalCount: 0,
       variants: [],
       written: false,
       error: "not found",
@@ -87,6 +109,9 @@ export async function probeInventoryNow(productId: string): Promise<{
     return {
       ok: false,
       totalQuantity: null,
+      incomplete: false,
+      exactCount: 0,
+      totalCount: 0,
       variants: [],
       written: false,
       error: "no variants — wait for the next crawl",
@@ -102,8 +127,13 @@ export async function probeInventoryNow(productId: string): Promise<{
     message: string | null;
   }> = [];
 
-  let totalQuantity: number | null = 0;
-  let anyExact = false;
+  // We track three things separately so the summary can say "X+ units
+  // across 4 of 5 variants probed" rather than collapsing to null when
+  // a single variant is blocked.
+  let exactSum = 0; // running total for variants we have exact data on
+  let exactCount = 0;
+  let unboundedSeen = false; // any variant has effectively-unlimited stock
+  let blockedOrUnknown = 0;
   let anyAvailable = false;
 
   for (let i = 0; i < variantsToProbe.length; i++) {
@@ -116,17 +146,22 @@ export async function probeInventoryNow(productId: string): Promise<{
     );
     let q: number | null = null;
     if (probe.kind === "exact") {
-      anyExact = true;
+      exactCount++;
+      exactSum += probe.quantity;
       q = probe.quantity;
       anyAvailable = anyAvailable || probe.quantity > 0;
-      if (totalQuantity !== null) totalQuantity += probe.quantity;
     } else if (probe.kind === "soldout") {
+      // Sold-out is a known reading: contributes 0 to the sum but
+      // doesn't invalidate the total. Counted as exact for UI purposes.
+      exactCount++;
       q = 0;
     } else if (probe.kind === "unbounded") {
+      // Variant has no cart-add limit — true total is meaningless.
       anyAvailable = true;
-      totalQuantity = null;
+      unboundedSeen = true;
     } else {
-      totalQuantity = null;
+      // blocked / unknown — we don't have data on this variant.
+      blockedOrUnknown++;
     }
     results.push({
       id: String(v.id),
@@ -138,8 +173,18 @@ export async function probeInventoryNow(productId: string): Promise<{
     });
   }
 
+  // Final reporting:
+  //   - Any unbounded → totalQuantity = null (no meaningful sum).
+  //   - Otherwise → exactSum if we got at least one exact reading,
+  //     else null.
+  //   - incomplete = some variants weren't readable, so the sum is a
+  //     lower bound rather than a true total.
+  const totalQuantity =
+    unboundedSeen || exactCount === 0 ? null : exactSum;
+  const incomplete = blockedOrUnknown > 0 || unboundedSeen;
+
   let written = false;
-  if (anyExact || totalQuantity !== null) {
+  if (totalQuantity !== null || anyAvailable) {
     await db.insert(schema.stockObservations).values({
       productId: product.id,
       available: anyAvailable || (totalQuantity !== null && totalQuantity > 0),
@@ -162,7 +207,10 @@ export async function probeInventoryNow(productId: string): Promise<{
 
   return {
     ok: true,
-    totalQuantity: anyExact ? totalQuantity : null,
+    totalQuantity,
+    incomplete,
+    exactCount,
+    totalCount: variantsToProbe.length,
     variants: results,
     written,
   };

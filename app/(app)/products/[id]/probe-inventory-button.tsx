@@ -61,6 +61,24 @@ function ProbeResultPanel({ result }: { result: Result }) {
     );
   }
 
+  // Three reporting states:
+  //   1. exactCount === 0 → couldn't read any variant.
+  //   2. exactCount === totalCount → clean total.
+  //   3. exactCount < totalCount → partial total (incomplete).
+  const headline =
+    result.exactCount === 0
+      ? "Exact inventory not retrievable"
+      : result.exactCount === result.totalCount
+        ? `${result.totalQuantity} units (probed across ${result.totalCount} variant${result.totalCount === 1 ? "" : "s"})`
+        : `${result.totalQuantity}+ units (read ${result.exactCount} of ${result.totalCount} variants)`;
+
+  const subline =
+    result.exactCount === 0
+      ? "Shopify either rejected the probe (rate-limited / blocked), allowed an unbounded oversell, or returned a phrasing we don't parse yet. Per-variant detail below."
+      : result.exactCount < result.totalCount
+        ? "We couldn't read every variant — the rest were blocked or returned an unbounded response. The number above is a lower bound."
+        : null;
+
   return (
     <div className="mt-3 rounded-lg border border-default bg-elevated p-4 text-sm">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -68,16 +86,10 @@ function ProbeResultPanel({ result }: { result: Result }) {
           <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-mono">
             Probe result
           </div>
-          <div className="mt-1 text-base font-semibold">
-            {result.totalQuantity !== null
-              ? `${result.totalQuantity} units (probed across ${result.variants.length} variant${result.variants.length === 1 ? "" : "s"})`
-              : "Exact inventory not retrievable"}
-          </div>
-          {result.totalQuantity === null && (
+          <div className="mt-1 text-base font-semibold">{headline}</div>
+          {subline && (
             <div className="mt-1 text-xs text-muted leading-relaxed">
-              Shopify accepted the high-quantity probe (oversell-allowed
-              variant) or returned a phrasing we don&apos;t parse yet.
-              Per-variant detail below.
+              {subline}
             </div>
           )}
         </div>
