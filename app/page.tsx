@@ -374,6 +374,17 @@ export default async function MarketingPage() {
         >
           <TagsMockup />
         </FeatureRow>
+
+        <FeatureRow
+          num="06"
+          eyebrow="Team access"
+          title="Bring the team."
+          italic="One workspace."
+          body="Invite up to 10 staff or partners. Each gets their own magic-link sign-in into the same workspace — same products, same alerts, same data. No per-seat fees; authorised emails are included on every paid plan."
+          reverse
+        >
+          <TeamMockup />
+        </FeatureRow>
       </section>
 
       <DotDivider />
@@ -486,23 +497,55 @@ export default async function MarketingPage() {
             features={[
               "400 tracked products",
               "Hourly crawls",
-              "Email alerts",
+              "Compare + multi-market",
+              "Email alerts + weekly digest",
               "Forever history",
-              "Variant tracking",
               "Priority support",
+              "+100 products = £15/mo (overage packs)",
             ]}
             cta="Try for free"
             href="/signup?source=pricing-pro"
           />
         </div>
-        <div className="mt-10 text-center text-sm text-neutral-400">
-          Tracking 500+ products?{" "}
-          <a
+        <div className="mt-10 text-center text-sm text-neutral-400 max-w-2xl mx-auto leading-relaxed">
+          Need more than 400 products? Pro lets you stack overage packs
+          inside the app — £15 per 100 extra, monthly, up to 5,000 total.
+          Beyond that, <a
             href="mailto:support@rivlr.app?subject=Rivlr%20Custom%20plan"
             className="underline underline-offset-4 hover:text-paper"
           >
-            Talk to us →
-          </a>
+            talk to us
+          </a> and we&apos;ll build a custom tier.
+        </div>
+      </section>
+
+      {/* Trust signals — fast row of "you can rely on this" facts after
+          pricing, before FAQ. Positioned at the moment of evaluation
+          when buyers ask "is this safe to use?". */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-8">
+        <div className="rounded-xl border border-neutral-800/80 bg-[#0d0d0d] px-6 py-5">
+          <div className="grid gap-y-4 gap-x-8 grid-cols-2 md:grid-cols-4 text-sm">
+            <TrustSignal
+              icon={<ShieldIcon />}
+              title="Stripe-hosted billing"
+              body="Card details never touch our servers. PCI handled by Stripe."
+            />
+            <TrustSignal
+              icon={<KeyIcon />}
+              title="Magic-link auth"
+              body="No passwords to leak. 30-day rolling sessions, server-revocable."
+            />
+            <TrustSignal
+              icon={<DataIcon />}
+              title="GDPR-clean"
+              body="Right-to-be-forgotten built in: delete your account, all data gone."
+            />
+            <TrustSignal
+              icon={<BotIcon />}
+              title="Polite crawler"
+              body="Public Shopify endpoints only. Respect rate limits, identify ourselves."
+            />
+          </div>
         </div>
       </section>
 
@@ -541,9 +584,33 @@ export default async function MarketingPage() {
             per day.
           </Faq>
           <Faq q="Can my team use it?">
-            Multi-user accounts are coming in the next release. Sign up to
-            the waitlist and you&apos;ll get early access plus invitation
-            tokens for teammates when launched.
+            Yes. Invite up to 10 additional emails per account, each with
+            their own magic-link sign-in into the same workspace —
+            same products, same alerts, same data. No seat fees;
+            authorised inboxes are included on every paid plan.
+            Set up under <em>Profile → Team access</em>.
+          </Faq>
+          <Faq q="What if I want to track more than 400 products?">
+            On Pro you can stack overage packs in-app — each pack adds
+            100 products to your tracking limit for £15/month, billed
+            prorated to the rest of your current cycle. Stack up to 50
+            packs (5,000 effective products). Beyond that we&apos;ll
+            build you a custom tier.
+          </Faq>
+          <Faq q="How does billing work?">
+            Card on file, monthly billing via Stripe. Switch tiers in-app
+            and we prorate immediately. Cancel anytime; access continues
+            until the end of the period you&apos;ve already paid for.
+            Card details never touch our servers — Stripe&apos;s hosted
+            portal handles updates and invoice history.
+          </Faq>
+          <Faq q="What happens to my data if I cancel?">
+            Your account drops to Free (5-product limit). Tracked
+            products beyond that are paused — they stay on your account
+            and resume tracking the moment you upgrade. From the
+            Profile page you can also fully delete your account; that
+            cascades through every product, observation, and team-access
+            email and removes your Stripe customer record. No undo.
           </Faq>
         </div>
       </section>
@@ -1113,6 +1180,127 @@ function TagsMockup() {
             <div className="text-[9px] text-neutral-500 font-mono truncate">product</div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function TrustSignal({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="mt-0.5 flex-shrink-0 rounded-md border border-neutral-800 bg-[#141414] p-2 text-signal">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <div className="text-paper font-medium tracking-tight">{title}</div>
+        <div className="mt-0.5 text-xs text-neutral-400 leading-relaxed">
+          {body}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2 L19 5 V12 a7 7 0 0 1 -14 0 V5 z" />
+      <path d="M9 12 l2 2 l4 -4" />
+    </svg>
+  );
+}
+function KeyIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7.5" cy="15.5" r="3.5" />
+      <path d="M10 13 L21 2" />
+      <path d="M16 7 l3 3 M14 9 l3 3" />
+    </svg>
+  );
+}
+function DataIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="8" ry="3" />
+      <path d="M4 5 v6 c0 1.66 3.58 3 8 3 s8 -1.34 8 -3 V5" />
+      <path d="M4 11 v6 c0 1.66 3.58 3 8 3 s8 -1.34 8 -3 v-6" />
+    </svg>
+  );
+}
+function BotIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="8" width="16" height="12" rx="2" />
+      <path d="M12 2 v6 M9 5 h6" />
+      <circle cx="9" cy="14" r="1" fill="currentColor" />
+      <circle cx="15" cy="14" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TeamMockup() {
+  const members = [
+    { email: "you@yourstore.com", primary: true, last: "now" },
+    { email: "sarah@yourstore.com", primary: false, last: "2h ago" },
+    { email: "ops@partner.com", primary: false, last: "yesterday" },
+    { email: "intern@yourstore.com", primary: false, last: "Invite pending" },
+  ];
+  return (
+    <div className="rounded-xl border border-neutral-800 bg-[#0a0a0a] p-5 shadow-xl">
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
+          Team access
+        </div>
+        <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
+          {members.length}/10 emails
+        </span>
+      </div>
+      <ul className="mt-4 space-y-2">
+        {members.map((m) => (
+          <li
+            key={m.email}
+            className="flex items-center justify-between rounded-md border border-neutral-800 bg-[#141414] px-3 py-2"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-mono text-paper truncate">
+                  {m.email}
+                </span>
+                {m.primary && (
+                  <span className="rounded bg-signal/20 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-signal font-mono">
+                    primary
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-neutral-500 font-mono mt-0.5 uppercase tracking-[0.15em]">
+                {m.primary
+                  ? "—"
+                  : m.last === "Invite pending"
+                    ? "Invite pending"
+                    : `Last seen ${m.last}`}
+              </div>
+            </div>
+            {!m.primary && (
+              <span className="text-[10px] text-neutral-600">···</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex items-center gap-2">
+        <span className="flex-1 rounded-md border border-neutral-800 bg-[#141414] px-2.5 py-1.5 text-[11px] text-neutral-500 font-mono">
+          new@example.com
+        </span>
+        <span className="rounded-md bg-paper/90 px-3 py-1.5 text-[11px] font-medium text-ink">
+          Invite
+        </span>
       </div>
     </div>
   );
