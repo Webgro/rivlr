@@ -50,7 +50,7 @@ export const users = pgTable(
      *  bespoke enterprise deals, or fixing post-Stripe-incident drift.
      *  NULL = fall through to subscription-based resolution. */
     compPlan: text("comp_plan", {
-      enum: ["free", "starter", "growth", "pro", "owner"],
+      enum: ["free", "starter", "growth", "pro", "owner", "unlimited"],
     }),
     /** Free-text rationale shown alongside the comp in /admin and the
      *  audit log. Required when compPlan is set; nulled when removed. */

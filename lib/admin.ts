@@ -38,7 +38,13 @@ export async function writeAudit(opts: AuditWriteOpts): Promise<void> {
 
 /* ─── Comp plan management ────────────────────────────────────────── */
 
-export type CompPlan = "free" | "starter" | "growth" | "pro" | "owner";
+export type CompPlan =
+  | "free"
+  | "starter"
+  | "growth"
+  | "pro"
+  | "owner"
+  | "unlimited";
 
 /**
  * Set a user's comp_plan override. Plan resolver returns this value

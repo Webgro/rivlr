@@ -128,7 +128,9 @@ export default async function BillingPage({
           /api/billing/* routes. */}
       <Banners params={params} />
 
-      {/* Owner override — gives the founder account a clear "you don't pay" cue. */}
+      {/* Owner / unlimited override — bypasses billing & caps. Owner is
+          the founder account; unlimited is reserved for soft-launch /
+          beta testers comped by an admin. */}
       {plan === "owner" && (
         <div className="mt-6 rounded-lg border border-default bg-elevated px-5 py-4 text-sm">
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
@@ -137,6 +139,20 @@ export default async function BillingPage({
           <div className="mt-1.5 font-medium">Billing is bypassed for this account.</div>
           <p className="mt-1 text-xs text-muted">
             You have unrestricted access regardless of subscription state.
+          </p>
+        </div>
+      )}
+      {plan === "unlimited" && (
+        <div className="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/[0.04] px-5 py-4 text-sm">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-amber-500 font-mono">
+            Unlimited access (beta)
+          </div>
+          <div className="mt-1.5 font-medium">
+            You&apos;ve been comped to the unlimited tier.
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            No product limit, hourly cadence, every feature unlocked. This is
+            a soft-launch comp — billing kicks in if it&apos;s removed.
           </p>
         </div>
       )}
@@ -152,7 +168,7 @@ export default async function BillingPage({
           customers. Houses the plan badge, status pill, period info,
           card display, and account actions (update card, invoices,
           cancel / resume). */}
-      {hasSubscription && plan !== "owner" && subscription && (
+      {hasSubscription && (plan !== "owner" && plan !== "unlimited") && subscription && (
         <SubscriptionSummary
           plan={plan}
           status={subscription.status}
@@ -184,7 +200,7 @@ export default async function BillingPage({
 
       {/* Quota indicator — usable as upgrade prompt regardless of
           subscription state. Hidden for owner (unlimited). */}
-      {plan !== "owner" && <QuotaBar quota={quota} className="mt-6" />}
+      {(plan !== "owner" && plan !== "unlimited") && <QuotaBar quota={quota} className="mt-6" />}
 
       {/* Plan grid */}
       <section className="mt-8">
@@ -501,7 +517,7 @@ function PlanCardComponent({
   cancelAtPeriodEnd: boolean;
 }) {
   const isCurrent = currentPlan === card.id;
-  const isOwner = currentPlan === "owner";
+  const isOwner = currentPlan === "owner" || currentPlan === "unlimited";
   const isPaid = card.id !== "free";
 
   // Downgrade pre-flight: would the user's current product count fit?

@@ -21,7 +21,13 @@ import { PRODUCTS_PER_OVERAGE_PACK } from "@/lib/stripe";
  * state to reason about.
  */
 
-export type Plan = "free" | "starter" | "growth" | "pro" | "owner";
+export type Plan =
+  | "free"
+  | "starter"
+  | "growth"
+  | "pro"
+  | "owner"
+  | "unlimited";
 export type Cadence = "daily" | "every-6h" | "hourly";
 
 interface PlanFeatures {
@@ -91,6 +97,17 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     cadence: "hourly",
   },
   owner: {
+    discoverVisible: Infinity,
+    compare: true,
+    productLimit: null,
+    maxCadence: "hourly",
+    cadence: "hourly",
+  },
+  // Soft-launch / beta tester tier. Same caps as owner (i.e. none) but a
+  // distinct identity so the audit log + UI can tell "we comped this
+  // tester" apart from "this is the founder account". Only reachable via
+  // an admin comp_plan override; never resolved from a Stripe subscription.
+  unlimited: {
     discoverVisible: Infinity,
     compare: true,
     productLimit: null,

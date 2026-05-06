@@ -4,7 +4,14 @@ import { useState, useTransition } from "react";
 import { applyCompPlan, removeCompPlan } from "./actions";
 import type { CompPlan } from "@/lib/admin";
 
-const PLANS: CompPlan[] = ["free", "starter", "growth", "pro", "owner"];
+const PLANS: CompPlan[] = [
+  "free",
+  "starter",
+  "growth",
+  "pro",
+  "owner",
+  "unlimited",
+];
 
 /**
  * Simple inline form for applying or clearing a comp plan. Reason is

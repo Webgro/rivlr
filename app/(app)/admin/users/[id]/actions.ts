@@ -28,6 +28,7 @@ const VALID_COMPS: CompPlan[] = [
   "growth",
   "pro",
   "owner",
+  "unlimited",
 ];
 
 export async function applyCompPlan(formData: FormData) {
