@@ -42,9 +42,12 @@ import { CADENCE_COOLDOWN_MS, type Cadence } from "@/lib/plan";
 
 // Tuned for Vercel Pro (300s function budget, more concurrent invocations).
 // 20 parallel batches × 10 products = 200 products per dispatch invocation.
-// Combined with the every-10-min cron in vercel.json, that's ~57k crawls/day
-// of capacity — comfortably above an hourly cadence on a few thousand
-// products.
+// Combined with the hourly cron in vercel.json, that's ~4,800 crawls/day of
+// capacity — fine for hourly cadence on any plan tier we sell. The cron used
+// to fire every 10 min but that kept the Neon compute permanently warm and
+// blew our CU-hour budget; hourly lets it suspend between runs. New product
+// adds bypass the cron entirely (addProducts calls dispatchCrawl in after()),
+// so latency on first crawl is unaffected.
 const BATCH_SIZE = 10;
 const PARALLEL_BATCHES = 20;
 const MAX_PRODUCTS_PER_DISPATCH = BATCH_SIZE * PARALLEL_BATCHES;
