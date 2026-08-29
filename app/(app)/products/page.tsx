@@ -379,7 +379,7 @@ export default async function DashboardPage(props: {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Competitors
+            Watchlist
           </h1>
           <p className="mt-1 text-sm text-muted">
             {dbError

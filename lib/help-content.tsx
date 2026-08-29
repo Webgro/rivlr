@@ -36,7 +36,7 @@ export const HELP_CONTENT: Record<string, () => React.ReactNode> = {
       <h2>Three minutes to your first tracked product</h2>
       <ol>
         <li>
-          Click <strong>Products</strong> in the sidebar, then{" "}
+          Click <strong>Watchlist</strong> in the sidebar, then{" "}
           <strong>+ Add products</strong>.
         </li>
         <li>
@@ -238,7 +238,7 @@ https://store-c.com/products/another-widget`}
       <p>
         A chronological feed of stock-changes and price-changes from the
         last 7 days. For the full feed with filters, click{" "}
-        <strong>Activity</strong> in the sidebar.
+        <strong>View all</strong> above the Recent activity list on the dashboard.
       </p>
 
       <h2>Stale-crawl banner</h2>
@@ -264,7 +264,7 @@ https://store-c.com/products/another-widget`}
 
       <h2>Creating a tag</h2>
       <p>
-        Click <strong>Tags</strong> in the sidebar, then enter a name and
+        Open your <strong>Watchlist</strong>, click <strong>Manage tags</strong> beside the tag filter, then enter a name and
         pick from the eight available colours. Tags are global. anyone on
         your team will see and use the same set.
       </p>
@@ -319,8 +319,7 @@ https://store-c.com/products/another-widget`}
       <h2>Suggested links</h2>
       <p>
         Rivlr automatically scans for products with similar titles across
-        different stores and surfaces them in <strong>Suggestions</strong>{" "}
-        in the sidebar. Click <strong>Link</strong> to accept or{" "}
+        different stores and surfaces them under <strong>Suggested links</strong>, reachable from the pending-suggestions card on your dashboard. Click <strong>Link</strong> to accept or{" "}
         <strong>Dismiss</strong> to suppress.
       </p>
 

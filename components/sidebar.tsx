@@ -33,7 +33,7 @@ interface NavItem {
 const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
-  { href: "/products", label: "Competitors", Icon: ProductsIcon },
+  { href: "/products", label: "Watchlist", Icon: ProductsIcon },
   { href: "/my-products", label: "My products", Icon: MyProductsIcon },
   { href: "/discover", label: "Discover", Icon: DiscoverIcon },
   { href: "/stores", label: "Stores", Icon: StoresIcon },
