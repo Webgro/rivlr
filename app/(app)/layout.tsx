@@ -5,6 +5,7 @@ import { CookieBanner } from "@/components/cookie-banner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { isAdminUser } from "@/lib/auth/current-user";
 import { getSession } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 
 /**
  * Layout for everything behind the password gate. Login lives outside this
@@ -33,6 +34,17 @@ export default async function AppLayout({
   const user = session?.user ?? null;
   const impersonator = session?.impersonator ?? null;
   const isAdmin = !!user && isAdminUser(user);
+
+  // A brand-new account has nothing to show — no store, no competitors,
+  // no products — so every page in here would render an empty state.
+  // Guided setup gets them to something worth looking at first, and
+  // sets onboardedAt on the way out (or when skipped), so this fires
+  // once per account and never again. Impersonated sessions are exempt:
+  // an admin dropping into an account to help should land where the
+  // user is, not be handed their setup wizard.
+  if (user && !user.onboardedAt && !impersonator) {
+    redirect("/welcome");
+  }
 
   return (
     <div className="min-h-screen bg-surface text-foreground">

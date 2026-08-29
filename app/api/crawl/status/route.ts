@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db, schema } from "@/lib/db";
-import { sql, isNull, eq, and } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
@@ -31,15 +31,22 @@ export async function GET() {
     WHERE scheduled_for >= NOW() - INTERVAL '1 hour'
   `);
 
-  const [pendingFirstCrawl] = await db
-    .select({ count: sql<number>`COUNT(*)::int` })
-    .from(schema.trackedProducts)
-    .where(
-      and(
-        isNull(schema.trackedProducts.lastCrawledAt),
-        eq(schema.trackedProducts.userId, user.id),
-      ),
-    );
+  // Own-store products are refreshed in bulk, never crawled one by one,
+  // so their last_crawled_at stays null for good. Counting them here
+  // would park the progress widget on "552 waiting" permanently.
+  const [pendingFirstCrawl] = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count
+    FROM tracked_products tp
+    WHERE tp.user_id = ${user.id}::uuid
+      AND tp.last_crawled_at IS NULL
+      AND tp.active = true
+      AND NOT EXISTS (
+        SELECT 1 FROM user_store_prefs usp
+        WHERE usp.user_id = tp.user_id
+          AND usp.domain = tp.store_domain
+          AND usp.is_my_store = true
+      )
+  `);
 
   const c = counts[0] ?? { pending: 0, running: 0, ok: 0, failed: 0 };
   return NextResponse.json({

@@ -8,10 +8,8 @@ import { eq, and, sql, inArray, ne } from "drizzle-orm";
 import { requireUser } from "@/lib/auth/current-user";
 import { scanBestsellerCollections, scanStoreNow } from "@/lib/crawler/store-scan";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
-import {
-  fetchShopifyCollection,
-  inferMarketFromDomain,
-} from "@/lib/crawler/shopify";
+import { inferMarketFromDomain } from "@/lib/crawler/shopify";
+import { importOwnStoreCatalogue } from "@/lib/catalogue-import";
 
 /**
  * Per-user store actions. Per-user attributes (is_my_store, auto_track_new)
@@ -240,47 +238,6 @@ export async function bulkTrackStoreDiscoveries(formData: FormData) {
  * for the given user. Called from markStoreAsMine so the user's catalogue
  * is in /my-products within seconds of marking. Capped at 5,000 products.
  */
-async function importOwnStoreCatalogue(userId: string, domain: string) {
-  const products = await fetchShopifyCollection(domain, "all", {
-    maxProducts: 5000,
-  });
-  if (products.length === 0) return;
-
-  const market = inferMarketFromDomain(domain);
-
-  const chunkSize = 500;
-  for (let i = 0; i < products.length; i += chunkSize) {
-    const slice = products.slice(i, i + chunkSize);
-    await db
-      .insert(schema.trackedProducts)
-      .values(
-        slice.map((p) => ({
-          userId,
-          skus: p.skus,
-          latestPrice: p.price !== null ? p.price.toFixed(2) : null,
-          latestAvailable: p.available,
-          latestObservedAt: new Date(),
-          url: `https://${domain}/products/${p.handle}`,
-          handle: p.handle,
-          storeDomain: domain,
-          title: p.title,
-          imageUrl: p.imageUrl,
-          currency: market.currency,
-          marketCountry: market.country,
-          marketCurrency: market.currency,
-        })),
-      )
-      .onConflictDoNothing();
-  }
-
-  await db.execute(sql`
-    DELETE FROM discovered_products
-    WHERE user_id = ${userId}::uuid
-      AND store_domain = ${domain}
-      AND status = 'new'
-  `);
-}
-
 /**
  * Add a store to the user's store list without first tracking a
  * product. Use cases:

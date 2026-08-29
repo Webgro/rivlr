@@ -1,5 +1,5 @@
 import { db, schema } from "@/lib/db";
-import { eq, isNull, lt, or, and, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import {
   fetchShopifyProduct,
   fetchShopifyCurrency,
@@ -12,6 +12,7 @@ import {
   type ShopifyProduct,
 } from "./shopify";
 import { sendAlertsForChange } from "./alerts";
+import { importOwnStoreCatalogue } from "@/lib/catalogue-import";
 
 /**
  * 24h cooldown for the richer-but-less-time-sensitive endpoints (meta JSON
@@ -74,6 +75,53 @@ interface DispatchResult {
   failed: number;
 }
 
+/**
+ * Re-read each user's own catalogue in bulk.
+ *
+ * Own-store products are deliberately not in the per-product crawl
+ * rotation, so this is what keeps the user's own side of every price
+ * comparison current. One paginated request per 250 products replaces
+ * one request per product: a 3,000-SKU store costs about twelve
+ * requests here against three thousand there.
+ *
+ * Staleness is judged per user against their plan's cadence, using the
+ * freshest reading currently held for the store, so a daily-cadence
+ * account is refreshed daily rather than on every hourly dispatch.
+ */
+async function refreshOwnStores(now: Date, force: boolean): Promise<number> {
+  const stores = await db.execute<{
+    user_id: string;
+    domain: string;
+    freshest: string | null;
+  }>(sql`
+    SELECT usp.user_id, usp.domain, MAX(tp.latest_observed_at)::text AS freshest
+    FROM user_store_prefs usp
+    JOIN tracked_products tp
+      ON tp.user_id = usp.user_id
+     AND tp.store_domain = usp.domain
+     AND tp.active = true
+    WHERE usp.is_my_store = true
+    GROUP BY usp.user_id, usp.domain
+  `);
+
+  let refreshed = 0;
+  for (const store of stores) {
+    const plan = await getPlanForUser(store.user_id);
+    const cadence: Cadence = PLAN_FEATURES[plan].cadence;
+    const cutoff = new Date(now.getTime() - CADENCE_COOLDOWN_MS[cadence]);
+    const freshest = store.freshest ? new Date(store.freshest) : null;
+    if (!force && freshest && freshest > cutoff) continue;
+    try {
+      await importOwnStoreCatalogue(store.user_id, store.domain);
+      refreshed += 1;
+    } catch {
+      // A merchant who has closed their storefront or gone
+      // password-protected shouldn't stop competitor crawling.
+    }
+  }
+  return refreshed;
+}
+
 export async function dispatchCrawl(opts: {
   force?: boolean;
 }): Promise<DispatchResult> {
@@ -85,6 +133,8 @@ export async function dispatchCrawl(opts: {
   // owner's plan once, then pick up their due products against their
   // own cooldown. This also fixes a multi-tenant bug where a single
   // global settings row dictated everyone's cadence.
+  await refreshOwnStores(now, force);
+
   const ownerRows = await db.execute<{ user_id: string }>(sql`
     SELECT DISTINCT user_id FROM tracked_products WHERE active = true
   `);
@@ -94,26 +144,29 @@ export async function dispatchCrawl(opts: {
     const plan = await getPlanForUser(owner.user_id);
     const cadence: Cadence = PLAN_FEATURES[plan].cadence;
     const cutoff = new Date(now.getTime() - CADENCE_COOLDOWN_MS[cadence]);
-    const rows = await db
-      .select({ id: schema.trackedProducts.id })
-      .from(schema.trackedProducts)
-      .where(
-        force
-          ? and(
-              eq(schema.trackedProducts.active, true),
-              eq(schema.trackedProducts.userId, owner.user_id),
-            )
-          : and(
-              eq(schema.trackedProducts.active, true),
-              eq(schema.trackedProducts.userId, owner.user_id),
-              or(
-                isNull(schema.trackedProducts.lastCrawledAt),
-                lt(schema.trackedProducts.lastCrawledAt, cutoff),
-              ),
-            ),
-      )
-      .limit(MAX_PRODUCTS_PER_DISPATCH - due.length);
-    due.push(...rows);
+    // The user's own store is excluded here and refreshed in bulk
+    // instead (refreshOwnStoreCatalogues below). Its products are
+    // reference prices, and fetching them one URL at a time costs one
+    // request each where the catalogue endpoint returns 250 at a time —
+    // a 3,000-SKU merchant would otherwise consume ~7 hours of the
+    // crawl budget per cycle to re-read prices we can get in twelve
+    // requests.
+    const rows = await db.execute<{ id: string }>(sql`
+      SELECT tp.id
+      FROM tracked_products tp
+      WHERE tp.user_id = ${owner.user_id}::uuid
+        AND tp.active = true
+        AND NOT EXISTS (
+          SELECT 1 FROM user_store_prefs usp
+          WHERE usp.user_id = tp.user_id
+            AND usp.domain = tp.store_domain
+            AND usp.is_my_store = true
+        )
+        ${force ? sql`` : sql`
+        AND (tp.last_crawled_at IS NULL OR tp.last_crawled_at < ${cutoff})`}
+      LIMIT ${MAX_PRODUCTS_PER_DISPATCH - due.length}
+    `);
+    due.push(...Array.from(rows));
   }
 
   if (due.length === 0) {

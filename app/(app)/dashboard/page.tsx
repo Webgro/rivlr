@@ -69,16 +69,31 @@ async function getOverviewData(userId: string) {
   // INSIDE the CTEs — previously several of them scanned the whole
   // observations table (every user, sometimes all time) and filtered
   // at the end, which is what made the dashboard take multiple seconds.
+  // These headline figures describe what the user is WATCHING, so the
+  // user's own catalogue is excluded from all three. It is imported
+  // wholesale to power matching, and counting it turned "Tracking 5
+  // products" into "Tracking 552 products" directly above a plan meter
+  // reading 5 of 5.
+  const notMyStore = sql`
+    NOT EXISTS (
+      SELECT 1 FROM user_store_prefs usp
+      WHERE usp.user_id = tp.user_id
+        AND usp.domain = tp.store_domain
+        AND usp.is_my_store = true
+    )`;
   const summaryQuery = db.execute<SummaryRow>(sql`
     SELECT
-      (SELECT COUNT(*)::int FROM tracked_products
-        WHERE user_id = ${userId}::uuid AND active = true) AS total_active,
-      (SELECT COUNT(DISTINCT store_domain)::int FROM tracked_products
-        WHERE user_id = ${userId}::uuid AND active = true) AS total_stores,
-      (SELECT COUNT(*)::int FROM tracked_products
-        WHERE user_id = ${userId}::uuid
-          AND active = true
-          AND latest_available = false) AS currently_oos,
+      (SELECT COUNT(*)::int FROM tracked_products tp
+        WHERE tp.user_id = ${userId}::uuid AND tp.active = true
+          AND ${notMyStore}) AS total_active,
+      (SELECT COUNT(DISTINCT tp.store_domain)::int FROM tracked_products tp
+        WHERE tp.user_id = ${userId}::uuid AND tp.active = true
+          AND ${notMyStore}) AS total_stores,
+      (SELECT COUNT(*)::int FROM tracked_products tp
+        WHERE tp.user_id = ${userId}::uuid
+          AND tp.active = true
+          AND ${notMyStore}
+          AND tp.latest_available = false) AS currently_oos,
       (SELECT COUNT(*)::int FROM alert_log al
         JOIN tracked_products tp ON tp.id = al.product_id AND tp.user_id = ${userId}::uuid
         WHERE al.sent_at >= NOW() - INTERVAL '7 days') AS total_alerts_7d
@@ -370,8 +385,9 @@ export default async function DashboardPage() {
         <div className="mt-6 flex items-center justify-between gap-3 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
           <div>
             <span className="text-signal font-medium">
-              ⚠ {insights.staleCount} products haven&apos;t been checked in the
-              last 2 hours
+              ⚠ {insights.staleCount} product
+              {insights.staleCount === 1 ? " hasn't" : "s haven't"} been checked
+              in the last {insights.staleThresholdHours} hours
             </span>
             <div className="text-xs text-muted mt-0.5">
               Checks are running behind. Click <strong>Check now</strong> on the

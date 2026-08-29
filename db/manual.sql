@@ -37,3 +37,14 @@ CREATE INDEX IF NOT EXISTS idx_tracked_barcodes
   ON tracked_products USING gin (barcodes);
 CREATE INDEX IF NOT EXISTS idx_discovered_skus
   ON discovered_products USING gin (skus);
+
+-- user_store_prefs (user_id, domain) must be UNIQUE, not merely indexed.
+--
+-- It was created as a plain btree despite the name, which meant
+-- `ON CONFLICT (user_id, domain)` had no unique index to match and
+-- failed outright ("no unique or exclusion constraint matching the ON
+-- CONFLICT specification"), and nothing stopped duplicate pref rows
+-- from being written in the first place.
+DROP INDEX IF EXISTS idx_usp_user_domain_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usp_user_domain_unique
+  ON user_store_prefs (user_id, domain);

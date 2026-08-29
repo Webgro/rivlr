@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { getPlanForUser, PLAN_FEATURES, CADENCE_COOLDOWN_MS } from "@/lib/plan";
 
 export interface DashboardInsights {
   priceRaisedCount24h: number;
@@ -7,9 +8,15 @@ export interface DashboardInsights {
   newStockOuts24h: number;
   newRestocks24h: number;
   pendingSuggestions: number;
-  /** Active products whose latest crawl is older than 2 hours. Indicator of
-   * crawler health — should be near zero on hourly cadence. */
+  /** Competitor products overdue for a check by a wide margin — an
+   *  indicator of crawler health. Own-store products are excluded:
+   *  they are refreshed in bulk rather than crawled individually, so
+   *  their last_crawled_at never advances and counting them would keep
+   *  this warning permanently lit. */
   staleCount: number;
+  /** Hours behind schedule that staleCount is measured against, derived
+   *  from the user's plan cadence so the copy can state it. */
+  staleThresholdHours: number;
   biggestDrop: {
     productId: string;
     title: string | null;
@@ -35,6 +42,15 @@ export interface DashboardInsights {
 export async function getDashboardInsights(
   userId: string,
 ): Promise<DashboardInsights> {
+  // "Behind schedule" only means anything relative to how often this
+  // user's plan is due a check. A fixed two-hour threshold dated from
+  // when an hourly cadence existed; on today's daily and 6-hourly
+  // cadences it flagged every product on every plan, permanently.
+  // Twice the cadence is late enough to be worth saying.
+  const plan = await getPlanForUser(userId);
+  const staleThresholdHours = Math.round(
+    (CADENCE_COOLDOWN_MS[PLAN_FEATURES[plan].cadence] * 2) / 3_600_000,
+  );
   type R = {
     price_raised_24h: number;
     price_dropped_24h: number;
@@ -97,10 +113,17 @@ export async function getDashboardInsights(
         WHERE sp.prev_avail = false AND sp.new_avail = true) AS new_restocks_24h,
       (SELECT COUNT(*)::int FROM link_suggestions
         WHERE user_id = ${userId}::uuid AND status = 'pending') AS pending_suggestions,
-      (SELECT COUNT(*)::int FROM tracked_products
-       WHERE user_id = ${userId}::uuid
-         AND active = true
-         AND (last_crawled_at IS NULL OR last_crawled_at < NOW() - INTERVAL '2 hours')) AS stale_count
+      (SELECT COUNT(*)::int FROM tracked_products tp
+       WHERE tp.user_id = ${userId}::uuid
+         AND tp.active = true
+         AND NOT EXISTS (
+           SELECT 1 FROM user_store_prefs usp
+           WHERE usp.user_id = tp.user_id
+             AND usp.domain = tp.store_domain
+             AND usp.is_my_store = true
+         )
+         AND (tp.last_crawled_at IS NULL
+              OR tp.last_crawled_at < NOW() - MAKE_INTERVAL(hours => ${staleThresholdHours}))) AS stale_count
   `);
 
   // Biggest movers — pick the single biggest drop and biggest rise in 24h.
@@ -160,6 +183,7 @@ export async function getDashboardInsights(
     newRestocks24h: counts?.new_restocks_24h ?? 0,
     pendingSuggestions: counts?.pending_suggestions ?? 0,
     staleCount: counts?.stale_count ?? 0,
+    staleThresholdHours,
     biggestDrop:
       drops.length > 0
         ? {

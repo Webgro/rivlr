@@ -262,10 +262,29 @@ export async function getEffectiveProductLimit(
 export async function getProductQuota(userId: string): Promise<ProductQuota> {
   const { plan, effectiveLimit } = await getEffectiveProductLimit(userId);
 
+  // Products on the user's OWN store don't count against the plan.
+  //
+  // They are reference data, not the thing being sold: we import the
+  // whole catalogue so competitor products have something to be matched
+  // and compared against. Counting them made the plans unusable by
+  // exactly the merchants they were priced for — a 3,000-SKU shop on
+  // Starter would be 2,950 products over its limit before adding a
+  // single competitor, and guided setup, which imports the catalogue in
+  // its first step, could never reach its own linking step.
+  //
+  // "50 products" on the pricing page therefore means 50 competitor
+  // products watched, which is also how a merchant reads it.
   const [row] = await db.execute<{ n: number }>(sql`
     SELECT COUNT(*)::int AS n
-    FROM tracked_products
-    WHERE user_id = ${userId}::uuid AND active = true
+    FROM tracked_products tp
+    WHERE tp.user_id = ${userId}::uuid
+      AND tp.active = true
+      AND NOT EXISTS (
+        SELECT 1 FROM user_store_prefs usp
+        WHERE usp.user_id = tp.user_id
+          AND usp.domain = tp.store_domain
+          AND usp.is_my_store = true
+      )
   `);
   const current = row?.n ?? 0;
 

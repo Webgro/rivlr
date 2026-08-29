@@ -7,7 +7,9 @@ import {
   integer,
   numeric,
   index,
+  uniqueIndex,
   jsonb,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -468,7 +470,10 @@ export const userStorePrefs = pgTable(
     index("idx_usp_user_my_store").on(t.userId, t.isMyStore),
     // Composite primary key via unique index — Drizzle's pgTable doesn't
     // expose composite PK syntax cleanly, so we add a unique covering both.
-    index("idx_usp_user_domain_unique").on(t.userId, t.domain),
+    // Genuinely unique: ON CONFLICT (user_id, domain) depends on it,
+    // and duplicate pref rows would give a user two conflicting
+    // settings for the same store.
+    uniqueIndex("idx_usp_user_domain_unique").on(t.userId, t.domain),
   ],
 );
 
@@ -836,6 +841,50 @@ export const processedStripeEvents = pgTable(
   (t) => [index("idx_pse_processed_at").on(t.processedAt)],
 );
 
+/**
+ * Progress of the two catalogue imports kicked off during guided setup.
+ *
+ * The imports run in `after()`, so the request that started them has
+ * already returned by the time they do any work — the browser has no
+ * other way to know how far along they are. Storing `expected` up front
+ * (the catalogue count is known from the validation fetch) is what
+ * makes the setup progress bar a real measurement rather than an
+ * animation, which matters because these can run for a minute or more
+ * on a large store and a bar that isn't moving for a real reason is
+ * indistinguishable from one that's stuck.
+ *
+ * One row per (user, kind): re-running setup overwrites rather than
+ * accumulating.
+ */
+export const onboardingJobs = pgTable(
+  "onboarding_jobs",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Which of the two imports this row tracks. */
+    kind: text("kind", { enum: ["mine", "competitor"] }).notNull(),
+    domain: text("domain").notNull(),
+    /** Catalogue size seen during validation. 0 until known. */
+    expected: integer("expected").notNull().default(0),
+    /** Rows written so far, updated per chunk. */
+    imported: integer("imported").notNull().default(0),
+    status: text("status", { enum: ["running", "done", "error"] })
+      .notNull()
+      .default("running"),
+    /** User-facing failure reason, shown on the setup screen. */
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.kind] })],
+);
+
+export type OnboardingJob = typeof onboardingJobs.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuthSession = typeof authSessions.$inferSelect;
