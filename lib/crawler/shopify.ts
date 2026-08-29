@@ -15,6 +15,9 @@ export interface ShopifyVariant {
   price: string | number;
   available: boolean;
   sku: string | null;
+  /** EAN/UPC. Present on the per-product endpoint only, not the
+   *  catalogue listing, so it is a secondary match key. */
+  barcode?: string | null;
   /** Set when the store has Shopify-managed inventory and exposes qty in .js. */
   inventory_quantity?: number;
   inventory_management?: string | null;
@@ -55,6 +58,10 @@ export interface ProductSnapshot {
   quantity: number | null;
   /** HTML description from Shopify, or null if absent. */
   description: string | null;
+  /** Normalised variant SKUs, for cross-store product matching. */
+  skus: string[];
+  /** Normalised variant barcodes (EAN/UPC), same purpose. */
+  barcodes: string[];
 }
 
 export interface ParsedShopifyUrl {
@@ -237,19 +244,47 @@ export async function fetchShopifyProduct(
  *
  * Politeness: 1s delay between page fetches.
  */
+export interface CatalogueProduct {
+  handle: string;
+  title: string;
+  imageUrl: string | null;
+  /** Deduped, upper-cased variant SKUs. Empty when the store leaves
+   *  them blank, which plenty do. */
+  skus: string[];
+  /** Cheapest variant price, or null when the store returns none. */
+  price: number | null;
+  /** True when any variant is purchasable right now. */
+  available: boolean;
+  vendor: string | null;
+  productType: string | null;
+}
+
+/**
+ * Normalise variant SKUs for cross-store comparison: trim, upper-case,
+ * drop blanks and anything too short to be meaningful. Deduped.
+ *
+ * Short values are dropped deliberately. Plenty of stores use "1", "S"
+ * or "OS" as a SKU, and matching on those would join unrelated products
+ * from different retailers.
+ */
+export function normaliseSkus(raw: Array<string | null | undefined>): string[] {
+  const out = new Set<string>();
+  for (const v of raw) {
+    if (typeof v !== "string") continue;
+    const cleaned = v.trim().toUpperCase();
+    if (cleaned.length < 4) continue;
+    out.add(cleaned);
+  }
+  return Array.from(out);
+}
+
 export async function fetchShopifyCollection(
   storeDomain: string,
   handle: string,
   opts: { maxProducts?: number; market?: Market | null } = {},
-): Promise<
-  Array<{ handle: string; title: string; imageUrl: string | null }>
-> {
+): Promise<CatalogueProduct[]> {
   const { maxProducts = 1000, market } = opts;
-  const results: Array<{
-    handle: string;
-    title: string;
-    imageUrl: string | null;
-  }> = [];
+  const results: CatalogueProduct[] = [];
   const PER_PAGE = 250;
   const MAX_PAGES = Math.ceil(maxProducts / PER_PAGE);
   const headers = buildMarketHeaders(market);
@@ -274,17 +309,37 @@ export async function fetchShopifyCollection(
       products: Array<{
         handle: string;
         title: string;
+        vendor?: string | null;
+        product_type?: string | null;
         featured_image?: string | null;
         images?: Array<string | { src?: string }>;
+        variants?: Array<{
+          sku?: string | null;
+          price?: string | number | null;
+          available?: boolean;
+        }>;
       }>;
     };
     if (!data.products || data.products.length === 0) break;
     results.push(
-      ...data.products.map((p) => ({
-        handle: p.handle,
-        title: p.title,
-        imageUrl: pickProductImage(p),
-      })),
+      ...data.products.map((p) => {
+        const variants = p.variants ?? [];
+        // Prices on this endpoint are decimal strings ("16.50"), unlike
+        // the per-product .js endpoint which uses integer pence.
+        const prices = variants
+          .map((v) => (v.price === null || v.price === undefined ? NaN : Number(v.price)))
+          .filter((n) => Number.isFinite(n) && n > 0);
+        return {
+          handle: p.handle,
+          title: p.title,
+          imageUrl: pickProductImage(p),
+          skus: normaliseSkus(variants.map((v) => v.sku)),
+          price: prices.length > 0 ? Math.min(...prices) : null,
+          available: variants.some((v) => v.available === true),
+          vendor: p.vendor ?? null,
+          productType: p.product_type ?? null,
+        };
+      }),
     );
     if (data.products.length < PER_PAGE) break;
     if (results.length >= maxProducts) break;
@@ -341,6 +396,8 @@ export function summariseProduct(product: ShopifyProduct): ProductSnapshot {
     price: product.price,
     available: product.available,
     quantity,
+    skus: normaliseSkus(product.variants.map((v) => v.sku)),
+    barcodes: normaliseSkus(product.variants.map((v) => v.barcode)),
   };
 }
 

@@ -37,6 +37,10 @@ export const users = pgTable(
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     /** Set when the magic-link verify flow completes for the first time. */
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    /** Set when the user finishes (or skips) the guided setup flow.
+     *  NULL means they still get sent to /welcome on sign-in. Stored
+     *  rather than inferred from data so skipping is remembered. */
+    onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     /** Phase 4 — Stripe customer id. NULL until first successful payment. */
     stripeCustomerId: text("stripe_customer_id"),
     /** Superadmin flag. Admins can read all users, override plans,
@@ -311,6 +315,25 @@ export const trackedProducts = pgTable(
      *  is_my_store = true (no point on competitors). Strongest demand
      *  signal we can derive from public data. */
     isBestseller: boolean("is_bestseller").notNull().default(false),
+
+    /** Variant SKUs, deduped and upper-cased. Read from the catalogue
+     *  endpoint (free, whole store at once) and refreshed on each crawl.
+     *  This is the highest-coverage identifier we have for matching the
+     *  same physical product across two retailers: resellers commonly
+     *  carry the manufacturer's SKU verbatim, whereas GTIN is published
+     *  by only a fifth of stores and, in practice, never agrees between
+     *  them. */
+    skus: text("skus")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    /** Variant barcodes (EAN/UPC) from the per-product endpoint. Only
+     *  available once a product is tracked, so it is a secondary match
+     *  key rather than a discovery one. */
+    barcodes: text("barcodes")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
 
     /** Last time we ran the cart-add inventory probe on this product.
      *  Used to gate at most one probe per 24h. */
@@ -895,6 +918,19 @@ export const discoveredProducts = pgTable(
      *  Was unique globally pre-Phase-3; now will be unique per (user, url).
      *  Composite unique added in the Phase 3 commit 2 migration. */
     url: text("url").notNull(),
+    /** Variant SKUs, same normalisation as tracked_products.skus. The
+     *  catalogue endpoint gives us these for free, so a competitor's
+     *  whole range can be matched against the user's own products
+     *  without tracking any of it first. */
+    skus: text("skus")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    /** Cheapest variant price at last catalogue scan. Lets the match
+     *  list show "they sell it at X" before anything is tracked. */
+    price: numeric("price", { precision: 12, scale: 2 }),
+    /** Whether any variant was in stock at last catalogue scan. */
+    available: boolean("available"),
     firstSeen: timestamp("first_seen", { withTimezone: true })
       .notNull()
       .defaultNow(),

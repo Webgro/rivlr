@@ -256,6 +256,10 @@ async function importOwnStoreCatalogue(userId: string, domain: string) {
       .values(
         slice.map((p) => ({
           userId,
+          skus: p.skus,
+          latestPrice: p.price !== null ? p.price.toFixed(2) : null,
+          latestAvailable: p.available,
+          latestObservedAt: new Date(),
           url: `https://${domain}/products/${p.handle}`,
           handle: p.handle,
           storeDomain: domain,

@@ -124,6 +124,10 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
               .values(
                 fresh.map((p) => ({
                   userId,
+                  skus: p.skus,
+                  latestPrice: p.price !== null ? p.price.toFixed(2) : null,
+                  latestAvailable: p.available,
+                  latestObservedAt: new Date(),
                   url: `https://${storeDomain}/products/${p.handle}`,
                   handle: p.handle,
                   storeDomain,
@@ -147,6 +151,9 @@ export async function discoverNewProducts(): Promise<DiscoverResult> {
                   handle: p.handle,
                   title: p.title,
                   imageUrl: p.imageUrl,
+                  skus: p.skus,
+                  price: p.price !== null ? p.price.toFixed(2) : null,
+                  available: p.available,
                   url: `https://${storeDomain}/products/${p.handle}`,
                   status: "new" as const,
                 })),

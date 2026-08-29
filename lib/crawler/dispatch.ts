@@ -316,6 +316,8 @@ async function processBatch(
             compareAtPrice,
             lastCrawledAt: new Date(),
             // Denormalised latest state — what the hot pages read.
+            skus: snapshot.skus,
+            barcodes: snapshot.barcodes,
             latestPrice: penceToDecimal(snapshot.price),
             latestAvailable: snapshot.available,
             latestQuantity: snapshot.quantity,
