@@ -39,7 +39,7 @@ export async function OnboardingChecklist() {
             <h2 className="text-xl font-semibold tracking-tight">
               Getting started
             </h2>
-            <span className="rounded-full bg-surface border border-default px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+            <span className="rounded-full bg-surface border border-default px-2 py-0.5 text-[11px] font-medium text-muted">
               {doneCount} of {steps.length} done
             </span>
           </div>
@@ -120,7 +120,7 @@ export async function OnboardingChecklist() {
                     : "border border-default bg-surface text-foreground hover:border-strong"
                 }`}
               >
-                {step.ctaLabel} →
+                {step.ctaLabel}
               </Link>
             )}
           </li>
@@ -168,7 +168,7 @@ async function loadSteps(userId: string): Promise<Step[]> {
       id: "track",
       title: "Track your first competitor product",
       description:
-        "Paste a Shopify product URL — or a whole collection — and Rivlr starts watching the price and stock for you. Your plan covers a fixed number of competitor products.",
+        "Paste a Shopify product URL, or a whole collection, and Rivlr starts watching the price and stock for you. Your plan covers a fixed number of competitor products.",
       ctaLabel: "Add competitor",
       ctaHref: "/products/new",
       done: !!row?.has_product,
@@ -186,7 +186,7 @@ async function loadSteps(userId: string): Promise<Step[]> {
       id: "link",
       title: "Link your product to a competitor's",
       description:
-        "Tell Rivlr that two products are the same item across different stores. We auto-suggest matches based on barcode, manufacturer code, or title — you just review and confirm.",
+        "Tell Rivlr that two products are the same item across different stores. We auto-suggest matches based on barcode, manufacturer code, or title. You just review and confirm.",
       ctaLabel: "Review suggestions",
       ctaHref: "/products/suggestions",
       done: !!row?.has_link,
@@ -195,7 +195,7 @@ async function loadSteps(userId: string): Promise<Step[]> {
       id: "cadence",
       title: "Pick how often we re-check prices",
       description:
-        "Daily is cheapest, hourly is fastest. Faster cadences are unlocked on higher plans — you can change this anytime from Settings.",
+        "Daily is cheapest, hourly is fastest. Faster cadences are unlocked on higher plans. You can change this anytime from Settings.",
       ctaLabel: "Open settings",
       ctaHref: "/settings#crawling",
       // Ticks once the user has saved any setting at all (proxy for
@@ -206,7 +206,7 @@ async function loadSteps(userId: string): Promise<Step[]> {
       id: "emails",
       title: "Add a notification email (optional)",
       description:
-        "Where should we send price-drop and stock-change alerts when email sending goes live? Pop your address into Settings — alerts queue up the moment we ship the email service.",
+        "Where should we send price-drop and stock-change alerts when email sending goes live? Pop your address into Settings and alerts queue up the moment we ship the email service.",
       ctaLabel: "Open settings",
       ctaHref: "/settings#alerts",
       done: !!row?.has_emails,

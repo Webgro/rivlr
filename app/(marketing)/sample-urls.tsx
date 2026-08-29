@@ -11,7 +11,7 @@ interface Sample {
  * for visitors who don't have a competitor URL in mind right now.
  *
  * Picks three well-known live Shopify stores. If any go offline /
- * change platform we'll need to swap them out — listed in code so it's
+ * change platform we'll need to swap them out - listed in code so it's
  * a one-line edit.
  */
 export function SampleUrls() {

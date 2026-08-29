@@ -114,7 +114,7 @@ export async function probeInventoryNow(productId: string): Promise<{
       totalCount: 0,
       variants: [],
       written: false,
-      error: "no variants — wait for the next crawl",
+      error: "no variants, wait for the next crawl",
     };
   }
 

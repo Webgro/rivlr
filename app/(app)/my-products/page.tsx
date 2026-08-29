@@ -110,7 +110,7 @@ export default async function MyProductsPage() {
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted font-mono">
+          <div className="text-xs font-medium text-muted">
             Your catalogue
           </div>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -163,7 +163,7 @@ export default async function MyProductsPage() {
         </div>
       ) : (
         <div className="mt-10 overflow-hidden rounded-xl border border-default">
-          <div className="grid grid-cols-[28px_28px_minmax(0,2.4fr)_1fr_1fr_1fr_0.8fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+          <div className="grid grid-cols-[28px_28px_minmax(0,2.4fr)_1fr_1fr_1fr_0.8fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[11px] font-medium text-muted">
             <div></div>
             <div></div>
             <div>Product</div>
@@ -302,7 +302,7 @@ function Stat({
         : "text-foreground";
   return (
     <div className="rounded-lg border border-default bg-elevated px-4 py-2.5 min-w-[110px]">
-      <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+      <div className="text-[11px] font-medium text-muted">
         {label}
       </div>
       <div className={`mt-0.5 text-lg font-semibold tracking-tight ${valueClass}`}>
@@ -315,7 +315,7 @@ function Stat({
 function NoStoreFlagged() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted font-mono">
+      <div className="text-xs font-medium text-muted">
         Setup required
       </div>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -332,7 +332,7 @@ function NoStoreFlagged() {
           href="/stores"
           className="rounded-md bg-signal px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600"
         >
-          Choose my store →
+          Choose my store
         </Link>
       </div>
     </div>

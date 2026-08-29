@@ -65,7 +65,7 @@ export function InsightsRow({ insights }: { insights: DashboardInsights }) {
               href="/products/suggestions"
               className="block hover:underline text-foreground"
             >
-              Review pairs →
+              Review pairs
             </Link>
           ) : (
             "none pending"
@@ -87,7 +87,7 @@ function InsightCard({
 }) {
   return (
     <div className="rounded-lg border border-default bg-elevated p-4">
-      <div className="text-[10px] uppercase tracking-wider text-muted font-mono">
+      <div className="text-[11px] font-medium text-muted">
         {eyebrow}
       </div>
       <div className="mt-1 text-2xl font-semibold tracking-tight">

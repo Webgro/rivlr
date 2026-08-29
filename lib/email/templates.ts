@@ -39,7 +39,7 @@ export function stockOutEmail(p: TrackedProduct): Built {
   </td></tr>
 </table>
 <a href="${p.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:500;">View on competitor's site →</a>
-<div style="margin-top:16px;font-size:13px;color:#8a8a8a;line-height:1.6;">This is your moment — hold prices, run a campaign, or order more from your supplier before they restock.</div>`,
+<div style="margin-top:16px;font-size:13px;color:#8a8a8a;line-height:1.6;">This is your moment, hold prices, run a campaign, or order more from your supplier before they restock.</div>`,
     {
       preheader: `${p.title ?? p.handle} is sold out at ${p.storeDomain}`,
     },
@@ -134,7 +134,7 @@ export function daysCoverWarningEmail(
     </table>
   </td></tr>
 </table>
-<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">Hold your prices, time a campaign for when they go dark, or order more from your supplier — this is the playbook.</p>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">Hold your prices, time a campaign for when they go dark, or order more from your supplier, this is the playbook.</p>
 <a href="${p.url}" style="display:inline-block;background:#f5f3ee;color:#0a0a0a;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:500;">View product →</a>`,
     {
       preheader: `${qty} units selling ${dailyRate.toFixed(1)}/day = ${daysCover.toFixed(1)} days left`,
@@ -262,7 +262,7 @@ export function welcomeEmail(opts: { email: string }): Built {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1a1a1a" style="background:#1a1a1a;border-radius:8px;border:1px solid #262626;margin:0 0 20px;">
   <tr><td style="padding:18px;">
     <ul style="margin:0;padding:0 0 0 18px;color:#c0c0c0;font-size:14px;line-height:1.8;">
-      <li>Paste any Shopify product URL — Rivlr starts watching the price &amp; stock</li>
+      <li>Paste any Shopify product URL, Rivlr starts watching the price &amp; stock</li>
       <li>Mark your own store to unlock the <strong style="color:#f5f3ee;">Opportunities</strong> view</li>
       <li>Get email alerts the moment competitors drop a price or run out of stock</li>
       <li>Multi-market price scanning across GB / IE / US / DE and more</li>
@@ -273,12 +273,12 @@ export function welcomeEmail(opts: { email: string }): Built {
 
 <a href="https://rivlr.app/dashboard" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Open dashboard →</a>
 
-<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Stuck or curious? Just reply to this email — a real person reads it.</p>`,
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Stuck or curious? Just reply to this email, a real person reads it.</p>`,
     {
       preheader: "Your Rivlr account is ready. Here's what's inside.",
     },
   );
-  const text = `Welcome to Rivlr.\n\nYou're in. On the dashboard you can:\n- Paste any Shopify product URL to start tracking price & stock\n- Mark your own store to unlock Opportunities\n- Get email alerts on competitor price drops & stockouts\n- Scan multi-market prices (GB/IE/US/DE+)\n- Probe exact inventory even when merchants hide it\n\nDashboard: https://rivlr.app/dashboard\n\nStuck? Reply to this email — a real person reads it.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  const text = `Welcome to Rivlr.\n\nYou're in. On the dashboard you can:\n- Paste any Shopify product URL to start tracking price & stock\n- Mark your own store to unlock Opportunities\n- Get email alerts on competitor price drops & stockouts\n- Scan multi-market prices (GB/IE/US/DE+)\n- Probe exact inventory even when merchants hide it\n\nDashboard: https://rivlr.app/dashboard\n\nStuck? Reply to this email, a real person reads it.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
   return { subject, html, text };
 }
 
@@ -294,8 +294,8 @@ export function teamInviteEmail(opts: {
     `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">You&apos;ve been invited to Rivlr</h1>
 <p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;"><strong style="color:#f5f3ee;">${escape(opts.inviterEmail)}</strong> added <strong style="color:#f5f3ee;">${escape(opts.inviteeEmail)}</strong> to their Rivlr account. You&apos;ll see all the products and stores they track.</p>
 <a href="${opts.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Accept &amp; sign in →</a>
-<p style="margin:20px 0 0;color:#8a8a8a;font-size:13px;line-height:1.6;">No rush — this link works for <strong style="color:#c0c0c0;">${opts.expiresInDays} days</strong>. After that (or any time you prefer), you can also sign in at <a href="https://rivlr.app/login" style="color:#c0c0c0;text-decoration:underline;">rivlr.app/login</a> using <strong style="color:#c0c0c0;">${escape(opts.inviteeEmail)}</strong> — your address is already on the account.</p>
-<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If you weren&apos;t expecting this, ignore the email — clicking is the only way you get added.</p>
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:13px;line-height:1.6;">No rush, this link works for <strong style="color:#c0c0c0;">${opts.expiresInDays} days</strong>. After that (or any time you prefer), you can also sign in at <a href="https://rivlr.app/login" style="color:#c0c0c0;text-decoration:underline;">rivlr.app/login</a> using <strong style="color:#c0c0c0;">${escape(opts.inviteeEmail)}</strong>, your address is already on the account.</p>
+<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If you weren&apos;t expecting this, ignore the email, clicking is the only way you get added.</p>
 <p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If the button doesn&apos;t work, copy and paste:<br>
 <a href="${opts.url}" style="color:#8a8a8a;word-break:break-all;text-decoration:underline;">${opts.url}</a></p>`,
     {
@@ -318,7 +318,7 @@ export function magicLinkEmail(opts: {
 <a href="${opts.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Sign in →</a>
 <p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">If the button doesn&apos;t work, copy and paste this URL:<br>
 <a href="${opts.url}" style="color:#8a8a8a;word-break:break-all;text-decoration:underline;">${opts.url}</a></p>
-<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Didn&apos;t request this? You can ignore this email — no one can sign in without clicking the link.</p>`,
+<p style="margin:16px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">Didn&apos;t request this? You can ignore this email, no one can sign in without clicking the link.</p>`,
     {
       preheader: `Click to sign in. Link expires in ${opts.expiresInMinutes} minutes.`,
     },
@@ -338,6 +338,6 @@ export function testEmail(): Built {
       preheader: "Your Rivlr notification email is working.",
     },
   );
-  const text = `Rivlr — test email\n\nEmail is working. Real alerts will land here as products change.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  const text = `Rivlr, test email\n\nEmail is working. Real alerts will land here as products change.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
   return { subject, html, text };
 }

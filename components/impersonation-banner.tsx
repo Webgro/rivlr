@@ -1,6 +1,6 @@
 /**
  * Persistent banner shown across the entire (app) shell when an admin
- * is signed in as another user via the /admin → "Sign in as" flow.
+ * is signed in as another user via the /admin "Sign in as" flow.
  *
  * Visually unmissable — full-width amber strip pinned to the very top
  * of the layout, above the sidebar header, so the admin never confuses
@@ -39,7 +39,7 @@ export function ImpersonationBanner({
             type="submit"
             className="rounded-md bg-amber-500 text-black px-3 py-1 text-xs font-medium hover:bg-amber-400 transition"
           >
-            Stop impersonating →
+            Stop impersonating
           </button>
         </form>
       </div>

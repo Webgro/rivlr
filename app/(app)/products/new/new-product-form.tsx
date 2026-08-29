@@ -31,7 +31,7 @@ export function NewProductForm({ inPanel }: { inPanel?: boolean }) {
         <div>
           <label
             htmlFor="urls"
-            className="block text-xs uppercase tracking-wider text-muted font-mono"
+            className="block text-xs font-medium text-muted"
           >
             URLs
           </label>

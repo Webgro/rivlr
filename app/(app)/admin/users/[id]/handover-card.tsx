@@ -50,7 +50,7 @@ export function HandoverCard({
 
   return (
     <section className="mt-6 rounded-lg border border-default bg-elevated p-5">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+      <div className="text-xs font-medium text-muted">
         Handover
       </div>
       <h3 className="mt-2 text-lg font-semibold tracking-tight">
@@ -58,7 +58,7 @@ export function HandoverCard({
       </h3>
       <p className="mt-1.5 text-xs text-muted leading-relaxed">
         Emails {email} a magic link they can click to sign in. Use this at
-        the moment of handover — once they&apos;ve signed in, the account
+        the moment of handover, once they&apos;ve signed in, the account
         is theirs to manage. Consider clearing the comp plan first if
         they&apos;re paying through Stripe.
       </p>
@@ -82,9 +82,9 @@ export function HandoverCard({
               Sending…
             </>
           ) : hasSignedIn ? (
-            "Send sign-in link →"
+            "Send sign-in link"
           ) : (
-            "Hand over · send sign-in link →"
+            "Hand over · send sign-in link"
           )}
         </button>
         {feedback && (

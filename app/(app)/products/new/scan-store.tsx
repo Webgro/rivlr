@@ -15,8 +15,8 @@ import { addProducts } from "./actions";
  * + the user's current quota.
  *
  * Two paths from there:
- *   1. Their plan covers everything → "Track all N" big button.
- *   2. Plan doesn't cover everything → grid with checkboxes capped at
+ *   1. Their plan covers everything "Track all N" big button.
+ *   2. Plan doesn't cover everything grid with checkboxes capped at
  *      remaining quota, plus a plan-recommendation banner showing the
  *      cheapest tier that would fit.
  *
@@ -50,7 +50,7 @@ export function ScanStore() {
         <div>
           <label
             htmlFor="store-url"
-            className="block text-xs uppercase tracking-wider text-muted font-mono"
+            className="block text-xs font-medium text-muted"
           >
             Store URL
           </label>
@@ -59,7 +59,7 @@ export function ScanStore() {
             type="text"
             value={storeUrl}
             onChange={(e) => setStoreUrl(e.target.value)}
-            placeholder="gymshark.com — or https://allbirds.co.uk"
+            placeholder="gymshark.com, or https://allbirds.co.uk"
             required
             disabled={scanning}
             className="mt-2 block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground placeholder-muted shadow-sm outline-none font-mono leading-5 focus:border-strong disabled:opacity-60"
@@ -92,7 +92,7 @@ export function ScanStore() {
                 Scanning…
               </>
             ) : (
-              "Scan store →"
+              "Scan store"
             )}
           </button>
         </div>
@@ -213,7 +213,7 @@ function ChooseAction({
               : "border-default bg-elevated opacity-50 cursor-not-allowed"
           }`}
         >
-          <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
+          <div className="text-xs font-semibold text-signal">
             Bulk
           </div>
           <div className="mt-1.5 text-base font-semibold tracking-tight">
@@ -221,8 +221,8 @@ function ChooseAction({
           </div>
           <div className="mt-1 text-xs text-muted leading-relaxed">
             {canTrackAll
-              ? `One click. The first crawl starts immediately — prices and stock will populate within a few minutes.`
-              : `Disabled — your plan only covers ${remaining ?? 0}. Upgrade or pick specific products instead.`}
+              ? `One click. The first crawl starts immediately and prices fill in within a few minutes.`
+              : `Disabled, your plan only covers ${remaining ?? 0}. Upgrade or pick specific products instead.`}
           </div>
         </button>
 
@@ -237,7 +237,7 @@ function ChooseAction({
               : "border-default bg-elevated hover:border-strong cursor-pointer"
           }`}
         >
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+          <div className="text-xs font-medium text-muted">
             Pick from list
           </div>
           <div className="mt-1.5 text-base font-semibold tracking-tight">
@@ -246,7 +246,7 @@ function ChooseAction({
           <div className="mt-1 text-xs text-muted leading-relaxed">
             {limit === null
               ? `Choose any combination from the catalogue.`
-              : `First ${Math.min(visible.length, remaining ?? 0)} preselected — your plan covers up to ${remaining}. Adjust below.`}
+              : `First ${Math.min(visible.length, remaining ?? 0)} preselected, your plan covers up to ${remaining}. Adjust below.`}
           </div>
         </button>
       </div>
@@ -277,7 +277,7 @@ function ResultsHeader({
 }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+      <div className="text-xs font-medium text-muted">
         Catalogue scan
       </div>
       <h2 className="mt-1.5 text-xl font-semibold tracking-tight">
@@ -286,8 +286,8 @@ function ResultsHeader({
       </h2>
       <p className="mt-1 text-xs text-muted">
         {capped
-          ? `Showing the first ${total}. Larger catalogues are capped here so the scan stays snappy — split by collection URL if you need to go deeper.`
-          : `We grabbed image + title only — price and stock crawl after you confirm which to track.`}
+          ? `Showing the first ${total}. Larger catalogues are capped here so the scan stays snappy, split by collection URL if you need to go deeper.`
+          : `We grabbed image + title only, price and stock crawl after you confirm which to track.`}
       </p>
     </div>
   );
@@ -312,7 +312,7 @@ function recommendPlan(
     return {
       tone: "ok",
       title: `Your plan covers all ${total} products.`,
-      body: `Unlimited tracking — pick whatever you want.`,
+      body: `Unlimited tracking, pick whatever you want.`,
     };
   }
 
@@ -323,7 +323,7 @@ function recommendPlan(
     return {
       tone: "ok",
       title: `Your ${quota.plan.toUpperCase()} plan has room for all ${total}.`,
-      body: `Track everything in one click — your remaining quota is ${remaining} products.`,
+      body: `Track everything in one click. You have room for ${remaining} more products.`,
     };
   }
 
@@ -341,7 +341,7 @@ function recommendPlan(
       tone: "info",
       title: `${total} is more than your ${quota.plan.toUpperCase()} plan covers.`,
       body: `Upgrade to ${fitsTier.plan} (${fitsTier.price}) and track all ${total} in one go. Or pick up to ${remaining} below to stay on your current plan.`,
-      ctaLabel: `Upgrade to ${fitsTier.plan} →`,
+      ctaLabel: `Upgrade to ${fitsTier.plan}`,
       ctaHref: `/billing?upgrade=${fitsTier.plan.toLowerCase()}`,
     };
   }
@@ -354,7 +354,7 @@ function recommendPlan(
       tone: "info",
       title: `${total} products needs Pro + ${packs} overage pack${packs === 1 ? "" : "s"}.`,
       body: `Pro at £59.99 plus £${(packs * 15).toFixed(2)} for ${packs} pack${packs === 1 ? "" : "s"} (+${packs * 100} products) = £${monthly.toFixed(2)}/mo. Buy in-app once you upgrade. Or pick up to ${remaining} below now.`,
-      ctaLabel: `Upgrade to Pro →`,
+      ctaLabel: `Upgrade to Pro`,
       ctaHref: `/billing?upgrade=pro`,
     };
   }
@@ -393,7 +393,7 @@ function PlanBanner({
             href={r.ctaHref}
             className="rounded-md bg-foreground px-3.5 py-1.5 text-xs font-medium text-surface hover:opacity-90 transition flex-shrink-0"
           >
-            {r.ctaLabel ?? "View plans →"}
+            {r.ctaLabel ?? "View plans"}
           </Link>
         )}
       </div>
@@ -607,7 +607,7 @@ function SelectionGrid({
               Adding…
             </>
           ) : (
-            <>Track {selected.size} product{selected.size === 1 ? "" : "s"} →</>
+            <>Track {selected.size} product{selected.size === 1 ? "" : "s"}</>
           )}
         </button>
       </div>

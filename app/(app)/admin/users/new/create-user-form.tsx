@@ -16,7 +16,7 @@ const PLANS: CompPlan[] = [
 
 /**
  * Three-field form: email + comp plan + reason. Server action
- * handles validation, uniqueness, audit. On success → redirect to
+ * handles validation, uniqueness, audit. On success redirect to
  * /admin/users/[id] of the new user.
  */
 export function CreateUserForm() {
@@ -54,7 +54,7 @@ export function CreateUserForm() {
       <div>
         <label
           htmlFor="email"
-          className="block text-xs uppercase tracking-wider text-muted font-mono"
+          className="block text-xs font-medium text-muted"
         >
           Prospect email
         </label>
@@ -80,7 +80,7 @@ export function CreateUserForm() {
       <div>
         <label
           htmlFor="comp"
-          className="block text-xs uppercase tracking-wider text-muted font-mono"
+          className="block text-xs font-medium text-muted"
         >
           Initial comp plan
         </label>
@@ -100,7 +100,7 @@ export function CreateUserForm() {
         </select>
         <p className="mt-1 text-xs text-muted">
           <strong>unlimited</strong> is the default for soft-launch / demo
-          accounts — no caps anywhere. Clear or change at any time on the
+          accounts, no caps anywhere. Clear or change at any time on the
           user detail page.
         </p>
       </div>
@@ -109,7 +109,7 @@ export function CreateUserForm() {
       <div>
         <label
           htmlFor="reason"
-          className="block text-xs uppercase tracking-wider text-muted font-mono"
+          className="block text-xs font-medium text-muted"
         >
           Reason
         </label>
@@ -120,7 +120,7 @@ export function CreateUserForm() {
           required
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g. Webgro client demo — Acme Stores, contact 2026-05-06"
+          placeholder="e.g. Webgro client demo, Acme Stores, contact 2026-05-06"
           disabled={isPending}
           className="mt-2 block w-full rounded-md border border-default bg-surface px-3 py-2.5 text-sm text-foreground outline-none focus:border-strong"
         />
@@ -148,7 +148,7 @@ export function CreateUserForm() {
               Creating…
             </>
           ) : (
-            "Create user →"
+            "Create user"
           )}
         </button>
       </div>

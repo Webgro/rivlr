@@ -15,7 +15,7 @@ import { getSession } from "@/lib/auth/session";
  * render the standalone page.
  *
  * Reads the full session here so we can also surface the impersonation
- * banner when an admin has used /admin → "Sign in as" — that banner sits
+ * banner when an admin has used /admin "Sign in as" — that banner sits
  * above the sidebar so it's impossible to miss.
  */
 export default async function AppLayout({

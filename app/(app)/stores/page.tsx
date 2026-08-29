@@ -90,7 +90,7 @@ export default async function StoresPage() {
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">
             Every store you track, with intel pulled from public storefront
-            data — apps installed, Plus status, free-shipping thresholds,
+            data, apps installed, Plus status, free-shipping thresholds,
             catalogue growth and stockout trend lines.{" "}
             <span className="text-foreground">
               Click a row for the full profile.
@@ -137,7 +137,7 @@ export default async function StoresPage() {
         </div>
       ) : (
         <div className="mt-10 overflow-hidden rounded-xl border border-default">
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[11px] font-medium text-muted">
             <div>Store</div>
             <div>Tracked</div>
             <div>Catalogue</div>
@@ -201,7 +201,7 @@ export default async function StoresPage() {
               <div className="text-right text-xs font-mono text-muted flex items-center justify-end gap-2">
                 {s.platform_currency ?? "—"}
                 <span className="text-signal/60 group-hover:text-signal group-hover:translate-x-0.5 transition-all font-mono">
-                  →
+                 
                 </span>
               </div>
             </Link>
@@ -219,7 +219,7 @@ export default async function StoresPage() {
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-default bg-elevated px-4 py-2.5 min-w-[110px]">
-      <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+      <div className="text-[11px] font-medium text-muted">
         {label}
       </div>
       <div className="mt-0.5 text-lg font-semibold tracking-tight">{value}</div>

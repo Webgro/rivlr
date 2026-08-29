@@ -8,7 +8,7 @@ import { type ProductQuota, suggestNextPlan } from "@/lib/plan";
  * Behaviour:
  *  - Owner / unlimited: shows "Unlimited products" with a flat bar.
  *  - Under 80%: muted bar, no CTA.
- *  - 80–99%: amber bar, "Upgrade to <next plan> →" link.
+ *  - 80–99%: amber bar, "Upgrade to <next plan>" link.
  *  - 100%: signal-red bar, "You've hit your limit" + Upgrade CTA.
  *
  * Two visual densities — `compact` for the dashboard widget, default
@@ -31,10 +31,10 @@ export function QuotaBar({
     return (
       <div className={`rounded-lg border border-default bg-elevated p-4 ${className ?? ""}`}>
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[11px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+          <span className="text-xs font-medium text-muted">
             Tracked products
           </span>
-          <span className="text-[11px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+          <span className="text-xs font-medium text-muted">
             Unlimited
           </span>
         </div>
@@ -72,10 +72,10 @@ export function QuotaBar({
   return (
     <div className={`rounded-lg border border-default bg-elevated p-4 ${className ?? ""}`}>
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
-        <span className="text-[11px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+        <span className="text-xs font-medium text-muted">
           Tracked products
         </span>
-        <span className={`text-[11px] uppercase tracking-[0.18em] font-mono ${toneText}`}>
+        <span className={`text-xs font-medium ${toneText}`}>
           {fillPct}% of plan
         </span>
       </div>
@@ -102,7 +102,7 @@ export function QuotaBar({
             {tone === "danger"
               ? "You've hit your plan limit. Pause or remove products to track more, or upgrade."
               : tone === "warning"
-                ? `Approaching your limit — ${quota.remaining} slots left.`
+                ? `Approaching your limit: ${quota.remaining} slots left.`
                 : !compact
                   ? `${quota.remaining} slots remaining.`
                   : null}
@@ -115,7 +115,7 @@ export function QuotaBar({
               }`}
             >
               Upgrade to{" "}
-              {next.charAt(0).toUpperCase() + next.slice(1)} →
+              {next.charAt(0).toUpperCase() + next.slice(1)}
             </Link>
           )}
         </div>

@@ -54,7 +54,7 @@ export async function FavouritesWidget() {
   return (
     <section className="mt-8">
       <div className="flex items-end justify-between mb-3">
-        <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono inline-flex items-center gap-2">
+        <h2 className="text-base font-semibold inline-flex items-center gap-2">
           <svg
             width="14"
             height="14"
@@ -73,7 +73,7 @@ export async function FavouritesWidget() {
           href="/products?fav=1"
           className="text-xs text-muted hover:text-foreground font-mono uppercase tracking-[0.15em]"
         >
-          View all →
+          View all
         </Link>
       </div>
       <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">

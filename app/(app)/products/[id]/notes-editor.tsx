@@ -38,7 +38,7 @@ export function NotesEditor({
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-sm font-semibold">
           Notes
         </h2>
         <div className="flex items-center gap-3 text-xs text-muted font-mono">

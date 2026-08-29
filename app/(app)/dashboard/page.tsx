@@ -370,7 +370,7 @@ export default async function DashboardPage() {
             <section className="mt-8">
               <div className="flex items-end justify-between mb-3">
                 <div>
-                  <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono">
+                  <h2 className="text-base font-semibold">
                     Opportunities
                   </h2>
                   <p className="mt-1 text-xs text-muted">
@@ -416,7 +416,7 @@ export default async function DashboardPage() {
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {/* Top movers (7d) */}
             <section>
-              <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono mb-3">
+              <h2 className="text-base font-semibold mb-3">
                 Top movers (7 days)
               </h2>
               {data.movers.length === 0 ? (
@@ -464,11 +464,18 @@ export default async function DashboardPage() {
               )}
             </section>
 
-            {/* Recent activity */}
+            {/* Recent activity. The full feed lives at /activity, which
+                was removed from the sidebar; this is its entry point. */}
             <section>
-              <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono mb-3">
-                Recent activity
-              </h2>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-base font-semibold">Recent activity</h2>
+                <Link
+                  href="/activity"
+                  className="text-xs text-muted hover:text-foreground"
+                >
+                  View all
+                </Link>
+              </div>
               {data.activity.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-default px-4 py-6 text-center text-xs text-muted">
                   No recent changes detected. Activity appears here as products
@@ -487,9 +494,9 @@ export default async function DashboardPage() {
           <div className="mt-8 flex justify-center">
             <Link
               href="/products"
-              className="text-sm text-muted hover:text-foreground font-mono uppercase tracking-wider"
+              className="text-sm text-muted hover:text-foreground"
             >
-              All tracked products →
+              All tracked products
             </Link>
           </div>
         </>
@@ -524,7 +531,7 @@ function ActivityRowItem({ item }: { item: ActivityItem }) {
           Price drop{" "}
           <span className="font-mono">
             ({symbol}
-            {item.prevPrice?.toFixed(2)} → {symbol}
+            {item.prevPrice?.toFixed(2)} {symbol}
             {item.newPrice?.toFixed(2)})
           </span>
         </>
@@ -538,7 +545,7 @@ function ActivityRowItem({ item }: { item: ActivityItem }) {
           Price up{" "}
           <span className="font-mono">
             ({symbol}
-            {item.prevPrice?.toFixed(2)} → {symbol}
+            {item.prevPrice?.toFixed(2)} {symbol}
             {item.newPrice?.toFixed(2)})
           </span>
         </>

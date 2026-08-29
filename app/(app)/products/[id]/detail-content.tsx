@@ -105,13 +105,13 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="text-xs uppercase tracking-wider text-muted font-mono flex items-center gap-2">
+          <div className="text-xs font-medium text-muted flex items-center gap-2">
             {product.storeDomain}
             <Link
               href={`/stores/${encodeURIComponent(product.storeDomain)}`}
               className="text-signal hover:text-foreground underline-offset-2 hover:underline"
             >
-              View store profile →
+              View store profile
             </Link>
           </div>
           <h1
@@ -119,7 +119,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           >
             {product.title ?? product.handle}
             {!product.active && (
-              <span className="ml-3 rounded bg-elevated border border-default px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted font-mono align-middle">
+              <span className="ml-3 rounded bg-elevated border border-default px-2 py-0.5 text-[11px] font-medium text-muted align-middle">
                 paused
               </span>
             )}
@@ -208,7 +208,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
 
       {/* Notification toggles + market */}
       <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
-        <div className="text-[11px] uppercase tracking-wider text-muted font-mono mb-3">
+        <div className="text-xs font-medium text-muted mb-3">
           Notifications
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
@@ -229,7 +229,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         </div>
 
         <div className="mt-4 pt-4 border-t border-default">
-          <div className="text-[11px] uppercase tracking-wider text-muted font-mono mb-2">
+          <div className="text-xs font-medium text-muted mb-2">
             Market
           </div>
           <MarketSelect
@@ -306,14 +306,14 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         <span className="text-[11px] text-muted leading-relaxed">
           Hits Shopify&apos;s cart endpoint once per variant to read exact
           stock. Use if the Stock card above shows &quot;In stock&quot;
-          with no number — the panel below will explain why.
+          with no number, the panel below will explain why.
         </span>
       </div>
 
       {/* Linked products */}
       <div className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
+          <h2 className="text-sm font-semibold">
             Linked products {linkedProducts.length > 0 && `(${linkedProducts.length})`}
           </h2>
           <LinkProductButton productId={product.id} />
@@ -412,11 +412,11 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {/* Variants — only when there's more than one. */}
       {product.variantsSnapshot && product.variantsSnapshot.length > 1 && (
         <div className="mt-8">
-          <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
+          <h2 className="mb-3 text-sm font-semibold">
             Variants ({product.variantsSnapshot.length})
           </h2>
           <div className="overflow-hidden rounded-lg border border-default">
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 border-b border-default bg-elevated px-4 py-2 text-[10px] uppercase tracking-wider text-muted font-mono">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 border-b border-default bg-elevated px-4 py-2 text-[11px] font-medium text-muted">
               <div>Variant</div>
               <div>Price</div>
               <div>In stock</div>
@@ -453,14 +453,14 @@ export function DetailContent({ data, variant }: DetailContentProps) {
 
       {/* Charts */}
       <div className="mt-8">
-        <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
+        <h2 className="mb-3 text-sm font-semibold">
           Price history
         </h2>
         <PriceChart data={priceData} currencySymbol={symbol} />
       </div>
 
       <div className="mt-8">
-        <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
+        <h2 className="mb-3 text-sm font-semibold">
           {hasQuantity ? "Inventory history" : "Stock availability"}
         </h2>
         <StockChart data={stockData} hasQuantity={hasQuantity} />
@@ -475,12 +475,12 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {/* Observations table — hidden in panel to keep it compact */}
       {variant === "page" && recent.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-3 text-sm uppercase tracking-wider text-muted font-mono">
+          <h2 className="mb-3 text-sm font-semibold">
             Recent observations
           </h2>
           <div className="overflow-hidden rounded-lg border border-default">
             <table className="w-full text-sm">
-              <thead className="bg-elevated text-[11px] uppercase tracking-wider text-muted font-mono">
+              <thead className="bg-elevated text-xs font-medium text-muted">
                 <tr>
                   <th className="px-4 py-2 text-left">When</th>
                   <th className="px-4 py-2 text-left">Price</th>
@@ -525,7 +525,7 @@ function AcrossMarketsPanel({
   if (populated.length === 0) {
     return (
       <div className="mt-6">
-        <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-sm font-semibold">
           Other market prices
         </h2>
         <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-5 text-center text-xs text-muted">
@@ -579,7 +579,7 @@ function AcrossMarketsPanel({
   return (
     <div className="mt-6">
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-sm font-semibold">
           Other market prices · daily snapshot
         </h2>
         <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
@@ -587,7 +587,7 @@ function AcrossMarketsPanel({
         </span>
       </div>
       <div className="overflow-hidden rounded-lg border border-default">
-        <div className="grid grid-cols-[1.6fr_1fr_0.7fr_auto] gap-3 border-b border-default bg-elevated px-4 py-2 text-[10px] uppercase tracking-wider text-muted font-mono">
+        <div className="grid grid-cols-[1.6fr_1fr_0.7fr_auto] gap-3 border-b border-default bg-elevated px-4 py-2 text-[11px] font-medium text-muted">
           <div>Markets</div>
           <div>Price</div>
           <div>vs primary</div>
@@ -723,14 +723,14 @@ function ProductIntelStrip({
 
   return (
     <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
-      <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-mono mb-3">
+      <div className="text-xs font-medium text-muted mb-3">
         Product intel
       </div>
       {meta.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {meta.map((m, i) => (
             <div key={i}>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+              <div className="text-[11px] font-medium text-muted">
                 {m.label}
               </div>
               <div
@@ -746,7 +746,7 @@ function ProductIntelStrip({
       )}
       {shopifyTags.length > 0 && (
         <div className="mt-4 pt-4 border-t border-default">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono mb-2">
+          <div className="text-[11px] font-medium text-muted mb-2">
             Shopify tags
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -767,8 +767,8 @@ function ProductIntelStrip({
 
 /**
  * Formats a past date as a human-friendly years-and-months span.
- * E.g. 84 months → "7y", 14 months → "1y 2mo", 6 months → "6mo",
- * 5 days → "5d". Always reads naturally — no "84mo" surprise.
+ * E.g. 84 months "7y", 14 months "1y 2mo", 6 months "6mo",
+ * 5 days "5d". Always reads naturally — no "84mo" surprise.
  */
 function yearsAndMonths(d: Date | string): string {
   const ms = Date.now() - new Date(d).getTime();
@@ -833,7 +833,7 @@ function Stat({
         : "text-foreground";
   return (
     <div className="rounded-lg border border-default bg-elevated p-4">
-      <div className="text-[10px] uppercase tracking-wider text-muted font-mono">
+      <div className="text-[11px] font-medium text-muted">
         {label}
       </div>
       <div

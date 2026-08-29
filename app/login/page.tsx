@@ -137,7 +137,7 @@ function SignInForm({
         <div>
           <label
             htmlFor="email"
-            className="block text-xs uppercase tracking-wider text-neutral-500 font-mono"
+            className="block text-xs font-medium text-neutral-400"
           >
             Email
           </label>
@@ -168,7 +168,7 @@ function SignInForm({
         {error === "not-invited" && (
           <p className="text-sm text-signal">
             That email isn&apos;t on any Rivlr account. Ask the account
-            owner to invite you from <span className="font-mono">Settings → Team</span>.
+            owner to invite you from their Profile page.
           </p>
         )}
         {(error === "expired" || error === "used" || error === "invalid") && (
@@ -185,12 +185,12 @@ function SignInForm({
           type="submit"
           className="w-full rounded-md bg-signal px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-600"
         >
-          Send sign-in link →
+          Send sign-in link
         </button>
       </form>
 
       <p className="mt-6 text-xs text-neutral-500 leading-relaxed">
-        First time here? Just enter your email — we&apos;ll create your
+        First time here? Just enter your email, we&apos;ll create your
         account when you click the link.
       </p>
     </>

@@ -261,12 +261,12 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
     <section className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
       <p className="mt-1 text-sm text-muted">
-        Overlay price history across multiple products on a single chart —
+        Overlay price history across multiple products on a single chart,
         spot competitor pricing patterns at a glance.
       </p>
 
       <div className="mt-8 rounded-xl border border-signal/40 bg-signal/[0.03] p-6">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
+        <div className="text-xs font-semibold text-signal">
           Growth feature
         </div>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">
@@ -298,7 +298,7 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
             href={upgradeHref}
             className="rounded-md bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition"
           >
-            Upgrade{next ? ` to ${next.charAt(0).toUpperCase() + next.slice(1)}` : ""} →
+            Upgrade{next ? ` to ${next.charAt(0).toUpperCase() + next.slice(1)}` : ""}
           </Link>
           <Link
             href="/products"

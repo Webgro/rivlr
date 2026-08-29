@@ -166,7 +166,7 @@ export function CrawlProgress() {
   return (
     <div className="fixed bottom-5 right-5 z-50 w-80 rounded-lg border border-default bg-elevated p-4 shadow-xl">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-xs uppercase tracking-wider text-muted font-mono">
+        <div className="text-xs font-medium text-muted">
           Crawling
         </div>
         <div className="flex items-center gap-2">

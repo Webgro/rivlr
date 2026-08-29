@@ -133,7 +133,7 @@ export default async function BillingPage({
           beta testers comped by an admin. */}
       {plan === "owner" && (
         <div className="mt-6 rounded-lg border border-default bg-elevated px-5 py-4 text-sm">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+          <div className="text-xs font-medium text-muted">
             Owner account
           </div>
           <div className="mt-1.5 font-medium">Billing is bypassed for this account.</div>
@@ -152,14 +152,14 @@ export default async function BillingPage({
           </div>
           <p className="mt-1 text-xs text-muted">
             No product limit, hourly cadence, every feature unlocked. This is
-            a soft-launch comp — billing kicks in if it&apos;s removed.
+            a soft-launch comp, billing kicks in if it&apos;s removed.
           </p>
         </div>
       )}
 
       {!stripeConfigured && (
         <StatusBanner tone="muted">
-          Billing isn&apos;t fully configured on this deployment yet — upgrade
+          Billing isn&apos;t fully configured on this deployment yet, upgrade
           buttons are disabled. Add the Stripe env vars in Vercel to enable.
         </StatusBanner>
       )}
@@ -230,7 +230,7 @@ export default async function BillingPage({
       <p className="mt-10 text-xs text-muted leading-relaxed">
         Prices in GBP. Billed monthly. VAT added at checkout where applicable.
         {hasSubscription
-          ? " Cancellation takes effect at the end of your current period — no immediate refund."
+          ? " Cancellation takes effect at the end of your current period, with no immediate refund."
           : " Cancel any time once you've subscribed."}
       </p>
     </main>
@@ -284,7 +284,7 @@ function Banners({ params }: { params: { [k: string]: string | undefined } }) {
   if (params.status === "canceled") {
     return (
       <StatusBanner tone="muted">
-        Checkout canceled. No charge made — pick a plan whenever you&apos;re
+        Checkout canceled. No charge made, pick a plan whenever you&apos;re
         ready.
       </StatusBanner>
     );
@@ -294,7 +294,7 @@ function Banners({ params }: { params: { [k: string]: string | undefined } }) {
       <StatusBanner tone="warning">
         You hit your plan&apos;s product limit
         {params.blocked && Number(params.blocked) > 0
-          ? ` — ${params.blocked} item${Number(params.blocked) === 1 ? "" : "s"} couldn't be added.`
+          ? `, ${params.blocked} item${Number(params.blocked) === 1 ? "" : "s"} couldn't be added.`
           : "."}{" "}
         Upgrade below to track more.
       </StatusBanner>
@@ -303,7 +303,7 @@ function Banners({ params }: { params: { [k: string]: string | undefined } }) {
   if (params.reason === "downgrade-blocked") {
     return (
       <StatusBanner tone="warning">
-        Can&apos;t downgrade to <strong>{params.target}</strong> — you&apos;re
+        Can&apos;t downgrade to <strong>{params.target}</strong>, you&apos;re
         tracking {params.current} products and that plan caps at{" "}
         {params.limit}. Pause or remove products first, then try again.
       </StatusBanner>
@@ -373,7 +373,7 @@ function SubscriptionSummary({
       {/* Header row: plan + status */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+          <div className="text-xs font-medium text-muted">
             Current plan
           </div>
           <div className="mt-1.5 flex items-center gap-3 flex-wrap">
@@ -450,7 +450,7 @@ function SubscriptionSummary({
       {/* Card row */}
       <div className="mt-5 pt-4 border-t border-default flex items-center justify-between gap-4 flex-wrap">
         <div className="text-xs">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+          <span className="text-[11px] font-medium text-muted">
             Card on file
           </span>
           <div className="mt-1 font-mono text-foreground">
@@ -476,7 +476,7 @@ function SubscriptionSummary({
               disabled={!stripeConfigured}
               className="rounded-md border border-default bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:border-strong transition disabled:opacity-50"
             >
-              {card ? "Update card" : "Add card"} →
+              {card ? "Update card" : "Add card"}
             </button>
           </form>
           <form action="/api/billing/portal" method="post">
@@ -486,7 +486,7 @@ function SubscriptionSummary({
               disabled={!stripeConfigured}
               className="rounded-md border border-default bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:border-strong transition disabled:opacity-50"
             >
-              Invoices →
+              Invoices
             </button>
           </form>
         </div>
@@ -558,7 +558,7 @@ function PlanCardComponent({
         </span>
         {isPaid && <span className="text-xs text-muted">/ month</span>}
       </div>
-      <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+      <div className="mt-1 text-xs font-medium text-muted">
         {card.cadenceLabel}
       </div>
 
@@ -612,10 +612,10 @@ function PlanCardComponent({
               {wouldNotFit
                 ? "Too many products"
                 : hasSubscription
-                  ? `Switch to ${card.name} →`
+                  ? `Switch to ${card.name}`
                   : currentPlan === "free"
-                    ? "Choose plan →"
-                    : `Switch plan →`}
+                    ? "Choose plan"
+                    : `Switch plan`}
             </button>
           </form>
         )}

@@ -32,7 +32,7 @@ export default async function AdminNewUserPage() {
           Set up an account for a prospect. After creating, use{" "}
           <strong>Sign in as user</strong> to populate it during the demo,
           then <strong>Send sign-in link</strong> when you&apos;re ready to
-          hand it over. The prospect lands on a normal sign-in flow — no
+          hand it over. The prospect lands on a normal sign-in flow, no
           weird "account set up by Webgro" framing.
         </p>
       </header>

@@ -45,7 +45,7 @@ export function LinkProductButton({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [storeFilter, setStoreFilter] = useState("");
-  const [browseAll, setBrowseAll] = useState(excludeOwnStore); // /my-products → browse all by default
+  const [browseAll, setBrowseAll] = useState(excludeOwnStore); // /my-products browse all by default
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();

@@ -229,7 +229,7 @@ export default async function ActivityPage(props: {
             aria-disabled={page === totalPages}
             className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === totalPages ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
           >
-            Next →
+            Next
           </Link>
         </div>
       )}
@@ -275,7 +275,7 @@ function ActivityRowItem({ item }: { item: ActivityItem }) {
           Price drop{" "}
           <span className="font-mono">
             ({symbol}
-            {item.prevPrice?.toFixed(2)} → {symbol}
+            {item.prevPrice?.toFixed(2)} {symbol}
             {item.newPrice?.toFixed(2)})
           </span>
         </>
@@ -289,7 +289,7 @@ function ActivityRowItem({ item }: { item: ActivityItem }) {
           Price up{" "}
           <span className="font-mono">
             ({symbol}
-            {item.prevPrice?.toFixed(2)} → {symbol}
+            {item.prevPrice?.toFixed(2)} {symbol}
             {item.newPrice?.toFixed(2)})
           </span>
         </>

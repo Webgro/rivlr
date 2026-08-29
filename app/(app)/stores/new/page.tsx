@@ -31,7 +31,7 @@ export default async function NewStorePage(props: {
     <main className="mx-auto max-w-xl px-6 py-12">
       <Link
         href="/stores"
-        className="text-xs uppercase tracking-wider text-muted font-mono hover:text-foreground"
+        className="text-xs font-medium text-muted hover:text-foreground"
       >
         ← Back to stores
       </Link>
@@ -55,7 +55,7 @@ export default async function NewStorePage(props: {
         <div>
           <label
             htmlFor="domain"
-            className="block text-xs uppercase tracking-wider text-muted font-mono"
+            className="block text-xs font-medium text-muted"
           >
             Store URL
           </label>
@@ -66,11 +66,11 @@ export default async function NewStorePage(props: {
             required
             autoFocus
             defaultValue={params.domain ?? ""}
-            placeholder="gymshark.com — or https://yourstore.myshopify.com"
+            placeholder="gymshark.com, or https://yourstore.myshopify.com"
             className="mt-2 block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground placeholder-muted shadow-sm outline-none font-mono leading-5 focus:border-strong"
           />
           <p className="mt-1 text-xs text-muted">
-            Bare domain, https URL, or path — we&apos;ll normalise it.
+            Bare domain, https URL, or path, we&apos;ll normalise it.
             We do a quick check that it&apos;s a real Shopify store
             before adding.
           </p>
@@ -94,7 +94,7 @@ export default async function NewStorePage(props: {
               </span>
               <span className="mt-1 block text-xs text-muted leading-relaxed">
                 Marks the store as yours, auto-imports your full catalogue
-                into <strong>My products</strong> (free — doesn&apos;t
+                into <strong>My products</strong> (free, doesn&apos;t
                 count toward your plan), and unlocks the bestseller probe
                 + opportunities view. Only one store can be your own at a
                 time per account.
@@ -114,7 +114,7 @@ export default async function NewStorePage(props: {
             className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90 transition disabled:opacity-50"
             pendingLabel="Adding…"
           >
-            Add store →
+            Add store
           </SubmitButton>
         </div>
       </form>
@@ -136,7 +136,7 @@ function errorCopy(
     case "unreachable":
       return {
         title: `Couldn't reach ${domain ?? "that store"}.`,
-        body: "Check the URL and try again — the store may be down, geo-restricted, or blocking automated requests.",
+        body: "Check the URL and try again, the store may be down, geo-restricted, or blocking automated requests.",
       };
     case "not-shopify":
       return {

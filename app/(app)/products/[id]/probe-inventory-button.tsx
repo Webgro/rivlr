@@ -7,7 +7,7 @@ import { probeInventoryNow } from "../actions";
 type Result = Awaited<ReturnType<typeof probeInventoryNow>>;
 
 /**
- * Manual cart-probe trigger for a single product. Click → fires the
+ * Manual cart-probe trigger for a single product. Click fires the
  * probe right now, shows per-variant results inline so the user can
  * see exactly what Shopify came back with. Useful when the daily cron
  * left a product showing "In stock" with no quantity — this exposes
@@ -62,9 +62,9 @@ function ProbeResultPanel({ result }: { result: Result }) {
   }
 
   // Three reporting states:
-  //   1. exactCount === 0 → couldn't read any variant.
-  //   2. exactCount === totalCount → clean total.
-  //   3. exactCount < totalCount → partial total (incomplete).
+  //   1. exactCount === 0 couldn't read any variant.
+  //   2. exactCount === totalCount clean total.
+  //   3. exactCount < totalCount partial total (incomplete).
   const headline =
     result.exactCount === 0
       ? "Exact inventory not retrievable"
@@ -76,14 +76,14 @@ function ProbeResultPanel({ result }: { result: Result }) {
     result.exactCount === 0
       ? "Shopify either rejected the probe (rate-limited / blocked), allowed an unbounded oversell, or returned a phrasing we don't parse yet. Per-variant detail below."
       : result.exactCount < result.totalCount
-        ? "We couldn't read every variant — the rest were blocked or returned an unbounded response. The number above is a lower bound."
+        ? "We couldn't read every variant, the rest were blocked or returned an unbounded response. The number above is a lower bound."
         : null;
 
   return (
     <div className="mt-3 rounded-lg border border-default bg-elevated p-4 text-sm">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-mono">
+          <div className="text-xs font-medium text-muted">
             Probe result
           </div>
           <div className="mt-1 text-base font-semibold">{headline}</div>
@@ -145,7 +145,7 @@ function KindBadge({ kind }: { kind: string }) {
   const m = map[kind] ?? map.unknown;
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-[0.15em] font-mono ${m.cls}`}
+      className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${m.cls}`}
     >
       {m.label}
     </span>

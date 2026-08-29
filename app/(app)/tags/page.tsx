@@ -18,7 +18,7 @@ export default async function TagsPage() {
       </div>
 
       <div className="mt-8 rounded-lg border border-default bg-elevated p-5">
-        <h2 className="text-sm uppercase tracking-wider text-muted font-mono">
+        <h2 className="text-sm font-semibold">
           Create tag
         </h2>
         <form action={createTag} className="mt-3 flex flex-wrap items-center gap-3">
@@ -41,7 +41,7 @@ export default async function TagsPage() {
       </div>
 
       <div className="mt-8">
-        <h2 className="text-sm uppercase tracking-wider text-muted font-mono mb-3">
+        <h2 className="text-sm font-semibold mb-3">
           {tags.length} tag{tags.length === 1 ? "" : "s"}
         </h2>
         {tags.length === 0 ? (
@@ -50,7 +50,7 @@ export default async function TagsPage() {
           </div>
         ) : (
           <div className="overflow-hidden rounded-lg border border-default">
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-default bg-elevated px-5 py-3 text-[11px] uppercase tracking-wider text-muted font-mono">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-default bg-elevated px-5 py-3 text-xs font-medium text-muted">
               <div>Tag</div>
               <div>Colour</div>
               <div className="text-right">Used by</div>

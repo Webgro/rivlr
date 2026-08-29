@@ -145,7 +145,7 @@ function FilteredResults({
 
   return (
     <div className="mt-8">
-      <p className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mb-4">
+      <p className="text-xs font-medium text-muted mb-4">
         {articles.length} result{articles.length === 1 ? "" : "s"}
       </p>
       <ul className="grid gap-3 md:grid-cols-2">
@@ -172,7 +172,7 @@ function ArticleCard({
       className="block h-full rounded-lg border border-default bg-elevated p-4 hover:border-strong transition group"
     >
       {showCategory && (
-        <div className="text-[10px] uppercase tracking-[0.2em] text-muted/70 font-mono mb-1.5">
+        <div className="text-[11px] font-medium text-muted mb-1.5">
           {article.category}
         </div>
       )}

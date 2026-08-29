@@ -6,10 +6,7 @@ import { Wordmark } from "./wordmark";
 import {
   DashboardIcon,
   ProductsIcon,
-  ActivityIcon,
   DiscoverIcon,
-  SuggestionsIcon,
-  TagsIcon,
   StoresIcon,
   MyProductsIcon,
   OpportunitiesIcon,
@@ -26,42 +23,21 @@ interface NavItem {
   Icon: React.ComponentType<{ className?: string; size?: number }>;
 }
 
-// Three groups for clarity. Order = priority of the daily user flow:
-// "Where's the action?" → "What am I tracking?" → "Manage".
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: "Today",
-    items: [
-      { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
-      { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
-      { href: "/activity", label: "Activity", Icon: ActivityIcon },
-    ],
-  },
-  {
-    label: "Catalogue",
-    items: [
-      { href: "/my-products", label: "My products", Icon: MyProductsIcon },
-      { href: "/products", label: "Competitors", Icon: ProductsIcon },
-      { href: "/discover", label: "Discover", Icon: DiscoverIcon },
-      { href: "/products/suggestions", label: "Suggestions", Icon: SuggestionsIcon },
-    ],
-  },
-  {
-    label: "Manage",
-    items: [
-      { href: "/stores", label: "Stores", Icon: StoresIcon },
-      { href: "/tags", label: "Tags", Icon: TagsIcon },
-    ],
-  },
+/**
+ * One flat list, six destinations. Activity, Suggestions, and Tags were
+ * pulled from the nav deliberately: Activity is linked from the
+ * dashboard's Recent activity section, Suggestions from the insights
+ * row and products page, Tags from the products filter bar. Fewer
+ * top-level choices makes the product feel smaller than it is.
+ */
+const PRIMARY_NAV: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
+  { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
+  { href: "/products", label: "Competitors", Icon: ProductsIcon },
+  { href: "/my-products", label: "My products", Icon: MyProductsIcon },
+  { href: "/discover", label: "Discover", Icon: DiscoverIcon },
+  { href: "/stores", label: "Stores", Icon: StoresIcon },
 ];
-
-// Flat list used for active-route detection.
-const PRIMARY_NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 const SECONDARY_NAV: NavItem[] = [
   { href: "/profile", label: "Profile", Icon: ProfileIcon },
@@ -97,30 +73,20 @@ export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <aside className="hidden md:flex md:fixed md:left-0 md:top-0 md:h-screen md:w-60 md:flex-col md:border-r md:border-default md:bg-elevated">
-      {/* Header — bigger wordmark */}
-      <div className="flex items-center justify-between px-5 py-5 border-b border-default">
+      {/* Header */}
+      <div className="flex items-center px-5 py-5 border-b border-default">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Wordmark size="xl" />
         </Link>
-        <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted font-mono border border-default">
-          P1
-        </span>
       </div>
 
-      {/* Primary nav, grouped */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
-            <div className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.2em] text-muted/70 font-mono">
-              {group.label}
-            </div>
-            <ul className="space-y-0.5">
-              {group.items.map((item) => (
-                <NavLink key={item.href} item={item} active={isActive(item)} />
-              ))}
-            </ul>
-          </div>
-        ))}
+      {/* Primary nav — flat list, no group labels */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <ul className="space-y-0.5">
+          {PRIMARY_NAV.map((item) => (
+            <NavLink key={item.href} item={item} active={isActive(item)} />
+          ))}
+        </ul>
       </nav>
 
       {/* Bottom: Profile / Billing / Settings / Help. Theme toggle now

@@ -157,7 +157,7 @@ export default async function AdminUsersPage(props: {
                     href={`/admin/users/${u.id}`}
                     className="text-xs text-foreground underline-offset-4 hover:underline"
                   >
-                    Open →
+                    Open
                   </Link>
                 </Td>
               </tr>
@@ -229,7 +229,7 @@ function StatusBadge({
   return (
     <span className="inline-flex items-center gap-1.5 flex-wrap">
       <span
-        className={`rounded px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] font-mono ${
+        className={`rounded px-2 py-0.5 text-[11px] font-medium ${
           ok
             ? "bg-green-500/15 text-green-500"
             : status === "past_due"
@@ -285,10 +285,10 @@ function Pagination({
           href={url(page + 1)}
           className="text-foreground underline-offset-4 hover:underline"
         >
-          Next →
+          Next
         </Link>
       ) : (
-        <span className="opacity-40">Next →</span>
+        <span className="opacity-40">Next</span>
       )}
     </div>
   );

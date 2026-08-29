@@ -48,7 +48,7 @@ export function OveragePackPicker({
     <section className="mt-6 rounded-xl border border-default bg-elevated p-5">
       <div className="flex items-baseline justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+          <div className="text-xs font-medium text-muted">
             Overage packs
           </div>
           <h2 className="mt-1.5 text-xl font-semibold tracking-tight">
@@ -105,7 +105,7 @@ export function OveragePackPicker({
 
         {packs >= maxPacks && (
           <span className="text-[11px] text-amber-500">
-            Max reached — email support for higher allowances.
+            Max reached, email support for higher allowances.
           </span>
         )}
       </div>
@@ -154,8 +154,8 @@ export function OveragePackPicker({
           <input type="hidden" name="packs" value={packs} />
           <span className="text-xs text-muted">
             {delta > 0
-              ? `Adding ${delta} pack${delta === 1 ? "" : "s"} — prorated charge happens now.`
-              : `Removing ${Math.abs(delta)} pack${Math.abs(delta) === 1 ? "" : "s"} — credit applied to next invoice.`}
+              ? `Adding ${delta} pack${delta === 1 ? "" : "s"}, prorated charge happens now.`
+              : `Removing ${Math.abs(delta)} pack${Math.abs(delta) === 1 ? "" : "s"}, credit applied to next invoice.`}
           </span>
           <button
             type="button"

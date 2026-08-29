@@ -101,7 +101,7 @@ export function HeroDemo() {
             disabled={loading}
             className="rounded-md bg-signal px-6 py-4 text-base font-medium text-white transition hover:bg-red-600 disabled:opacity-50 whitespace-nowrap inline-flex items-center justify-center gap-2"
           >
-            {loading ? "Checking…" : "Check it →"}
+            {loading ? "Checking…" : "Check it"}
           </button>
         </div>
         {!result && !error && <SampleUrls />}
@@ -119,7 +119,7 @@ export function HeroDemo() {
             className={`font-medium ${error.kind === "non-shopify" ? "text-amber-300" : "text-signal"}`}
           >
             {error.kind === "non-shopify"
-              ? "Shopify only — for now"
+              ? "Shopify only, for now"
               : error.kind === "rate-limited"
                 ? "Free previews used"
                 : "Couldn't load that one"}
@@ -132,7 +132,7 @@ export function HeroDemo() {
               href="/signup?source=rate-limited"
               className="mt-3 inline-block rounded-md bg-paper px-4 py-2 text-sm font-medium text-ink hover:bg-neutral-200"
             >
-              Sign up for unlimited tracking →
+              Sign up for unlimited tracking
             </Link>
           )}
         </div>
@@ -195,10 +195,7 @@ function ResultCard({
         {/* Live status bar */}
         <div className="flex items-center justify-between gap-3 border-b border-neutral-800 px-4 py-2 bg-[#141414]">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-signal opacity-75 animate-ping" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal" />
-            </span>
+            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-signal" />
             <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-300 font-mono truncate">
               Live · {result.storeDomain}
             </span>
@@ -225,7 +222,7 @@ function ResultCard({
               {result.title}
             </div>
 
-            {/* Price line — primary, larger */}
+            {/* Price line - primary, larger */}
             <div className="mt-2 flex items-baseline gap-2 flex-wrap">
               <span className="font-mono text-2xl font-semibold text-paper">
                 {symbol}
@@ -355,7 +352,7 @@ function ResultCard({
           </div>
         )}
 
-        {/* What we'd track over time — sets up the value of signing up */}
+        {/* What we'd track over time - sets up the value of signing up */}
         <div className="px-5 pb-4">
           <div className="text-[9px] uppercase tracking-[0.2em] text-neutral-500 font-mono mb-2">
             What we&apos;d track over time
@@ -374,8 +371,7 @@ function ResultCard({
             href={`/signup?source=hero-demo&url=${encodeURIComponent(url)}`}
             className="flex items-center justify-center gap-2 rounded-md bg-signal px-5 py-3.5 text-base font-semibold text-white hover:bg-red-600 transition"
           >
-            Track this product — free
-            <span aria-hidden>→</span>
+            Track this product free
           </Link>
           <div className="mt-2 text-center text-[11px] text-neutral-400 font-mono uppercase tracking-[0.15em]">
             {result.usesRemaining > 0

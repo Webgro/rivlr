@@ -112,7 +112,7 @@ export async function adminDeleteUser(formData: FormData) {
   if (!target) throw new Error("User not found.");
   if (confirmEmail !== target.email.toLowerCase()) {
     throw new Error(
-      "Email confirmation didn't match — refusing to delete.",
+      "Email confirmation didn't match, refusing to delete.",
     );
   }
 

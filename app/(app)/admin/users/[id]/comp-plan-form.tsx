@@ -69,7 +69,7 @@ export function CompPlanForm({
           required
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Reason (required) — e.g. trial extension, beta access"
+          placeholder="Reason (required), e.g. trial extension, beta access"
           className="flex-1 min-w-[260px] rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
         />
         <button

@@ -106,7 +106,7 @@ export default async function AdminOverviewPage() {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-default bg-elevated p-4">
-      <div className="text-[11px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+      <div className="text-xs font-medium text-muted">
         {label}
       </div>
       <div className="mt-1.5 text-3xl font-semibold tracking-tight">

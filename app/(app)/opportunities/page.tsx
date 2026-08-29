@@ -105,7 +105,7 @@ export default async function OpportunitiesPage() {
       WHERE p.user_id = ${user.id}::uuid
         AND p.active = true
         AND COALESCE(usp.is_my_store, false) = false
-        -- Only items still in stock — "going dark" doesn't apply to
+        -- Only items still in stock, "going dark" doesn't apply to
         -- products that are already out. Also positive quantity to
         -- avoid divide-by-zero edge cases on stale observations.
         AND ls.available = true
@@ -273,13 +273,13 @@ export default async function OpportunitiesPage() {
       <section className="mt-10">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
           <div>
-            <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono">
+            <h2 className="text-base font-semibold">
               About to go dark · &lt; {daysCoverThreshold} days cover
             </h2>
             <p className="mt-1 text-xs text-muted">
               Competitor products whose remaining inventory ÷ daily sales
               rate falls below your threshold. They&apos;re about to stock
-              out — hold prices, run a campaign, or order more from your
+              out, hold prices, run a campaign, or order more from your
               supplier.{" "}
               <Link
                 href="/settings"
@@ -293,11 +293,11 @@ export default async function OpportunitiesPage() {
         </div>
         {goingDarkRows.length === 0 ? (
           <div className="rounded-lg border border-dashed border-default bg-elevated px-6 py-8 text-center text-xs text-muted">
-            No tracked competitor is currently below the {daysCoverThreshold}-day threshold. Either everyone&apos;s well-stocked, or we don&apos;t yet have enough sales-velocity data — check back after the next daily scan.
+            No tracked competitor is currently below the {daysCoverThreshold}-day threshold. Either everyone&apos;s well-stocked, or we don&apos;t yet have enough sales-velocity data, check back after the next daily scan.
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-default">
-            <div className="grid grid-cols-[2.4fr_0.8fr_1fr_1fr_0.8fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+            <div className="grid grid-cols-[2.4fr_0.8fr_1fr_1fr_0.8fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[11px] font-medium text-muted">
               <div>Product</div>
               <div className="text-right">In stock</div>
               <div className="text-right">Daily rate</div>
@@ -361,7 +361,7 @@ export default async function OpportunitiesPage() {
       <section className="mt-12">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
           <div>
-            <h2 className="text-base font-semibold uppercase tracking-wider text-muted font-mono">
+            <h2 className="text-base font-semibold">
               {mine ? (
                 <>
                   Pricing disadvantage on{" "}
@@ -390,7 +390,7 @@ export default async function OpportunitiesPage() {
           <EmptyState mine={mine.domain} />
         ) : (
         <div className="overflow-hidden rounded-xl border border-default">
-          <div className="grid grid-cols-[2.4fr_1fr_1fr_0.8fr_1.4fr_0.6fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+          <div className="grid grid-cols-[2.4fr_1fr_1fr_0.8fr_1.4fr_0.6fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[11px] font-medium text-muted">
             <div>My product</div>
             <div>My price</div>
             <div>Best competitor</div>
@@ -515,7 +515,7 @@ export default async function OpportunitiesPage() {
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-default bg-elevated px-4 py-2.5 min-w-[140px]">
-      <div className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+      <div className="text-[11px] font-medium text-muted">
         {label}
       </div>
       <div className="mt-0.5 text-3xl font-semibold tracking-tight">
@@ -541,7 +541,7 @@ function NoStoreInline() {
           href="/stores"
           className="inline-block rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90"
         >
-          Choose my store →
+          Choose my store
         </Link>
       </div>
     </div>
@@ -550,7 +550,7 @@ function NoStoreInline() {
 
 function SignalChip({ label }: { label: string }) {
   return (
-    <span className="rounded border border-default bg-surface px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted font-mono">
+    <span className="rounded border border-default bg-surface px-1.5 py-0.5 text-[11px] font-medium text-muted">
       {label}
     </span>
   );
@@ -573,7 +573,7 @@ function EmptyState({ mine }: { mine: string }) {
           href="/products/suggestions"
           className="rounded-md bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-red-600"
         >
-          Review link suggestions →
+          Review link suggestions
         </Link>
         <Link
           href={`/stores/${encodeURIComponent(mine)}`}
@@ -589,7 +589,7 @@ function EmptyState({ mine }: { mine: string }) {
 function NoStoreFlagged() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted font-mono">
+      <div className="text-xs font-medium text-muted">
         Setup required
       </div>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -598,14 +598,14 @@ function NoStoreFlagged() {
       <p className="mt-3 text-sm text-muted leading-relaxed">
         The Opportunities view compares your store's products against
         tracked competitors. Open a store you track and click "Mark as my
-        store" — only the one you sell on, not the ones you watch.
+        store", only the one you sell on, not the ones you watch.
       </p>
       <div className="mt-8">
         <Link
           href="/stores"
           className="rounded-md bg-signal px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600"
         >
-          Choose my store →
+          Choose my store
         </Link>
       </div>
     </div>

@@ -19,7 +19,7 @@ export function DescriptionSection({
     <details className="mt-6 group rounded-lg border border-default bg-elevated">
       <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-surface/50 select-none">
         <span className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-wider text-muted font-mono">
+          <span className="text-xs font-medium text-muted">
             Description
           </span>
           <span className="text-xs text-muted">

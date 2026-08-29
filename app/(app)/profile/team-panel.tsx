@@ -10,7 +10,7 @@ import {
 import { ConfirmDialog } from "@/components/confirm-action-button";
 
 /**
- * Settings → Team access panel.
+ * Settings Team access panel.
  *
  * Shows the list of authorised emails (primary first) and an invite
  * form. Invite triggers a magic link that both authorises the email
@@ -134,7 +134,7 @@ export function TeamPanel({ initial }: { initial: TeamMember[] }) {
               Sending…
             </>
           ) : (
-            "Send invite →"
+            "Send invite"
           )}
         </button>
       </form>
@@ -149,7 +149,7 @@ export function TeamPanel({ initial }: { initial: TeamMember[] }) {
 
       <p className="mt-3 text-[11px] text-muted/80 leading-relaxed">
         Invitees get a magic-link email. One click signs them in to{" "}
-        <strong className="text-foreground">your</strong> Rivlr account —
+        <strong className="text-foreground">your</strong> Rivlr account,
         same products, same stores, same data. No roles for now: every
         authorised email has full access.
       </p>
@@ -160,7 +160,7 @@ export function TeamPanel({ initial }: { initial: TeamMember[] }) {
         onConfirm={confirmRemove}
         pending={pending}
         title={`Remove ${removeTarget} from your account?`}
-        description="They won't be able to sign in any more. Existing sessions on their device stay valid until they expire (up to 30 days) — sign them out remotely from any active session afterward if needed."
+        description="They won't be able to sign in any more. Existing sessions on their device stay valid until they expire (up to 30 days), sign them out remotely from any active session afterward if needed."
         confirmLabel="Yes, remove"
         variant="danger"
       />

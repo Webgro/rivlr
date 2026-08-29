@@ -40,7 +40,7 @@ export function ToggleSwitch({
     size === "sm"
       ? { h: 16, w: 28, dot: 10 } // sm
       : size === "lg"
-        ? { h: 24, w: 44, dot: 18 } // lg — for prominent settings toggles
+        ? { h: 24, w: 44, dot: 18 } // lg, for prominent settings toggles
         : { h: 20, w: 36, dot: 14 }; // md
   const pad = (dims.h - dims.dot) / 2; // px from any edge to dot
   const onX = dims.w - dims.dot - pad;

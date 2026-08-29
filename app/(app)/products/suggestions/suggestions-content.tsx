@@ -81,7 +81,7 @@ export async function SuggestionsContent({ inPanel }: { inPanel?: boolean }) {
                 className="rounded-lg border border-default bg-elevated p-4"
               >
                 <div className="flex items-center justify-between gap-4">
-                  <div className="text-[11px] uppercase tracking-wider text-muted font-mono">
+                  <div className="text-xs font-medium text-muted">
                     Match score: {(Number(s.score) * 100).toFixed(0)}%
                   </div>
                   <div className="flex gap-2">

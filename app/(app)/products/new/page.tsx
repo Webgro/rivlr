@@ -20,7 +20,7 @@ export default async function NewProductPage(props: {
     <section className="mx-auto max-w-3xl px-6 py-12">
       <a
         href="/products"
-        className="text-xs uppercase tracking-wider text-muted font-mono hover:text-foreground"
+        className="text-xs font-medium text-muted hover:text-foreground"
       >
         ← Back to products
       </a>

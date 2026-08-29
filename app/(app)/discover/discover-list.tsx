@@ -140,7 +140,7 @@ export function DiscoverList({
       )}
 
       <div className="mt-6 overflow-hidden rounded-xl border border-default">
-        <div className="grid grid-cols-[28px_2fr_1fr_1fr_auto] gap-3 items-center border-b border-default bg-elevated px-5 py-3 text-[11px] uppercase tracking-wider text-muted font-mono">
+        <div className="grid grid-cols-[28px_2fr_1fr_1fr_auto] gap-3 items-center border-b border-default bg-elevated px-5 py-3 text-xs font-medium text-muted">
           <input
             type="checkbox"
             checked={allSelected}

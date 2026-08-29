@@ -176,7 +176,7 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
                   href="/settings#billing"
                   className="mt-5 inline-block rounded-md bg-signal px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600"
                 >
-                  See plans →
+                  See plans
                 </Link>
               </div>
             )}
@@ -199,7 +199,7 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
                 aria-disabled={page === totalPages}
                 className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === totalPages ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
               >
-                Next →
+                Next
               </Link>
             </nav>
           )}

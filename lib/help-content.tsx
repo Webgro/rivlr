@@ -378,7 +378,7 @@ https://store-c.com/products/another-widget`}
       <p>
         We won't email you about the same kind of event twice for the same
         product within 24 hours. So if a competitor's price keeps
-        oscillating, you get one drop alert per day max.
+        oscillating you get one drop alert per day at most.
       </p>
 
       <h2>What if I'm not getting emails?</h2>

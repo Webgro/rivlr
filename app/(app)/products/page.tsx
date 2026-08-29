@@ -157,7 +157,7 @@ async function getDashboardData(params: {
     -- Hide the user's own products from the competitor watchlist. Own
     -- products live in /my-products and don't count toward the plan
     -- limit. They're still in tracked_products so observations/charts
-    -- keep working — we just don't surface them here.
+    -- keep working, we just don't surface them here.
     WHERE p.user_id = ${params.userId}::uuid
       AND COALESCE(usp.is_my_store, false) = false
     ORDER BY p.added_at DESC
@@ -481,12 +481,21 @@ export default async function DashboardPage(props: {
               options={stores.map((s) => ({ value: s, label: s }))}
             />
             {tags.length > 0 && (
-              <FilterSelect
-                name="tag"
-                value={params.tag ?? ""}
-                defaultLabel="All tags"
-                options={tags.map((t) => ({ value: t, label: `#${t}` }))}
-              />
+              <>
+                <FilterSelect
+                  name="tag"
+                  value={params.tag ?? ""}
+                  defaultLabel="All tags"
+                  options={tags.map((t) => ({ value: t, label: `#${t}` }))}
+                />
+                {/* /tags left the sidebar; this is its entry point. */}
+                <Link
+                  href="/tags"
+                  className="text-xs text-muted hover:text-foreground px-1"
+                >
+                  Manage tags
+                </Link>
+              </>
             )}
             <FilterSelect
               name="stock"
@@ -531,7 +540,7 @@ export default async function DashboardPage(props: {
             {/* Spacer pushes Sort to the right edge */}
             <div className="flex-1" />
 
-            <span className="text-[10px] uppercase tracking-[0.18em] text-muted font-mono">
+            <span className="text-[11px] font-medium text-muted">
               Sort
             </span>
             <select
@@ -541,15 +550,15 @@ export default async function DashboardPage(props: {
             >
               <option value="added_desc">Newest first</option>
               <option value="added_asc">Oldest first</option>
-              <option value="name_asc">Name A → Z</option>
-              <option value="price_asc">Price low → high</option>
-              <option value="price_desc">Price high → low</option>
+              <option value="name_asc">Name A Z</option>
+              <option value="price_asc">Price low high</option>
+              <option value="price_desc">Price high low</option>
               <option value="change_desc">Biggest price rise (24h)</option>
               <option value="change_asc">Biggest price drop (24h)</option>
               {hasAnyQuantityData && (
                 <>
-                  <option value="qty_desc">Quantity high → low</option>
-                  <option value="qty_asc">Quantity low → high</option>
+                  <option value="qty_desc">Quantity high low</option>
+                  <option value="qty_asc">Quantity low high</option>
                   <option value="sold_desc">Most sold (30d)</option>
                   <option value="sold_asc">Least sold (30d)</option>
                 </>
@@ -687,7 +696,7 @@ function Pagination({
         aria-disabled={page === totalPages}
         className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === totalPages ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
       >
-        Next →
+        Next
       </Link>
     </nav>
   );
@@ -714,7 +723,7 @@ function buildBanner(params: {
   const parts: string[] = [];
   if (col > 0)
     parts.push(
-      `${col} collection${col === 1 ? "" : "s"} expanded → ${exp} product${exp === 1 ? "" : "s"}`,
+      `${col} collection${col === 1 ? "" : "s"} expanded ${exp} product${exp === 1 ? "" : "s"}`,
     );
   if (added) parts.push(`✓ ${added} added`);
   if (dup) parts.push(`${dup} duplicate${dup === 1 ? "" : "s"} skipped`);

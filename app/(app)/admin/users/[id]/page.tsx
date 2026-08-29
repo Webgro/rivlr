@@ -95,7 +95,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
               className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs font-medium text-amber-500 hover:bg-amber-500/20 transition"
               title="Drop your session and sign in as this user. A banner stays visible across the app until you stop."
             >
-              Sign in as user →
+              Sign in as user
             </button>
           </form>
         )}
@@ -104,7 +104,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
 
       {/* ─── Account facts ───────────────────────────────────────────── */}
       <section className="mt-8 rounded-lg border border-default bg-elevated p-5">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+        <div className="text-xs font-medium text-muted">
           Account
         </div>
         <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
@@ -141,7 +141,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
 
       {/* ─── Subscription ────────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-default bg-elevated p-5">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+        <div className="text-xs font-medium text-muted">
           Subscription
         </div>
         {subscription ? (
@@ -181,13 +181,13 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
 
       {/* ─── Comp plan ───────────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-default bg-elevated p-5">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+        <div className="text-xs font-medium text-muted">
           Comp plan (admin override)
         </div>
         <p className="mt-2 text-xs text-muted leading-relaxed">
           Sets the plan resolver to return this value regardless of Stripe
           state. Useful for strategic customers, trial extensions, or
-          fixing post-incident drift. Stripe billing is unaffected — set or
+          fixing post-incident drift. Stripe billing is unaffected, set or
           unset on Stripe&apos;s side separately if needed.
         </p>
         {target.compPlan && (
@@ -231,12 +231,12 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
 
       {/* ─── Admin role ──────────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-default bg-elevated p-5">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+        <div className="text-xs font-medium text-muted">
           Admin role
         </div>
         <p className="mt-2 text-xs text-muted leading-relaxed">
           Promote a user to admin so they can use this section. Self-demotion
-          is allowed but locks you out — recover via the ADMIN_USER_IDS
+          is allowed but locks you out, recover via the ADMIN_USER_IDS
           env var.
         </p>
         <div className="mt-4">
@@ -250,7 +250,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
 
       {/* ─── Audit log ───────────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-default bg-elevated overflow-hidden">
-        <div className="px-5 py-3 border-b border-default text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+        <div className="px-5 py-3 border-b border-default text-xs font-medium text-muted">
           Audit log (last 50)
         </div>
         {auditEntries.length === 0 ? (
@@ -264,7 +264,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
                 key={entry.id}
                 className="flex items-start gap-3 px-5 py-3"
               >
-                <span className="rounded bg-surface px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] font-mono text-muted-strong border border-default flex-shrink-0">
+                <span className="rounded bg-surface px-2 py-0.5 text-[11px] font-medium text-muted-strong border border-default flex-shrink-0">
                   {entry.action}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -289,7 +289,7 @@ export default async function AdminUserDetailPage(props: { params: Params }) {
 
       {/* ─── Danger zone ─────────────────────────────────────────────── */}
       <section className="mt-6 rounded-lg border border-signal/30 bg-signal/[0.03] p-5">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-signal font-mono">
+        <div className="text-xs font-semibold text-signal">
           Danger zone
         </div>
         <h3 className="mt-2 text-lg font-semibold tracking-tight">
@@ -324,7 +324,7 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+      <dt className="text-[11px] font-medium text-muted">
         {label}
       </dt>
       <dd
@@ -339,7 +339,7 @@ function Field({
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-default bg-elevated p-4">
-      <div className="text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+      <div className="text-[11px] font-medium text-muted">
         {label}
       </div>
       <div className="mt-1 text-xl font-semibold tracking-tight">

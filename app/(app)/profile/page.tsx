@@ -58,7 +58,7 @@ export default async function ProfilePage() {
                   href="/billing"
                   className="text-[11px] text-foreground underline-offset-4 hover:underline"
                 >
-                  Manage →
+                  Manage
                 </a>
               </span>
             }
@@ -109,7 +109,7 @@ export default async function ProfilePage() {
         <p className="text-sm text-muted leading-relaxed">
           Share this Rivlr account with staff or partners. Each invited
           email gets its own magic-link sign-in into <em>your</em> account
-          — same products, same stores, same data. Up to 10 additional
+         , same products, same stores, same data. Up to 10 additional
           emails per account.
         </p>
         <TeamPanel initial={teamMembers} />
@@ -147,7 +147,7 @@ function SectionLink({ href, label }: { href: string; label: string }) {
 function SectionHeading({ id, title }: { id: string; title: string }) {
   return (
     <div id={id} className="mt-12 pt-2 border-t border-default scroll-mt-6">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono mt-4">
+      <div className="text-xs font-medium text-muted mt-4">
         {title}
       </div>
     </div>
@@ -165,7 +165,7 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono">
+      <dt className="text-[11px] font-medium text-muted">
         {label}
       </dt>
       <dd className={`mt-1.5 text-foreground ${mono ? "font-mono text-sm" : ""}`}>

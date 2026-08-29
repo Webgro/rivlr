@@ -78,7 +78,7 @@ export default async function SettingsPage() {
         <SectionLink href="#appearance" label="Appearance" />
         <Link
           href="/billing"
-          className="ml-auto self-center text-[10px] uppercase tracking-[0.18em] text-muted/70 font-mono hover:text-foreground transition"
+          className="ml-auto self-center text-[11px] font-medium text-muted hover:text-foreground transition"
           title="Manage plan"
         >
           Plan: <span className="text-muted">{plan}</span>
@@ -143,7 +143,7 @@ export default async function SettingsPage() {
             })}
           </div>
           <CardFooter
-            hint="Tip: include only markets your competitors actually sell in — extra markets are wasted fetches."
+            hint="Tip: include only markets your competitors actually sell in, extra markets are wasted fetches."
           >
             <SaveButton />
           </CardFooter>
@@ -178,8 +178,8 @@ export default async function SettingsPage() {
             </div>
             <div className="mt-1 text-xs text-muted">
               {cartProbeEnabled
-                ? "On — exact quantity revealed when possible."
-                : "Off — Rivlr only uses inventory the merchant publishes via /products.json."}
+                ? "On, exact quantity revealed when possible."
+                : "Off, Rivlr only uses inventory the merchant publishes via /products.json."}
             </div>
           </div>
           <input
@@ -283,7 +283,7 @@ function SectionLink({ href, label }: { href: string; label: string }) {
 function SectionHeading({ id, title }: { id: string; title: string }) {
   return (
     <div id={id} className="mt-12 pt-1 scroll-mt-20">
-      <div className="text-[11px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+      <div className="text-xs font-medium text-muted">
         {title}
       </div>
     </div>
@@ -395,7 +395,7 @@ function CadenceCard({
         {cadence === "hourly" && "Every hour. Best for fast-moving SKUs and flash sales."}
       </div>
       {!allowed && upgradeTier && (
-        <div className="mt-3 text-[11px] uppercase tracking-[0.18em] font-mono text-signal">
+        <div className="mt-3 text-xs font-medium text-signal">
           Upgrade to {upgradeTier}
         </div>
       )}

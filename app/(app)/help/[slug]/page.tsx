@@ -77,7 +77,7 @@ export default async function HelpArticlePage(props: { params: Params }) {
             href={`/help/${prev.slug}`}
             className="rounded-lg border border-default bg-elevated p-4 hover:border-strong transition group"
           >
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted/70 font-mono">
+            <div className="text-[11px] font-medium text-muted">
               ← Previous
             </div>
             <div className="mt-1 text-sm font-medium">{prev.title}</div>
@@ -90,8 +90,8 @@ export default async function HelpArticlePage(props: { params: Params }) {
             href={`/help/${next.slug}`}
             className="rounded-lg border border-default bg-elevated p-4 hover:border-strong transition group sm:text-right"
           >
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted/70 font-mono">
-              Next →
+            <div className="text-[11px] font-medium text-muted">
+              Next
             </div>
             <div className="mt-1 text-sm font-medium">{next.title}</div>
           </Link>
