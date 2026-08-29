@@ -18,7 +18,7 @@ import {
  * the upgrade flow to work.
  */
 
-const VALID_PLANS: PaidPlan[] = ["starter", "growth", "pro", "scale"];
+const VALID_PLANS: PaidPlan[] = ["starter", "growth", "scale"];
 
 export async function POST(request: Request) {
   const user = await requireUser();

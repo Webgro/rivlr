@@ -729,10 +729,11 @@ export const subscriptions = pgTable(
     /** Customer scheduled cancellation; access continues until
      *  currentPeriodEnd, then drops to free. */
     cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-    /** Number of overage packs (Pro only). Each pack = +100 products on
-     *  top of the base 400. Mirrored from the second subscription item's
-     *  quantity by the webhook handler so plan resolution stays a single
-     *  table read. Always 0 on Starter / Growth (overage isn't sold there). */
+    /** Number of extra packs (Scale only). Each pack = +100 products on
+     *  top of the 250-product base. Mirrored from the second subscription
+     *  item's quantity by the webhook handler so plan resolution stays a
+     *  single table read. Always 0 on Starter / Growth, where packs
+     *  aren't sold. */
     overagePacks: integer("overage_packs").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

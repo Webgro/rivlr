@@ -1,4 +1,8 @@
 import Stripe from "stripe";
+import {
+  MAX_OVERAGE_PACKS,
+  PRODUCTS_PER_OVERAGE_PACK,
+} from "./pricing";
 
 /**
  * Stripe client singleton + price-id lookup.
@@ -25,37 +29,34 @@ export const stripe: Stripe | null = apiKey
   : null;
 
 /**
- * Price IDs for each paid tier + overage SKUs. NULL when the env var
+ * Price IDs for each paid tier + the Scale extra-pack SKU. NULL when the env var
  * is missing — the /billing page will hide the corresponding control
  * to keep the UI honest.
  *
- * `proOverage` is the Pro-tier overage pack (1 pack = +100 products,
- * billed monthly). Only Pro carries overage in v1; lower tiers must
- * upgrade rather than buy packs at the cheap plan's price.
+ * `scaleOverage` is the Scale extra pack (1 pack = +100 products, £10
+ * a month). Only Scale carries packs; Starter and Growth buyers move
+ * up a tier rather than buying volume at the small-plan price.
  */
 export const PRICE_IDS = {
   starter: process.env.STRIPE_PRICE_STARTER ?? null,
   growth: process.env.STRIPE_PRICE_GROWTH ?? null,
-  pro: process.env.STRIPE_PRICE_PRO ?? null,
   scale: process.env.STRIPE_PRICE_SCALE ?? null,
-  proOverage: process.env.STRIPE_PRICE_PRO_OVERAGE ?? null,
+  scaleOverage: process.env.STRIPE_PRICE_SCALE_OVERAGE ?? null,
 } as const;
 
-export type PaidPlan = "starter" | "growth" | "pro" | "scale";
+export type PaidPlan = "starter" | "growth" | "scale";
 
-/** Hard ceiling on overage packs per subscription. Anything above this
- *  is bespoke pricing — UI surfaces a "contact us" prompt rather than
- *  letting customers auto-bill themselves into four-figure invoices. */
-export const MAX_OVERAGE_PACKS = 50;
-/** Each pack adds this many products to the effective tracked-product cap. */
-export const PRODUCTS_PER_OVERAGE_PACK = 100;
+// Pack sizing and ceiling live in lib/pricing.ts (no imports, safe for
+// client components). Re-exported here so billing code can keep taking
+// everything Stripe-related from one module.
+export { MAX_OVERAGE_PACKS, PRODUCTS_PER_OVERAGE_PACK };
 
 export function isStripeConfigured(): boolean {
   return (
     !!stripe &&
     !!PRICE_IDS.starter &&
     !!PRICE_IDS.growth &&
-    !!PRICE_IDS.pro
+    !!PRICE_IDS.scale
   );
 }
 
@@ -64,7 +65,7 @@ export function isStripeConfigured(): boolean {
  * to a "coming soon" pill on the overage control if this is false.
  */
 export function isOverageConfigured(): boolean {
-  return isStripeConfigured() && !!PRICE_IDS.proOverage;
+  return isStripeConfigured() && !!PRICE_IDS.scaleOverage;
 }
 
 /**
@@ -75,7 +76,6 @@ export function isOverageConfigured(): boolean {
 export function planFromPriceId(priceId: string): PaidPlan | null {
   if (priceId === PRICE_IDS.starter) return "starter";
   if (priceId === PRICE_IDS.growth) return "growth";
-  if (priceId === PRICE_IDS.pro) return "pro";
   if (priceId === PRICE_IDS.scale) return "scale";
   return null;
 }
@@ -84,5 +84,5 @@ export function planFromPriceId(priceId: string): PaidPlan | null {
  *  knows to read its quantity into subscriptions.overage_packs rather
  *  than treating it as the base plan price). */
 export function isOveragePriceId(priceId: string): boolean {
-  return priceId === PRICE_IDS.proOverage;
+  return priceId === PRICE_IDS.scaleOverage;
 }

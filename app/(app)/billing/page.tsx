@@ -5,6 +5,10 @@ import {
   getPlanForUser,
   getProductQuota,
   PLAN_FEATURES,
+  PLAN_PRICE_GBP,
+  PACK_PRICE_GBP,
+  SCALE_BASE_PRODUCTS,
+  SCALE_ADVERTISED_MAX,
   type Plan,
 } from "@/lib/plan";
 import {
@@ -20,8 +24,6 @@ import { OveragePackPicker } from "./overage-pack-picker";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Billing · Rivlr" };
 
-const PACK_PRICE_GBP = 15;
-
 interface PlanCard {
   id: Plan;
   name: string;
@@ -36,16 +38,20 @@ const PLAN_CARDS: PlanCard[] = [
   {
     id: "free",
     name: "Free",
-    price: "£0",
-    priceNum: 0,
+    price: `£${PLAN_PRICE_GBP.free}`,
+    priceNum: PLAN_PRICE_GBP.free,
     cadenceLabel: "Checks once a day",
-    bullets: ["Up to 5 tracked products", "Prices checked daily", "All core features"],
+    bullets: [
+      "Up to 5 tracked products",
+      "Prices checked daily",
+      "All core features",
+    ],
   },
   {
     id: "starter",
     name: "Starter",
-    price: "£14.99",
-    priceNum: 14.99,
+    price: `£${PLAN_PRICE_GBP.starter}`,
+    priceNum: PLAN_PRICE_GBP.starter,
     cadenceLabel: "Checks once a day",
     bullets: [
       "Up to 50 tracked products",
@@ -56,40 +62,27 @@ const PLAN_CARDS: PlanCard[] = [
   {
     id: "growth",
     name: "Growth",
-    price: "£29.99",
-    priceNum: 29.99,
+    price: `£${PLAN_PRICE_GBP.growth}`,
+    priceNum: PLAN_PRICE_GBP.growth,
     cadenceLabel: "Checks every 6 hours",
     bullets: [
-      "Up to 150 tracked products",
+      "Up to 100 tracked products",
       "Prices checked every 6 hours",
       "Compare view unlocked",
       "Prices in other countries",
     ],
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: "£59.99",
-    priceNum: 59.99,
+    id: "scale",
+    name: "Scale",
+    price: `£${PLAN_PRICE_GBP.scale}`,
+    priceNum: PLAN_PRICE_GBP.scale,
     cadenceLabel: "Checks every 6 hours",
     highlight: true,
     bullets: [
-      "Up to 400 tracked products",
-      "Prices checked every 6 hours",
-      "Compare view + other countries",
-      `Add extra packs: +${PRODUCTS_PER_OVERAGE_PACK} products for £${PACK_PRICE_GBP}/mo each`,
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    price: "£299",
-    priceNum: 299,
-    cadenceLabel: "Checks every 6 hours",
-    bullets: [
-      "Up to 2,500 tracked products",
-      "Track every competitor you have",
-      "Whole-store scans",
+      `${SCALE_BASE_PRODUCTS} tracked products included`,
+      `Add more for £${PACK_PRICE_GBP} per 100, up to ${SCALE_ADVERTISED_MAX.toLocaleString()}`,
+      "Everything in Growth",
       "Priority support",
     ],
   },
@@ -193,21 +186,23 @@ export default async function BillingPage({
         />
       )}
 
-      {/* Pro-tier overage controls. Only rendered when the user is
-          actually on Pro AND the overage SKU is configured. */}
-      {plan === "pro" && overageConfigured && (
+      {/* Scale extra-pack controls. Only rendered when the user is
+          actually on Scale AND the pack price is configured. */}
+      {plan === "scale" && overageConfigured && (
         <OveragePackPicker
           currentPacks={overagePacks}
           maxPacks={MAX_OVERAGE_PACKS}
           packPriceGbp={PACK_PRICE_GBP}
           productsPerPack={PRODUCTS_PER_OVERAGE_PACK}
+          baseProducts={SCALE_BASE_PRODUCTS}
+          basePriceGbp={PLAN_PRICE_GBP.scale}
         />
       )}
 
-      {plan === "pro" && !overageConfigured && (
+      {plan === "scale" && !overageConfigured && (
         <StatusBanner tone="muted">
           Extra product packs aren&apos;t available just yet. Email support
-          if you need to track more than 400 products on Pro.
+          if you need to track more than {SCALE_BASE_PRODUCTS} products.
         </StatusBanner>
       )}
 
@@ -222,10 +217,10 @@ export default async function BillingPage({
         </h2>
         <p className="mt-1 text-xs text-muted">
           {hasSubscription
-            ? "Plan changes apply straight away and you only pay the difference. Pro is the only plan that supports extra product packs."
+            ? "Plan changes apply straight away and you only pay the difference. Scale is the plan that grows with extra product packs."
             : "Pick the plan that fits your catalogue. You'll enter card details on Stripe's secure checkout page."}
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PLAN_CARDS.map((card) => (
             <PlanCardComponent
               key={card.id}
@@ -393,7 +388,7 @@ function SubscriptionSummary({
             <span className="text-lg font-semibold tracking-tight">
               {planCopy}
             </span>
-            {plan === "pro" && overagePacks > 0 && (
+            {plan === "scale" && overagePacks > 0 && (
               <span className="rounded bg-foreground/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted-strong font-mono">
                 +{overagePacks} pack{overagePacks === 1 ? "" : "s"}
               </span>

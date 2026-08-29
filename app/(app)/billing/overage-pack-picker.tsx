@@ -17,11 +17,17 @@ export function OveragePackPicker({
   maxPacks,
   packPriceGbp,
   productsPerPack,
+  baseProducts,
+  basePriceGbp,
 }: {
   currentPacks: number;
   maxPacks: number;
   packPriceGbp: number;
   productsPerPack: number;
+  /** Products included in the plan before any packs. */
+  baseProducts: number;
+  /** Monthly price of the plan before any packs. */
+  basePriceGbp: number;
 }) {
   const [packs, setPacks] = useState<number>(currentPacks);
   const [isPending, startTransition] = useTransition();
@@ -52,7 +58,7 @@ export function OveragePackPicker({
             Extra product packs
           </div>
           <h2 className="mt-1.5 text-xl font-semibold tracking-tight">
-            Track more than 400 products
+            Track more than {baseProducts} products
           </h2>
         </div>
         <div className="text-[11px] text-muted">
@@ -114,11 +120,13 @@ export function OveragePackPicker({
       <div className="mt-5 grid gap-2 rounded-md border border-default bg-surface p-4 text-sm">
         <div className="flex justify-between gap-2">
           <span className="text-muted">Your new product limit</span>
-          <span className="font-mono">{400 + additionalProducts}</span>
+          <span className="font-mono">
+            {(baseProducts + additionalProducts).toLocaleString()}
+          </span>
         </div>
         <div className="flex justify-between gap-2">
-          <span className="text-muted">Pro base</span>
-          <span className="font-mono">£59.99 / mo</span>
+          <span className="text-muted">Scale base</span>
+          <span className="font-mono">£{basePriceGbp} / mo</span>
         </div>
         <div className="flex justify-between gap-2">
           <span className="text-muted">
@@ -131,7 +139,7 @@ export function OveragePackPicker({
         <div className="border-t border-default pt-2 flex justify-between gap-2">
           <span className="font-medium">Total per month</span>
           <span className="font-mono font-medium">
-            £{(59.99 + monthlyOverage).toFixed(2)} / mo
+            £{basePriceGbp + monthlyOverage} / mo
           </span>
         </div>
       </div>

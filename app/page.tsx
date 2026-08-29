@@ -55,30 +55,24 @@ const SOFTWARE_LD = {
     {
       "@type": "Offer",
       name: "Starter",
-      price: "14.99",
+      price: "19",
       priceCurrency: "GBP",
       description: "50 tracked products, daily checks",
     },
     {
       "@type": "Offer",
       name: "Growth",
-      price: "29.99",
+      price: "29",
       priceCurrency: "GBP",
-      description: "150 tracked products, every 6 hours",
-    },
-    {
-      "@type": "Offer",
-      name: "Pro",
-      price: "59.99",
-      priceCurrency: "GBP",
-      description: "400 tracked products, checks every 6 hours",
+      description: "100 tracked products, checks every 6 hours",
     },
     {
       "@type": "Offer",
       name: "Scale",
-      price: "299.00",
+      price: "49",
       priceCurrency: "GBP",
-      description: "2,500 tracked products, checks every 6 hours",
+      description:
+        "From 250 tracked products, plus £10 per extra 100 up to 2,500. Checks every 6 hours.",
     },
   ],
   publisher: {
@@ -236,7 +230,7 @@ export default async function MarketingPage() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <PricingCard
             name="Free"
             price="£0"
@@ -247,7 +241,7 @@ export default async function MarketingPage() {
           />
           <PricingCard
             name="Starter"
-            price="£14.99"
+            price="£19"
             blurb="For a focused watchlist"
             features={[
               "50 tracked products",
@@ -261,10 +255,10 @@ export default async function MarketingPage() {
           />
           <PricingCard
             name="Growth"
-            price="£29.99"
+            price="£29"
             blurb="For serious operators"
             features={[
-              "150 tracked products",
+              "100 tracked products",
               "Checks every 6 hours",
               "Compare view",
               "CSV import",
@@ -275,29 +269,15 @@ export default async function MarketingPage() {
             highlight
           />
           <PricingCard
-            name="Pro"
-            price="£59.99"
-            blurb="For the whole catalogue"
-            features={[
-              "400 tracked products",
-              "Checks every 6 hours",
-              "Weekly digest",
-              "Priority support",
-              "Overage packs: £15 per 100 extra products",
-            ]}
-            cta="Try for free"
-            href="/signup?source=pricing-pro"
-          />
-          <PricingCard
             name="Scale"
-            price="£299"
+            price="From £49"
             blurb="Track every competitor you have"
             features={[
-              "2,500 tracked products",
-              "Checks every 6 hours",
-              "Whole-store scans",
+              "250 products included",
+              "Add more for £10 per 100",
+              "Up to 2,500 products",
+              "Everything in Growth",
               "Priority support",
-              "Everything in Pro",
             ]}
             cta="Try for free"
             href="/signup?source=pricing-scale"
@@ -305,15 +285,16 @@ export default async function MarketingPage() {
         </div>
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-neutral-500 leading-relaxed">
-          Need more than 400 products? Add overage packs to Pro (£15 a
-          month per extra 100) or move to Scale for 2,500. Beyond that,{" "}
+          On Scale you set your own limit: £49 covers 250 products and
+          each extra 100 is £10 a month, up to 2,500. Need more than
+          that?{" "}
           <a
             href="mailto:hello@rivlr.app?subject=Rivlr%20Custom%20plan"
             className="underline underline-offset-4 hover:text-paper"
           >
-            talk to us
+            Talk to us
           </a>{" "}
-          about a custom tier.
+          and we will size a plan for you.
         </p>
       </section>
 
@@ -340,9 +321,9 @@ export default async function MarketingPage() {
             need nothing from you at all.
           </Faq>
           <Faq q="How fresh is the data?">
-            Daily on Free and Starter, and every 6 hours on Growth, Pro
-            and Scale. Any product can also be refreshed on demand from
-            its detail page.
+            Daily on Free and Starter, and every 6 hours on Growth and
+            Scale. Any product can also be refreshed on demand from its
+            detail page.
           </Faq>
           <Faq q="Can I cancel anytime?">
             Yes. Billing is monthly through Stripe and you can cancel in
@@ -350,11 +331,11 @@ export default async function MarketingPage() {
             the period you have paid for, and your account drops to the
             free plan rather than disappearing.
           </Faq>
-          <Faq q="What if I need more than 400 products?">
-            Pro supports overage packs: each adds 100 products for £15 a
-            month. For bigger catalogues, Scale covers 2,500 products at
-            £299 a month. Past that, email us and we will build you a
-            custom tier.
+          <Faq q="What if I need to track hundreds of products?">
+            Scale starts at £49 for 250 products and you add as many
+            100-product packs as you need at £10 a month each, up to
+            2,500 in total. Past that, email us and we will build you a
+            custom plan.
           </Faq>
         </div>
       </section>

@@ -200,7 +200,7 @@ export async function upsertSubscriptionFromStripe(
   }
   // Defensive — overage on non-Pro shouldn't exist, but if Stripe
   // somehow has both we ignore the packs to keep our resolver safe.
-  if (plan !== "pro") overagePacks = 0;
+  if (plan !== "scale") overagePacks = 0;
 
   const status = STATUS_MAP[sub.status];
   // Stripe's API shape: current_period_end is on subscription items in
@@ -324,7 +324,7 @@ export async function changePlan({
   }
 
   // No-op if they're already on this plan and no overage cleanup needed.
-  if (row.plan === newPlan && !(newPlan !== "pro" && overageItem)) {
+  if (row.plan === newPlan && !(newPlan !== "scale" && overageItem)) {
     return;
   }
 
@@ -334,7 +334,7 @@ export async function changePlan({
   const items: Stripe.SubscriptionUpdateParams.Item[] = [
     { id: baseItem.id, price: newPriceId },
   ];
-  if (overageItem && newPlan !== "pro") {
+  if (overageItem && newPlan !== "scale") {
     items.push({ id: overageItem.id, deleted: true });
   }
 
@@ -373,13 +373,13 @@ export async function resumeSubscription(userId: string): Promise<void> {
 }
 
 /**
- * Set the overage pack quantity on a Pro subscription. Pre-billed —
+ * Set the extra-pack quantity on a Scale subscription. Pre-billed:
  * Stripe immediately invoices the prorated delta and charges the card.
  *
  * Throws when:
- *  - User isn't on Pro (overage not sold elsewhere).
+ *  - User isn't on Scale (packs are not sold on other tiers).
  *  - Requested quantity exceeds MAX_OVERAGE_PACKS.
- *  - Pro overage Price ID isn't configured.
+ *  - The Scale pack Price ID isn't configured.
  */
 export async function setOveragePacks({
   userId,
@@ -389,9 +389,9 @@ export async function setOveragePacks({
   packs: number;
 }): Promise<void> {
   if (!stripe) throw new Error("Stripe is not configured.");
-  const overagePriceId = PRICE_IDS.proOverage;
+  const overagePriceId = PRICE_IDS.scaleOverage;
   if (!overagePriceId) {
-    throw new Error("Pro overage SKU is not configured on this deployment.");
+    throw new Error("The extra-pack price is not set up on this deployment.");
   }
   if (!Number.isInteger(packs) || packs < 0) {
     throw new Error("Pack count must be a non-negative integer.");
@@ -403,8 +403,8 @@ export async function setOveragePacks({
   }
 
   const { stripeSub, row } = await loadStripeSub(userId);
-  if (row.plan !== "pro") {
-    throw new Error("Overage packs are only available on the Pro plan.");
+  if (row.plan !== "scale") {
+    throw new Error("Extra product packs are only available on the Scale plan.");
   }
 
   const { overageItem } = splitItems(stripeSub);

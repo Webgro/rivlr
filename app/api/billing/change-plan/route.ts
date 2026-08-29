@@ -18,7 +18,7 @@ import { getProductQuota, PLAN_FEATURES } from "@/lib/plan";
  * proceeding. Stripe doesn't enforce this — it's a Rivlr policy so we
  * never silently lose data.
  */
-const VALID: PaidPlan[] = ["starter", "growth", "pro", "scale"];
+const VALID: PaidPlan[] = ["starter", "growth", "scale"];
 
 export async function POST(request: Request) {
   const user = await requireUser();

@@ -1,7 +1,22 @@
 import { db, schema } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { PRODUCTS_PER_OVERAGE_PACK } from "@/lib/stripe";
+import {
+  PRODUCTS_PER_OVERAGE_PACK,
+  PLAN_PRICE_GBP,
+  PACK_PRICE_GBP,
+  SCALE_BASE_PRODUCTS,
+  SCALE_ADVERTISED_MAX,
+} from "@/lib/pricing";
+
+// Re-exported so server components can take plan features and prices
+// from a single import.
+export {
+  PLAN_PRICE_GBP,
+  PACK_PRICE_GBP,
+  SCALE_BASE_PRODUCTS,
+  SCALE_ADVERTISED_MAX,
+};
 
 /**
  * Plan / entitlement gating.
@@ -86,10 +101,14 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
   growth: {
     discoverVisible: 100,
     compare: true,
-    productLimit: 150,
+    productLimit: 100,
     maxCadence: "every-6h",
     cadence: "every-6h",
   },
+  // LEGACY. Pro was retired when Scale absorbed it. Kept only so a
+  // subscriptions row still carrying 'pro' resolves to sensible
+  // features instead of crashing the resolver. Never sold, never shown
+  // in pricing UI, never returned by suggestNextPlan.
   pro: {
     discoverVisible: Infinity,
     compare: true,
@@ -97,13 +116,14 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     maxCadence: "every-6h",
     cadence: "every-6h",
   },
-  // Top self-serve tier for "track every competitor's full catalogue"
-  // buyers. Deliberately capped (not "unlimited") so the crawl cost per
-  // account stays bounded; above this it's a sales conversation.
+  // Top self-serve tier. The base covers 250 products and the customer
+  // adds 100-product packs from the billing page, up to the advertised
+  // 2,500. Deliberately capped rather than "unlimited" so crawl cost
+  // per account stays bounded; beyond the cap it's a conversation.
   scale: {
     discoverVisible: Infinity,
     compare: true,
-    productLimit: 2500,
+    productLimit: 250,
     maxCadence: "every-6h",
     cadence: "every-6h",
   },
@@ -210,10 +230,10 @@ export async function getEffectiveProductLimit(
   const plan = await getPlanForUser(userId);
   const baseLimit = PLAN_FEATURES[plan].productLimit;
 
-  // Overage only matters on Pro. On other plans we ignore any
-  // (legacy / drifted) overage_packs value defensively.
+  // Packs only apply on Scale. On other plans we defensively ignore any
+  // drifted overage_packs value.
   let overagePacks = 0;
-  if (plan === "pro") {
+  if (plan === "scale") {
     const [row] = await db
       .select({ packs: schema.subscriptions.overagePacks })
       .from(schema.subscriptions)
@@ -280,14 +300,16 @@ export async function getProductQuota(userId: string): Promise<ProductQuota> {
  */
 export function suggestNextPlan(
   plan: Plan,
-): "starter" | "growth" | "pro" | "scale" | null {
+): "starter" | "growth" | "scale" | null {
   switch (plan) {
     case "free":
       return "starter";
     case "starter":
       return "growth";
     case "growth":
-      return "pro";
+      return "scale";
+    // Scale is the top self-serve tier; it grows by adding packs
+    // rather than by moving plan. Legacy 'pro' points at Scale.
     case "pro":
       return "scale";
     default:

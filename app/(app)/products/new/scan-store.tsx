@@ -8,6 +8,14 @@ import {
   type ScanProduct,
 } from "./scan-actions";
 import { addProducts } from "./actions";
+import {
+  PLAN_PRICE_GBP,
+  PACK_PRICE_GBP,
+  SCALE_BASE_PRODUCTS,
+  SCALE_ADVERTISED_MAX,
+  packsNeededFor,
+  scalePriceFor,
+} from "@/lib/pricing";
 
 /** Well-known Shopify stores offered as one-click examples so a fresh
  *  account can reach a populated screen without knowing any URLs. */
@@ -369,56 +377,50 @@ function recommendPlan(
     };
   }
 
-  // Cheapest plan that covers the whole catalogue. Between Pro and
-  // Scale there's a judgement call: a few extra packs on Pro beats
-  // jumping to Scale on price, so packs are suggested up to 1,000
-  // products and Scale beyond that.
-  const PLAN_LIMITS: Array<{ plan: string; cap: number; price: string }> = [
-    { plan: "Starter", cap: 50, price: "£14.99/mo" },
-    { plan: "Growth", cap: 150, price: "£29.99/mo" },
-    { plan: "Pro", cap: 400, price: "£59.99/mo" },
-  ];
-  const fitsTier = PLAN_LIMITS.find((t) => total <= t.cap);
-
-  if (fitsTier) {
+  // Cheapest plan that covers the whole catalogue. Starter and Growth
+  // are fixed sizes; above 100 products everything is Scale, priced by
+  // how many extra packs the catalogue needs.
+  if (total <= 50) {
     return {
       tone: "info",
       title: `${total} is more than your ${quota.plan.toUpperCase()} plan covers.`,
-      body: `Upgrade to ${fitsTier.plan} (${fitsTier.price}) and track all ${total} in one go. Or pick up to ${remaining} below to stay on your current plan.`,
-      ctaLabel: `Upgrade to ${fitsTier.plan}`,
-      ctaHref: `/billing?upgrade=${fitsTier.plan.toLowerCase()}`,
+      body: `Starter (£${PLAN_PRICE_GBP.starter}/mo) covers 50 products, enough for all ${total}. Or pick up to ${remaining} below to stay on your current plan.`,
+      ctaLabel: "Upgrade to Starter",
+      ctaHref: "/billing?upgrade=starter",
     };
   }
 
-  // Pro + extra packs — cheaper than Scale up to about 1,000 products.
-  if (total <= 1000) {
-    const packs = Math.ceil((total - 400) / 100);
-    const monthly = 59.99 + packs * 15;
+  if (total <= 100) {
     return {
       tone: "info",
-      title: `${total} products fits on Pro with ${packs} extra pack${packs === 1 ? "" : "s"}.`,
-      body: `Pro at £59.99 plus £${(packs * 15).toFixed(2)} for ${packs} pack${packs === 1 ? "" : "s"} (+${packs * 100} products) = £${monthly.toFixed(2)}/mo. Add the packs in the app once you upgrade. Or pick up to ${remaining} below now.`,
-      ctaLabel: `Upgrade to Pro`,
-      ctaHref: `/billing?upgrade=pro`,
+      title: `${total} is more than your ${quota.plan.toUpperCase()} plan covers.`,
+      body: `Growth (£${PLAN_PRICE_GBP.growth}/mo) covers 100 products, enough for all ${total}. Or pick up to ${remaining} below to stay on your current plan.`,
+      ctaLabel: "Upgrade to Growth",
+      ctaHref: "/billing?upgrade=growth",
     };
   }
 
-  // Scale covers up to 2,500.
-  if (total <= 2500) {
+  if (total <= SCALE_ADVERTISED_MAX) {
+    const packs = packsNeededFor(total);
+    const monthly = scalePriceFor(total);
+    const packNote =
+      packs === 0
+        ? `Scale starts at £${PLAN_PRICE_GBP.scale}/mo for ${SCALE_BASE_PRODUCTS} products, enough for all ${total}.`
+        : `Scale is £${PLAN_PRICE_GBP.scale}/mo for ${SCALE_BASE_PRODUCTS} products, plus ${packs} pack${packs === 1 ? "" : "s"} at £${PACK_PRICE_GBP} each to cover all ${total}. That's £${monthly}/mo. You add the packs in the app after upgrading.`;
     return {
       tone: "info",
-      title: `${total} products calls for the Scale plan.`,
-      body: `Scale (£299/mo) covers up to 2,500 tracked products, enough to follow every competitor you have. Or pick up to ${remaining} below to stay on your current plan.`,
-      ctaLabel: `Upgrade to Scale`,
-      ctaHref: `/billing?upgrade=scale`,
+      title: `${total} products needs the Scale plan.`,
+      body: `${packNote} Or pick up to ${remaining} below to stay on your current plan.`,
+      ctaLabel: "Upgrade to Scale",
+      ctaHref: "/billing?upgrade=scale",
     };
   }
 
-  // Custom tier territory.
+  // Beyond the self-serve ceiling.
   return {
     tone: "warning",
     title: `${total} products is more than our biggest plan covers.`,
-    body: `Above 2,500 products we set up a custom plan. Email hello@rivlr.app and we'll size one for you. Meanwhile pick up to ${remaining} below to start.`,
+    body: `Scale tops out at ${SCALE_ADVERTISED_MAX.toLocaleString()} products. Email hello@rivlr.app and we'll size a plan for you. Meanwhile pick up to ${remaining} below to start.`,
   };
 }
 
