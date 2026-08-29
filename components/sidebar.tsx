@@ -17,7 +17,7 @@ import {
   HelpIcon,
 } from "./sidebar-icons";
 
-interface NavItem {
+export interface NavItem {
   href: string;
   label: string;
   Icon: React.ComponentType<{ className?: string; size?: number }>;
@@ -29,8 +29,11 @@ interface NavItem {
  * dashboard's Recent activity section, Suggestions from the insights
  * row and products page, Tags from the products filter bar. Fewer
  * top-level choices makes the product feel smaller than it is.
+ *
+ * Exported so the mobile drawer (components/mobile-nav.tsx) renders the
+ * exact same set; there is one source of truth for what the nav contains.
  */
-const PRIMARY_NAV: NavItem[] = [
+export const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
   { href: "/products", label: "Watchlist", Icon: ProductsIcon },
@@ -39,14 +42,14 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/stores", label: "Stores", Icon: StoresIcon },
 ];
 
-const SECONDARY_NAV: NavItem[] = [
+export const SECONDARY_NAV: NavItem[] = [
   { href: "/profile", label: "Profile", Icon: ProfileIcon },
   { href: "/billing", label: "Billing", Icon: BillingIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
   { href: "/help", label: "Help", Icon: HelpIcon },
 ];
 
-const ADMIN_NAV: NavItem = {
+export const ADMIN_NAV: NavItem = {
   href: "/admin",
   label: "Admin",
   Icon: AdminIcon,

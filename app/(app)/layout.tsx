@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { MobileNav } from "@/components/mobile-nav";
 import { CrawlProgress } from "@/components/crawl-progress";
 import { CookieBanner } from "@/components/cookie-banner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
@@ -41,6 +42,7 @@ export default async function AppLayout({
           adminEmail={impersonator.email}
         />
       )}
+      <MobileNav isAdmin={isAdmin} />
       <Sidebar isAdmin={isAdmin} />
       <main className="md:ml-60">{children}</main>
       {panel}
