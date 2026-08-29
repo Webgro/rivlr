@@ -37,12 +37,15 @@ export interface ImportOptions {
  * and the ongoing price refresh for the user's own store. Products
  * already present are updated in place rather than inserted again.
  *
- * That matters more than it sounds. `onConflictDoNothing()` cannot
- * deduplicate these rows — `tracked_products` has no unique constraint
- * beyond its primary key, and every insert generates a fresh UUID, so
- * the clause never fires and each re-import silently duplicated the
- * whole catalogue. Existing handles are therefore read and filtered
- * explicitly here.
+ * That matters more than it sounds. This table used to have no unique
+ * constraint beyond its primary key, so `onConflictDoNothing()` never
+ * fired — every insert generates a fresh UUID — and each re-import
+ * silently duplicated the whole catalogue, to the tune of 1,758 rows
+ * and 819k orphaned observations before it was caught. There is now a
+ * unique index on (user_id, store_domain, handle) as a backstop, but
+ * existing handles are still read and filtered explicitly: the index
+ * turns a duplicate into a thrown error, and skipping the row is what
+ * we actually want.
  *
  * The refresh updates `latest_*` only and writes no price observations.
  * Own-store products are excluded from per-product crawling (see
@@ -97,7 +100,7 @@ export async function importOwnStoreCatalogue(
         marketCountry: market.country,
         marketCurrency: market.currency,
       })),
-    );
+    ).onConflictDoNothing();
     imported += slice.length;
     await opts.onProgress?.(imported, products.length);
   }
@@ -143,8 +146,8 @@ export async function importOwnStoreCatalogue(
  * Handles the user already tracks, or already has staged, are skipped
  * rather than re-inserted, so re-running is safe and does not resurrect
  * products the user has already decided about. As with the own-store
- * import, this filtering has to be explicit: there is no unique
- * constraint for `onConflictDoNothing()` to catch.
+ * import the filtering is explicit, with the unique index only as a
+ * backstop against two imports racing for the same store.
  */
 export async function importCompetitorCatalogue(
   userId: string,
@@ -188,7 +191,8 @@ export async function importCompetitorCatalogue(
           url: `https://${domain}/products/${p.handle}`,
           status: "new" as const,
         })),
-      );
+      )
+      .onConflictDoNothing();
     imported += slice.length;
     await opts.onProgress?.(imported, products.length);
   }

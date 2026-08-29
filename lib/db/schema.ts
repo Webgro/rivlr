@@ -366,6 +366,14 @@ export const trackedProducts = pgTable(
     latestObservedAt: timestamp("latest_observed_at", { withTimezone: true }),
   },
   (t) => [
+    // One row per (user, store, product handle). Without this the
+    // onConflictDoNothing() on catalogue imports has nothing to
+    // catch and re-importing duplicates the whole catalogue.
+    uniqueIndex("tracked_products_user_store_handle_key").on(
+      t.userId,
+      t.storeDomain,
+      t.handle,
+    ),
     index("idx_products_store").on(t.storeDomain),
     index("idx_products_active").on(t.active),
     index("idx_products_gtin").on(t.gtin),
@@ -988,6 +996,11 @@ export const discoveredProducts = pgTable(
       .default("new"),
   },
   (t) => [
+    uniqueIndex("discovered_products_user_store_handle_key").on(
+      t.userId,
+      t.storeDomain,
+      t.handle,
+    ),
     index("idx_discovered_status").on(t.status),
     index("idx_discovered_store").on(t.storeDomain),
   ],

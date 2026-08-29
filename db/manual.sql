@@ -48,3 +48,17 @@ CREATE INDEX IF NOT EXISTS idx_discovered_skus
 DROP INDEX IF EXISTS idx_usp_user_domain_unique;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_usp_user_domain_unique
   ON user_store_prefs (user_id, domain);
+
+-- One tracked/discovered row per (user, store, product handle).
+--
+-- Neither table had a unique constraint beyond its primary key, so the
+-- `onConflictDoNothing()` on every catalogue insert never fired: each
+-- insert generates a fresh UUID, so there was nothing to conflict with.
+-- Re-importing a store therefore duplicated its entire catalogue, and
+-- each duplicate was then crawled independently. 1,758 duplicate rows
+-- carrying 819,025 observations were removed on 2026-08-29; these
+-- indexes stop it happening again.
+CREATE UNIQUE INDEX IF NOT EXISTS tracked_products_user_store_handle_key
+  ON tracked_products (user_id, store_domain, handle);
+CREATE UNIQUE INDEX IF NOT EXISTS discovered_products_user_store_handle_key
+  ON discovered_products (user_id, store_domain, handle);
