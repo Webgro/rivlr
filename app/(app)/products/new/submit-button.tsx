@@ -16,7 +16,7 @@ export function SubmitButton() {
           aria-hidden
         />
       )}
-      {pending ? "Adding to queue…" : "Track products"}
+      {pending ? "Adding…" : "Track products"}
     </button>
   );
 }

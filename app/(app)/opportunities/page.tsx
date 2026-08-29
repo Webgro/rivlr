@@ -244,17 +244,17 @@ export default async function OpportunitiesPage() {
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">
             Two views: competitors about to run out of stock, and your
-            products at a price disadvantage. Both update when the daily
-            scan completes.
+            products priced higher than a rival&apos;s. Both update once a
+            day.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <SummaryStat
-            label="About to go dark"
+            label="About to sell out"
             value={goingDarkRows.length.toString()}
           />
           <SummaryStat
-            label="Pricing disadvantage"
+            label="Priced above a rival"
             value={mine ? scored.length.toString() : "—"}
           />
         </div>
@@ -265,18 +265,18 @@ export default async function OpportunitiesPage() {
         <div className="flex items-end justify-between gap-3 flex-wrap mb-3">
           <div>
             <h2 className="text-base font-semibold">
-              About to go dark · &lt; {daysCoverThreshold} days cover
+              About to sell out · under {daysCoverThreshold} days of stock left
             </h2>
             <p className="mt-1 text-xs text-muted">
-              Competitor products whose remaining inventory ÷ daily sales
-              rate falls below your threshold. They&apos;re about to stock
-              out, hold prices, run a campaign, or order more from your
-              supplier.{" "}
+              Competitor products selling fast enough to run out within{" "}
+              {daysCoverThreshold} days. When they sell out, that&apos;s your
+              moment: hold your price, run a promotion, or order more from
+              your supplier.{" "}
               <Link
                 href="/settings"
                 className="text-foreground underline-offset-4 hover:underline"
               >
-                Change threshold
+                Change the number of days
               </Link>
               .
             </p>
@@ -284,15 +284,17 @@ export default async function OpportunitiesPage() {
         </div>
         {goingDarkRows.length === 0 ? (
           <div className="rounded-lg border border-dashed border-default bg-elevated px-6 py-8 text-center text-xs text-muted">
-            No tracked competitor is currently below the {daysCoverThreshold}-day threshold. Either everyone&apos;s well-stocked, or we don&apos;t yet have enough sales-velocity data, check back after the next daily scan.
+            No tracked competitor looks like selling out within{" "}
+            {daysCoverThreshold} days. Either everyone&apos;s well stocked,
+            or Rivlr needs a few more days of data. Check back tomorrow.
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-default">
             <div className="grid grid-cols-[2.4fr_0.8fr_1fr_1fr_0.8fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[11px] font-medium text-muted">
               <div>Product</div>
               <div className="text-right">In stock</div>
-              <div className="text-right">Daily rate</div>
-              <div className="text-right">Days cover</div>
+              <div className="text-right">Selling per day</div>
+              <div className="text-right">Days left</div>
               <div className="text-right">Price</div>
             </div>
             {goingDarkRows.map((r) => {
@@ -355,7 +357,7 @@ export default async function OpportunitiesPage() {
             <h2 className="text-base font-semibold">
               {mine ? (
                 <>
-                  Pricing disadvantage on{" "}
+                  Priced above a rival on{" "}
                   <Link
                     href={`/stores/${encodeURIComponent(mine.domain)}`}
                     className="text-foreground underline-offset-4 hover:underline normal-case"
@@ -364,13 +366,13 @@ export default async function OpportunitiesPage() {
                   </Link>
                 </>
               ) : (
-                "Pricing disadvantage"
+                "Priced above a rival"
               )}
             </h2>
             <p className="mt-1 text-xs text-muted">
-              Your products that are likely high-volume <em>and</em> priced
-              higher than at least one tracked competitor. Sorted by
-              importance, then by price-disadvantage %.
+              Your likely best sellers that cost more than at least one
+              tracked competitor. The products that matter most to your
+              business come first.
             </p>
           </div>
         </div>
@@ -384,17 +386,17 @@ export default async function OpportunitiesPage() {
           <div className="grid grid-cols-[2.4fr_1fr_1fr_0.8fr_1.4fr_0.6fr] gap-3 border-b border-default bg-elevated px-5 py-3 text-[11px] font-medium text-muted">
             <div>My product</div>
             <div>My price</div>
-            <div>Best competitor</div>
-            <div>Δ</div>
-            <div>Demand signal</div>
+            <div>Cheapest rival</div>
+            <div>Gap</div>
+            <div>Why it matters</div>
             <div
               className="text-right cursor-help"
               title={[
-                "Importance score (0–10):",
-                "+3  in store's bestseller / featured collection",
-                "+2  has a 'bestseller' or 'featured' Shopify tag",
+                "Importance score (0 to 10):",
+                "+3  in the store's bestseller / featured collection",
+                "+2  has a 'bestseller' or 'featured' tag",
                 "+2  review count in the top 25% of your store",
-                "+2  has gone out of stock 5+ times (high demand churn)",
+                "+2  has sold out 5 or more times",
                 "+1  has 50+ reviews",
                 "",
                 "Higher = the product matters more to your business.",
@@ -456,7 +458,7 @@ export default async function OpportunitiesPage() {
               {/* demand signals */}
               <div className="flex flex-wrap gap-1">
                 {r.is_bestseller && (
-                  <SignalChip label="bestseller-collection" />
+                  <SignalChip label="bestseller collection" />
                 )}
                 {r.shopify_tags
                   .filter((t) => DEMAND_TAGS.includes(t.toLowerCase()))
@@ -468,7 +470,7 @@ export default async function OpportunitiesPage() {
                   <SignalChip label={`${r.review_count} reviews`} />
                 )}
                 {r.stockout_count >= 5 && (
-                  <SignalChip label={`${r.stockout_count}× OOS`} />
+                  <SignalChip label={`sold out ${r.stockout_count} times`} />
                 )}
               </div>
 
@@ -485,7 +487,7 @@ export default async function OpportunitiesPage() {
           <p className="mt-6 text-[11px] text-muted/80 font-mono uppercase tracking-[0.15em]">
             ·{" "}
             <span className="lowercase">
-              Linking is required for a product to appear here. Use the{" "}
+              Products only appear here once linked to a competitor. Use the{" "}
             </span>
             <Link
               href="/products/suggestions"
@@ -494,7 +496,7 @@ export default async function OpportunitiesPage() {
               Suggestions
             </Link>
             <span className="lowercase">
-              {" "}page to link your products to competitor equivalents.
+              {" "}page to link your products to their competitor versions.
             </span>
           </p>
         )}
@@ -551,12 +553,12 @@ function EmptyState({ mine }: { mine: string }) {
   return (
     <div className="mt-12 rounded-xl border border-dashed border-default bg-elevated px-6 py-10 text-center">
       <div className="text-sm font-medium text-foreground">
-        No price-disadvantage opportunities right now.
+        Nothing here right now.
       </div>
       <p className="mt-2 text-xs text-muted max-w-md mx-auto">
         Either your products on{" "}
-        <span className="font-mono">{mine}</span> aren't linked to
-        competitor equivalents yet, or you're cheaper than every linked
+        <span className="font-mono">{mine}</span> aren't linked to their
+        competitor versions yet, or you're cheaper than every linked
         competitor (good for you).
       </p>
       <div className="mt-6 flex items-center justify-center gap-3">
@@ -564,7 +566,7 @@ function EmptyState({ mine }: { mine: string }) {
           href="/products/suggestions"
           className="rounded-md bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-red-600"
         >
-          Review link suggestions
+          Review suggested matches
         </Link>
         <Link
           href={`/stores/${encodeURIComponent(mine)}`}

@@ -39,10 +39,10 @@ export function ProbeInventoryButton({ productId }: { productId: string }) {
         {pending ? (
           <>
             <span className="rivlr-spinner" aria-hidden />
-            Probing…
+            Checking…
           </>
         ) : (
-          "Probe inventory now"
+          "Check exact stock"
         )}
       </button>
 
@@ -55,7 +55,7 @@ function ProbeResultPanel({ result }: { result: Result }) {
   if (!result.ok) {
     return (
       <div className="mt-3 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
-        <div className="text-signal font-medium">Probe failed</div>
+        <div className="text-signal font-medium">The check didn&apos;t work</div>
         <div className="mt-1 text-xs text-muted">{result.error}</div>
       </div>
     );
@@ -67,16 +67,16 @@ function ProbeResultPanel({ result }: { result: Result }) {
   //   3. exactCount < totalCount partial total (incomplete).
   const headline =
     result.exactCount === 0
-      ? "Exact inventory not retrievable"
+      ? "Couldn't get an exact number"
       : result.exactCount === result.totalCount
-        ? `${result.totalQuantity} units (probed across ${result.totalCount} variant${result.totalCount === 1 ? "" : "s"})`
-        : `${result.totalQuantity}+ units (read ${result.exactCount} of ${result.totalCount} variants)`;
+        ? `${result.totalQuantity} units (across ${result.totalCount} variant${result.totalCount === 1 ? "" : "s"})`
+        : `${result.totalQuantity}+ units (${result.exactCount} of ${result.totalCount} variants read)`;
 
   const subline =
     result.exactCount === 0
-      ? "Shopify either rejected the probe (rate-limited / blocked), allowed an unbounded oversell, or returned a phrasing we don't parse yet. Per-variant detail below."
+      ? "This store doesn't share exact numbers right now. It may block checks, or it may keep selling with no stock limit set. Details for each variant below."
       : result.exactCount < result.totalCount
-        ? "We couldn't read every variant, the rest were blocked or returned an unbounded response. The number above is a lower bound."
+        ? "Some variants couldn't be read, so the real total is at least the number above."
         : null;
 
   return (
@@ -84,7 +84,7 @@ function ProbeResultPanel({ result }: { result: Result }) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="text-xs font-medium text-muted">
-            Probe result
+            Stock check result
           </div>
           <div className="mt-1 text-base font-semibold">{headline}</div>
           {subline && (
@@ -110,7 +110,6 @@ function ProbeResultPanel({ result }: { result: Result }) {
               <div className="font-medium truncate">{v.title}</div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <KindBadge kind={v.kind} />
-                <span className="font-mono text-muted">HTTP {v.status}</span>
                 {v.quantity !== null && (
                   <span className="font-mono font-semibold">
                     {v.quantity} units
@@ -133,14 +132,14 @@ function ProbeResultPanel({ result }: { result: Result }) {
 
 function KindBadge({ kind }: { kind: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    exact: { label: "exact", cls: "bg-green-500/15 text-green-500" },
+    exact: { label: "exact count", cls: "bg-green-500/15 text-green-500" },
     soldout: { label: "sold out", cls: "bg-signal/15 text-signal" },
     unbounded: {
-      label: "oversell allowed",
+      label: "no limit set",
       cls: "bg-amber-400/15 text-amber-400",
     },
-    blocked: { label: "blocked", cls: "bg-signal/15 text-signal" },
-    unknown: { label: "unknown", cls: "bg-elevated text-muted" },
+    blocked: { label: "blocked by store", cls: "bg-signal/15 text-signal" },
+    unknown: { label: "couldn't read", cls: "bg-elevated text-muted" },
   };
   const m = map[kind] ?? map.unknown;
   return (

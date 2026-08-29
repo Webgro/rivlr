@@ -50,8 +50,8 @@ export function MarketSelect({
         Save market
       </SubmitButton>
       <span className="text-xs text-muted">
-        Forces this market's currency on the next crawl. Old price history
-        keeps its original currency.
+        The next check uses this country's prices. Older price history keeps
+        its original currency.
       </span>
     </form>
   );

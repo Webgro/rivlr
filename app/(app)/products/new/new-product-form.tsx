@@ -18,12 +18,12 @@ export function NewProductForm({ inPanel }: { inPanel?: boolean }) {
         <div>
           <span className="text-foreground">product:</span>{" "}
           https://store.com<span className="text-foreground">/products/</span>
-          handle
+          product-name
         </div>
         <div>
           <span className="text-foreground">collection:</span>{" "}
           https://store.com
-          <span className="text-foreground">/collections/</span>handle
+          <span className="text-foreground">/collections/</span>collection-name
         </div>
       </div>
 
@@ -33,7 +33,7 @@ export function NewProductForm({ inPanel }: { inPanel?: boolean }) {
             htmlFor="urls"
             className="block text-xs font-medium text-muted"
           >
-            URLs
+            Product or collection links (one per line)
           </label>
           <textarea
             id="urls"

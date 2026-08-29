@@ -257,8 +257,8 @@ export default async function StoreProfilePage(props: { params: Params }) {
             <input type="hidden" name="domain" value={domain} />
             <SubmitButton
               className="rounded-md border border-default bg-surface px-4 py-2 text-sm hover:border-strong transition disabled:opacity-50 inline-flex items-center gap-2"
-              pendingLabel="Crawling…"
-              title="Re-scan store-level data and force-refresh prices on every product on this store"
+              pendingLabel="Checking…"
+              title="Refresh this store's details and re-check prices on every product tracked here"
             >
               <svg
                 width="14"
@@ -273,7 +273,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
                 <path d="M21 12 a9 9 0 1 1 -3 -6.7" />
                 <path d="M21 4 V12 H13" />
               </svg>
-              Crawl now
+              Check now
             </SubmitButton>
           </form>
 
@@ -294,7 +294,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
               <SubmitButton
                 className="rounded-md bg-green-500/15 border border-green-500/40 text-green-500 px-4 py-2 text-sm font-medium hover:bg-green-500/25 transition disabled:opacity-50"
                 pendingLabel="Setting up…"
-                title="Mark this as your own Shopify store. Auto-imports your catalogue (free, doesn't count toward plan)."
+                title="Mark this as your own Shopify store. Your catalogue imports automatically (free, doesn't count toward your plan)."
               >
                 + Mark as my store
               </SubmitButton>
@@ -345,13 +345,13 @@ export default async function StoreProfilePage(props: { params: Params }) {
       {/* Apps detected */}
       <section className="mt-10">
         <h2 className="text-sm font-semibold">
-          Tech stack {apps.length > 0 && `(${apps.length})`}
+          Apps they use {apps.length > 0 && `(${apps.length})`}
         </h2>
         {apps.length === 0 ? (
           <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-6 text-center text-xs text-muted">
             {store
-              ? "No apps detected from public scripts. The store may use minimal third-party tools."
-              : "Awaiting first scan. Refresh in a few seconds."}
+              ? "No apps spotted on this store. It may simply use very few."
+              : "Waiting for the first check. Refresh in a few seconds."}
           </div>
         ) : (
           <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -479,7 +479,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
               Not tracked yet ({untracked.length})
             </h2>
             <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-              Newest first · daily catalogue scan
+              Newest first · updates daily
             </span>
           </div>
           <StoreBulkControls
@@ -495,8 +495,8 @@ export default async function StoreProfilePage(props: { params: Params }) {
       <p className="mt-10 text-[11px] text-muted/80 font-mono uppercase tracking-[0.15em]">
         ·{" "}
         {store?.lastScannedAt
-          ? `Last scanned ${new Date(store.lastScannedAt).toLocaleString()}`
-          : "Awaiting first scan"}
+          ? `Last checked ${new Date(store.lastScannedAt).toLocaleString()}`
+          : "Waiting for the first check"}
       </p>
     </div>
   );

@@ -56,7 +56,7 @@ export function NotesEditor({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={save}
-          placeholder="Anything you want to remember about this product. Restock cadence, pricing tactics, anecdotes."
+          placeholder="Anything you want to remember about this product. How often it restocks, pricing patterns, hunches."
           rows={4}
           className="block w-full bg-transparent px-4 py-3 text-sm text-foreground placeholder-muted outline-none font-mono leading-5 resize-y"
         />

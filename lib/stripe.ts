@@ -37,10 +37,11 @@ export const PRICE_IDS = {
   starter: process.env.STRIPE_PRICE_STARTER ?? null,
   growth: process.env.STRIPE_PRICE_GROWTH ?? null,
   pro: process.env.STRIPE_PRICE_PRO ?? null,
+  scale: process.env.STRIPE_PRICE_SCALE ?? null,
   proOverage: process.env.STRIPE_PRICE_PRO_OVERAGE ?? null,
 } as const;
 
-export type PaidPlan = "starter" | "growth" | "pro";
+export type PaidPlan = "starter" | "growth" | "pro" | "scale";
 
 /** Hard ceiling on overage packs per subscription. Anything above this
  *  is bespoke pricing — UI surfaces a "contact us" prompt rather than
@@ -75,6 +76,7 @@ export function planFromPriceId(priceId: string): PaidPlan | null {
   if (priceId === PRICE_IDS.starter) return "starter";
   if (priceId === PRICE_IDS.growth) return "growth";
   if (priceId === PRICE_IDS.pro) return "pro";
+  if (priceId === PRICE_IDS.scale) return "scale";
   return null;
 }
 

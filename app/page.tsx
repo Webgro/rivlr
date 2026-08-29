@@ -8,7 +8,7 @@ import { HowItWorks } from "./(marketing)/how-it-works";
 export const metadata = {
   title: "Shopify Competitor Price & Stock Tracker | Rivlr",
   description:
-    "Track competitor product prices, stock levels, and sales velocity across Shopify stores. Hourly updates, instant alerts, no spreadsheet babysitting. Try free.",
+    "Track competitor product prices, stock levels, and sales velocity across Shopify stores. Automatic checks through the day, instant alerts, no spreadsheet babysitting. Try free.",
   keywords: [
     "shopify competitor price tracker",
     "competitor price tracker",
@@ -22,7 +22,7 @@ export const metadata = {
   openGraph: {
     title: "Shopify Competitor Price & Stock Tracker | Rivlr",
     description:
-      "Track competitor product prices, stock levels, and sales velocity across Shopify stores. Hourly updates, instant alerts.",
+      "Track competitor product prices, stock levels, and sales velocity across Shopify stores. Automatic checks through the day, instant alerts.",
     url: "https://rivlr.app",
     siteName: "Rivlr",
     type: "website",
@@ -31,7 +31,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Shopify Competitor Price & Stock Tracker | Rivlr",
     description:
-      "Hourly competitor price and stock tracking for Shopify operators. Try free.",
+      "Competitor price and stock tracking for Shopify operators. Checks through the day. Try free.",
   },
 };
 
@@ -43,21 +43,21 @@ const SOFTWARE_LD = {
   applicationSubCategory: "CompetitiveIntelligence",
   operatingSystem: "Web",
   description:
-    "Shopify competitor price and stock tracker. Hourly updates on prices, inventory levels, and sales velocity, with instant email alerts when something changes.",
+    "Shopify competitor price and stock tracker. Automatic checks on prices, inventory levels, and sales velocity through the day, with instant email alerts when something changes.",
   offers: [
     {
       "@type": "Offer",
       name: "Free",
       price: "0",
       priceCurrency: "GBP",
-      description: "5 tracked products, daily crawl",
+      description: "5 tracked products, daily checks",
     },
     {
       "@type": "Offer",
       name: "Starter",
       price: "14.99",
       priceCurrency: "GBP",
-      description: "50 tracked products, daily crawl",
+      description: "50 tracked products, daily checks",
     },
     {
       "@type": "Offer",
@@ -71,7 +71,14 @@ const SOFTWARE_LD = {
       name: "Pro",
       price: "59.99",
       priceCurrency: "GBP",
-      description: "400 tracked products, hourly crawl",
+      description: "400 tracked products, checks every 6 hours",
+    },
+    {
+      "@type": "Offer",
+      name: "Scale",
+      price: "299.00",
+      priceCurrency: "GBP",
+      description: "2,500 tracked products, checks every 6 hours",
     },
   ],
   publisher: {
@@ -273,7 +280,7 @@ export default async function MarketingPage() {
             blurb="For the whole catalogue"
             features={[
               "400 tracked products",
-              "Hourly checks",
+              "Checks every 6 hours",
               "Weekly digest",
               "Priority support",
               "Overage packs: £15 per 100 extra products",
@@ -281,11 +288,25 @@ export default async function MarketingPage() {
             cta="Try for free"
             href="/signup?source=pricing-pro"
           />
+          <PricingCard
+            name="Scale"
+            price="£299"
+            blurb="Track every competitor you have"
+            features={[
+              "2,500 tracked products",
+              "Checks every 6 hours",
+              "Whole-store scans",
+              "Priority support",
+              "Everything in Pro",
+            ]}
+            cta="Try for free"
+            href="/signup?source=pricing-scale"
+          />
         </div>
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-neutral-500 leading-relaxed">
-          Need more than 400 products? Pro lets you add overage packs in
-          the app, £15 a month for each extra 100. Beyond 5,000,{" "}
+          Need more than 400 products? Add overage packs to Pro (£15 a
+          month per extra 100) or move to Scale for 2,500. Beyond that,{" "}
           <a
             href="mailto:hello@rivlr.app?subject=Rivlr%20Custom%20plan"
             className="underline underline-offset-4 hover:text-paper"
@@ -319,9 +340,9 @@ export default async function MarketingPage() {
             need nothing from you at all.
           </Faq>
           <Faq q="How fresh is the data?">
-            It depends on your plan: daily on Free and Starter, every 6
-            hours on Growth, and hourly on Pro. Any product can also be
-            refreshed on demand from its detail page.
+            Daily on Free and Starter, and every 6 hours on Growth, Pro
+            and Scale. Any product can also be refreshed on demand from
+            its detail page.
           </Faq>
           <Faq q="Can I cancel anytime?">
             Yes. Billing is monthly through Stripe and you can cancel in
@@ -331,8 +352,9 @@ export default async function MarketingPage() {
           </Faq>
           <Faq q="What if I need more than 400 products?">
             Pro supports overage packs: each adds 100 products for £15 a
-            month, stackable up to 5,000 products in total. Past that,
-            email us and we will build you a custom tier.
+            month. For bigger catalogues, Scale covers 2,500 products at
+            £299 a month. Past that, email us and we will build you a
+            custom tier.
           </Faq>
         </div>
       </section>
@@ -648,7 +670,7 @@ function StockMockup() {
         ))}
       </div>
       <div className="mt-3 text-xs text-neutral-500">
-        Quantities probed hourly. Velocity: 11 units/day.
+        Quantity checked through the day. Selling 11 units/day.
       </div>
     </MockupFrame>
   );

@@ -228,7 +228,7 @@ export function ProductsTable({
             <span className="text-xs text-muted">
               No tags yet.{" "}
               <Link href="/tags" className="underline hover:text-foreground">
-                create one
+                Create one
               </Link>
             </span>
           ) : (
@@ -238,7 +238,7 @@ export function ProductsTable({
                 onChange={(e) => setSelectedTag(e.target.value)}
                 className="h-7 rounded border border-default bg-surface px-2 text-xs text-foreground outline-none focus:border-strong"
               >
-                <option value="">pick tag</option>
+                <option value="">Choose a tag</option>
                 {availableTags.map((t) => (
                   <option key={t.name} value={t.name}>
                     #{t.name}
@@ -274,7 +274,7 @@ export function ProductsTable({
               }}
               pending={pending}
               title={`Delete ${selected.size} product${selected.size === 1 ? "" : "s"}?`}
-              description="All price observations, stock history, notes, tags, and link suggestions for these products will be permanently removed. This cannot be undone."
+              description="All price and stock history, notes, tags and suggested matches for these products will be permanently removed. This cannot be undone."
               confirmLabel="Yes, delete all"
               variant="danger"
             />
@@ -306,8 +306,8 @@ export function ProductsTable({
           <div>Price</div>
           <div>Stock</div>
           <div className="text-right">{showSold ? "Sold 30d" : ""}</div>
-          <div className="text-right">Δ 24h</div>
-          <div className="text-right">Last crawled</div>
+          <div className="text-right">24h change</div>
+          <div className="text-right">Last checked</div>
         </div>
 
         {rows.map((r) => {
@@ -431,7 +431,7 @@ export function ProductsTable({
               </div>
 
               <div className="text-right text-xs text-neutral-500 font-mono">
-                {r.lastCrawledAt ? formatRelative(new Date(r.lastCrawledAt)) : "pending"}
+                {r.lastCrawledAt ? formatRelative(new Date(r.lastCrawledAt)) : "waiting for first check"}
               </div>
             </div>
           );

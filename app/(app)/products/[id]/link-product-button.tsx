@@ -155,7 +155,7 @@ export function LinkProductButton({
                     autoFocus
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search by title, handle, or store…"
+                    placeholder="Search by product or store name…"
                     className="w-full rounded-md border border-default bg-elevated pl-9 pr-3 py-2 text-sm outline-none focus:border-strong"
                   />
                 </div>
@@ -182,7 +182,7 @@ export function LinkProductButton({
                     onChange={(e) => setBrowseAll(e.target.checked)}
                     className="accent-signal"
                   />
-                  Browse all (instead of fuzzy auto-suggestions)
+                  Browse everything (not just suggested matches)
                 </label>
               )}
             </div>
@@ -199,7 +199,7 @@ export function LinkProductButton({
                     ? `No matches for "${query}".`
                     : browseAll
                       ? "No competitor products tracked yet."
-                      : "No similar products found. Tick 'Browse all' above to search the full catalogue."}
+                      : "No similar products found. Tick 'Browse everything' above to search all your tracked products."}
                 </div>
               ) : (
                 <div className="divide-y divide-default">
@@ -280,8 +280,8 @@ export function LinkProductButton({
             <div className="border-t border-default px-4 py-2.5 text-[11px] text-muted leading-relaxed flex-shrink-0">
               Click any product to link.{" "}
               {myPrice !== null
-                ? "Δ% shows how much cheaper (green) or more expensive (red) you are vs the competitor."
-                : "Both products will share a group with prices side by side on each detail page."}
+                ? "The percentage shows how much cheaper (green) or dearer (red) you are than the competitor."
+                : "Linked products show their prices side by side on each product page."}
             </div>
           </div>
         </div>

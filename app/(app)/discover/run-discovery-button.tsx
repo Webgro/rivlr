@@ -16,8 +16,8 @@ export function RunDiscoveryButton() {
       if (result.ok) {
         setMsg(
           result.newDiscoveries > 0
-            ? `Found ${result.newDiscoveries} new across ${result.storesScanned} stores`
-            : `Scanned ${result.storesScanned} stores · nothing new`,
+            ? `Found ${result.newDiscoveries} new product${result.newDiscoveries === 1 ? "" : "s"} across ${result.storesScanned} store${result.storesScanned === 1 ? "" : "s"}`
+            : `Checked ${result.storesScanned} store${result.storesScanned === 1 ? "" : "s"} · nothing new`,
         );
         router.refresh();
       } else {

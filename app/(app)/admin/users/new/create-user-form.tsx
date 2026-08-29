@@ -10,6 +10,7 @@ const PLANS: CompPlan[] = [
   "starter",
   "growth",
   "pro",
+  "scale",
   "owner",
   "unlimited",
 ];

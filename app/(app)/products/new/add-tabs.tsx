@@ -43,7 +43,7 @@ export function AddTabs({
           onClick={() => setTab("store")}
           icon={<StoreIcon />}
           title="Scan a whole store"
-          subtitle="Crawl the catalogue first"
+          subtitle="Browse their catalogue and pick"
         />
       </div>
 

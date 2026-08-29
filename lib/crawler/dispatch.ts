@@ -54,7 +54,12 @@ import {
 // adds bypass the cron entirely (addProducts calls dispatchCrawl in after()),
 // so latency on first crawl is unaffected.
 const BATCH_SIZE = 10;
-const PARALLEL_BATCHES = 20;
+// 45 parallel batches × 10 products = 450 per hourly invocation, i.e.
+// ~10,800 crawls/day of capacity. Sized so one Scale account (2,500
+// products at 6-hourly = 10,000 checks/day) fits with headroom. Each
+// batch crawls its products serially with per-store politeness, so more
+// batches means more concurrent fetches, not more load per store.
+const PARALLEL_BATCHES = 45;
 const MAX_PRODUCTS_PER_DISPATCH = BATCH_SIZE * PARALLEL_BATCHES;
 const PER_STORE_MS = 1000;
 // Auto-pause a product after this many consecutive crawl failures so dead

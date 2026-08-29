@@ -14,12 +14,12 @@ export function CrawlNowButton({ productId }: { productId: string }) {
     startTransition(async () => {
       const res = await runCrawlForProduct(productId);
       if (res.ok) {
-        setMsg("Queued. Refreshing in a few seconds.");
+        setMsg("Checking. This page will refresh in a few seconds.");
         // Wait for the crawl to actually finish in the background, then refresh.
         setTimeout(() => router.refresh(), 8000);
         setTimeout(() => setMsg(null), 12000);
       } else {
-        setMsg("Could not queue the crawl");
+        setMsg("Couldn't start the check. Try again in a minute.");
       }
     });
   }
@@ -33,7 +33,7 @@ export function CrawlNowButton({ productId }: { productId: string }) {
         disabled={pending}
         className="rounded-md border border-default bg-elevated px-3 py-1.5 text-sm hover:border-strong disabled:opacity-50"
       >
-        {pending ? "Crawling…" : "↻ Crawl now"}
+        {pending ? "Checking…" : "↻ Check now"}
       </button>
     </div>
   );

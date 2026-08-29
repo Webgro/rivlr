@@ -388,7 +388,7 @@ export default async function DashboardPage(props: {
           </h1>
           <p className="mt-1 text-sm text-muted">
             {dbError
-              ? "Database not connected yet."
+              ? "Something went wrong loading your products."
               : totalCount === 0 && !params.q && !params.store && !params.tag
                 ? "Nothing tracked yet."
                 : totalPages > 1
@@ -465,7 +465,7 @@ export default async function DashboardPage(props: {
                 type="search"
                 name="q"
                 defaultValue={params.q ?? ""}
-                placeholder="Search products, handles, stores…"
+                placeholder="Search by product or store name…"
                 className="w-full rounded-md border border-default bg-surface pl-9 pr-3 py-2 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
               />
             </div>
@@ -588,7 +588,8 @@ export default async function DashboardPage(props: {
       {dbError ? (
         <div className="mt-12 rounded-xl border border-dashed border-default px-8 py-10">
           <p className="text-sm text-muted-strong">
-            Could not reach the database.
+            Something went wrong loading your products. Try refreshing in a
+            minute.
           </p>
           <p className="mt-3 text-xs text-muted font-mono">{dbError}</p>
         </div>
@@ -751,7 +752,7 @@ function buildBanner(params: {
   const parts: string[] = [];
   if (col > 0)
     parts.push(
-      `${col} collection${col === 1 ? "" : "s"} expanded ${exp} product${exp === 1 ? "" : "s"}`,
+      `found ${exp} product${exp === 1 ? "" : "s"} in ${col} collection${col === 1 ? "" : "s"}`,
     );
   if (added) parts.push(`✓ ${added} added`);
   if (dup) parts.push(`${dup} duplicate${dup === 1 ? "" : "s"} skipped`);

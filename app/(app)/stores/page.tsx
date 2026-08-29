@@ -89,9 +89,9 @@ export default async function StoresPage() {
             Stores
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">
-            Every store you track, with intel pulled from public storefront
-            data, apps installed, Plus status, free-shipping thresholds,
-            catalogue growth and stockout trend lines.{" "}
+            Every store you track, with what Rivlr has learned about each:
+            catalogue size, apps installed, Shopify Plus status,
+            free-shipping thresholds and out-of-stock trends.{" "}
             <span className="text-foreground">
               Click a row for the full profile.
             </span>
@@ -170,7 +170,7 @@ export default async function StoresPage() {
                 </div>
                 {s.last_scanned_at && (
                   <div className="text-[10px] text-muted/80 font-mono mt-1 uppercase tracking-[0.15em]">
-                    Scanned {timeAgo(s.last_scanned_at)}
+                    Checked {timeAgo(s.last_scanned_at)}
                   </div>
                 )}
               </div>
@@ -210,7 +210,7 @@ export default async function StoresPage() {
       )}
 
       <p className="mt-6 text-[11px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-        · Intel refreshed daily via store scan cron (05:30 UTC)
+        · Store details refresh automatically once a day
       </p>
     </div>
   );

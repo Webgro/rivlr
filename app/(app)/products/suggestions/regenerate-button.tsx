@@ -14,9 +14,9 @@ export function RegenerateButton() {
     startTransition(async () => {
       const result = await regenerateSuggestions();
       if (result && "suggested" in result) {
-        setMsg(`Found ${result.suggested} new suggestion${result.suggested === 1 ? "" : "s"}`);
+        setMsg(`Found ${result.suggested} new match${result.suggested === 1 ? "" : "es"}`);
       } else {
-        setMsg("No new suggestions");
+        setMsg("No new matches found");
       }
       router.refresh();
     });
@@ -31,7 +31,7 @@ export function RegenerateButton() {
         onClick={handleClick}
         className="rounded-md border border-default bg-elevated px-3 py-1.5 text-sm hover:border-strong disabled:opacity-50"
       >
-        {pending ? "Scanning…" : "↻ Regenerate"}
+        {pending ? "Looking…" : "↻ Look again"}
       </button>
     </div>
   );

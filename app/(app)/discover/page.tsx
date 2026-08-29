@@ -87,8 +87,9 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
             Discover
           </h1>
           <p className="mt-1 text-sm text-muted">
-            New products on stores you already watch. Daily catalogue scan
-            at 05:00 GMT. Track the ones that matter, dismiss the rest.
+            New products spotted on stores you already watch. Rivlr checks
+            each store&apos;s catalogue once a day. Track the ones that
+            matter, dismiss the rest.
           </p>
         </div>
         <RunDiscoveryButton />
@@ -104,7 +105,7 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search title or handle…"
+            placeholder="Search by product name…"
             className="flex-1 min-w-[200px] rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
           />
           <select
@@ -134,7 +135,7 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
             </Link>
           )}
           <span className="ml-auto text-xs text-muted font-mono">
-            {totalCount} pending
+            {totalCount} to review
           </span>
         </form>
       ) : null}
@@ -142,8 +143,8 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
       {paged.length === 0 ? (
         <div className="mt-12 rounded-lg border border-dashed border-default px-8 py-16 text-center text-sm text-muted">
           {params.store
-            ? `No new products discovered on ${params.store}.`
-            : `No new products discovered yet. The daily scan runs at 05:00 GMT, or hit "Run scan now" to discover immediately.`}
+            ? `No new products spotted on ${params.store}.`
+            : `No new products spotted yet. Rivlr checks once a day, or press "Run scan now" to check straight away.`}
         </div>
       ) : (
         <>
@@ -165,12 +166,12 @@ export default async function DiscoverPage(props: { searchParams: SearchParams }
                   Plan limit
                 </div>
                 <h3 className="mt-2 text-xl font-semibold tracking-tight">
-                  Unlock all {totalCount} discoveries
+                  See all {totalCount} new products
                 </h3>
                 <p className="mt-2 text-sm text-muted max-w-md mx-auto">
-                  Your current plan ({plan}) shows the top {visibleLimit} new
-                  products per scan. Upgrade to see and track every discovery
-                  on every store you watch.
+                  Your current plan ({plan}) shows the first {visibleLimit}{" "}
+                  new products per scan. Upgrade to see and track every new
+                  product on every store you watch.
                 </p>
                 <Link
                   href="/settings#billing"

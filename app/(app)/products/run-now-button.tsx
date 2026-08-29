@@ -14,7 +14,7 @@ export function RunNowButton() {
     startTransition(async () => {
       const result = await runCrawlNow(false);
       if (result.ok) {
-        setMsg("Crawl queued · watch the bottom-right widget");
+        setMsg("Checking now · progress shows bottom-right");
         // Refresh after a delay so the dashboard picks up new observations.
         setTimeout(() => router.refresh(), 8000);
         setTimeout(() => setMsg(null), 6000);
@@ -33,7 +33,7 @@ export function RunNowButton() {
         onClick={trigger}
         className="rounded-md border border-default bg-elevated px-3 py-2 text-sm font-medium transition hover:border-strong disabled:opacity-50"
       >
-        {pending ? "Running…" : "Run crawl now"}
+        {pending ? "Checking…" : "Check now"}
       </button>
     </div>
   );

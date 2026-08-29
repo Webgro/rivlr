@@ -93,11 +93,11 @@ export function StoreBulkControls({
         description={
           <>
             Adds every untracked product on this store to your watchlist.
-            They&apos;ll start crawling within a few seconds. You can
-            untrack any of them later.{" "}
+            Rivlr starts checking them within a few seconds. You can remove
+            any of them later.{" "}
             <strong className="text-foreground">
-              Make sure you&apos;re comfortable with your plan&apos;s
-              tracked-product limit before continuing.
+              Check this fits within your plan&apos;s product limit before
+              continuing.
             </strong>
           </>
         }

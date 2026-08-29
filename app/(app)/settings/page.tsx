@@ -64,7 +64,7 @@ export default async function SettingsPage() {
 
       {/* Sticky pill nav — quick links to each section. */}
       <nav className="sticky top-0 z-10 -mx-6 px-6 mt-6 py-3 bg-surface/90 backdrop-blur border-b border-default flex flex-wrap gap-2 text-xs">
-        <SectionLink href="#crawling" label="Crawling" />
+        <SectionLink href="#crawling" label="Checks" />
         <SectionLink href="#alerts" label="Alerts" />
         <SectionLink href="#appearance" label="Appearance" />
         <Link
@@ -77,13 +77,13 @@ export default async function SettingsPage() {
       </nav>
 
       {/* ═══ CRAWLING ════════════════════════════════════════════════ */}
-      <SectionHeading id="crawling" title="Crawling" />
+      <SectionHeading id="crawling" title="Checks" />
 
       {/* Cadence is set automatically by plan — no control, just a
           statement of fact with an upgrade path. */}
       <Card
-        title="Crawl frequency"
-        description="How often Rivlr re-checks every tracked product. This is set by your plan."
+        title="How often Rivlr checks"
+        description="How often every tracked product is re-checked. This is set by your plan."
       >
         <div className="flex items-center justify-between gap-3 flex-wrap rounded-md border border-default bg-surface px-4 py-3">
           <div>
@@ -106,8 +106,8 @@ export default async function SettingsPage() {
       </Card>
 
       <Card
-        title="Multi-market price scan"
-        description="Markets the daily 05:30 UTC scan polls for cross-market price / stock comparison. Each adds ~1 fetch per product per day."
+        title="Prices in other countries"
+        description="Choose which countries Rivlr checks prices in. These run once a day and show on each product page."
       >
         <form action={updateMultiMarketCountries}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -141,7 +141,7 @@ export default async function SettingsPage() {
             })}
           </div>
           <CardFooter
-            hint="Tip: include only markets your competitors actually sell in, extra markets are wasted fetches."
+            hint="Tip: only tick countries your competitors actually sell in."
           >
             <SaveButton />
           </CardFooter>
@@ -149,13 +149,13 @@ export default async function SettingsPage() {
       </Card>
 
       <Card
-        title="Inventory probe"
+        title="Exact stock check"
         description={
           <>
-            For products where the public Shopify endpoints don&apos;t expose
-            inventory, Rivlr performs a single polite cart-add probe daily
-            and reads the exact stock from Shopify&apos;s response. The probe
-            never completes a checkout. Read more on the{" "}
+            Some stores show only &quot;In stock&quot; with no number. Once a
+            day, Rivlr can check those products for the exact quantity, the
+            same way a shopper&apos;s basket would see it. Nothing is ever
+            bought. Read more on the{" "}
             <Link
               href="/bot"
               className="text-foreground underline-offset-4 hover:underline"
@@ -172,12 +172,12 @@ export default async function SettingsPage() {
         >
           <div>
             <div className="text-sm font-medium">
-              Probe hidden inventory daily
+              Check exact stock daily
             </div>
             <div className="mt-1 text-xs text-muted">
               {cartProbeEnabled
-                ? "On, exact quantity revealed when possible."
-                : "Off, Rivlr only uses inventory the merchant publishes via /products.json."}
+                ? "On. Rivlr finds the exact number whenever it can."
+                : "Off. Rivlr only uses the stock numbers stores share openly."}
             </div>
           </div>
           <input
@@ -189,7 +189,7 @@ export default async function SettingsPage() {
             type="submit"
             checked={cartProbeEnabled}
             size="lg"
-            ariaLabel="Probe hidden inventory"
+            ariaLabel="Check exact stock daily"
           />
         </form>
       </Card>
@@ -199,7 +199,7 @@ export default async function SettingsPage() {
 
       <Card
         title="Notification emails"
-        description="Where to send price-drop, stock-change, and days-cover-warning alerts. Comma-separated. We dedupe within 24 hours per product so you won't get the same alert twice."
+        description="Where to send price-drop, stock-change and low-stock alerts. Separate addresses with commas. You'll never get the same alert twice in one day."
       >
         <form action={saveNotificationEmails} className="space-y-3">
           <textarea
@@ -215,8 +215,8 @@ export default async function SettingsPage() {
           </div>
         </form>
         <p className="mt-3 text-[11px] text-muted/80 leading-relaxed">
-          One-click unsubscribe in every email · weekly digest sent
-          Mondays 09:00 UTC · daily days-cover warnings 09:00 UTC.
+          One-click unsubscribe in every email · weekly summary every Monday
+          morning · low-stock warnings each morning.
         </p>
       </Card>
 

@@ -40,13 +40,13 @@ export function CsvUploadButton({
       }
       setFeedback(
         unique.length > 0
-          ? `Added ${unique.length} URL${unique.length === 1 ? "" : "s"} from file`
-          : "No URLs found in file",
+          ? `Added ${unique.length} link${unique.length === 1 ? "" : "s"} from the file`
+          : "No links found in that file",
       );
       setBusy(false);
     };
     reader.onerror = () => {
-      setFeedback("Couldn't read file");
+      setFeedback("Couldn't read that file");
       setBusy(false);
     };
     reader.readAsText(file);

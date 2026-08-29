@@ -48,7 +48,7 @@ export function UntrackedList({ items }: { items: UntrackedItem[] }) {
   if (visible.length === 0) {
     return (
       <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-6 text-center text-xs text-muted">
-        Nothing new from the daily catalogue scan.
+        Nothing new spotted on this store yet.
       </div>
     );
   }

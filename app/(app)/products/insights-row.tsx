@@ -15,7 +15,7 @@ export function InsightsRow({ insights }: { insights: DashboardInsights }) {
   return (
     <div className="mt-6 grid gap-3 grid-cols-2 md:grid-cols-4">
       <InsightCard
-        eyebrow="24h price moves"
+        eyebrow="Price changes (24h)"
         primary={`${insights.priceRaisedCount24h + insights.priceDroppedCount24h}`}
         secondary={
           <>
@@ -25,11 +25,11 @@ export function InsightsRow({ insights }: { insights: DashboardInsights }) {
         }
       />
       <InsightCard
-        eyebrow="24h stock moves"
+        eyebrow="Stock changes (24h)"
         primary={`${insights.newStockOuts24h + insights.newRestocks24h}`}
         secondary={
           <>
-            <span className="text-signal">⊘ {insights.newStockOuts24h} OOS</span>{" "}
+            <span className="text-signal">⊘ {insights.newStockOuts24h} out</span>{" "}
             <span className="text-green-500">↑ {insights.newRestocks24h} restocked</span>
           </>
         }
@@ -57,7 +57,7 @@ export function InsightsRow({ insights }: { insights: DashboardInsights }) {
         }
       />
       <InsightCard
-        eyebrow="Suggested links"
+        eyebrow="Suggested matches"
         primary={insights.pendingSuggestions.toString()}
         secondary={
           insights.pendingSuggestions > 0 ? (
@@ -65,7 +65,7 @@ export function InsightsRow({ insights }: { insights: DashboardInsights }) {
               href="/products/suggestions"
               className="block hover:underline text-foreground"
             >
-              Review pairs
+              Review matches
             </Link>
           ) : (
             "none pending"

@@ -356,11 +356,12 @@ export default async function DashboardPage() {
 
       {dbError && (
         <div className="mt-6 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
-          <div className="text-signal">Database error.</div>
+          <div className="text-signal">
+            Something went wrong loading your dashboard.
+          </div>
           <div className="mt-1 text-xs text-muted font-mono">{dbError}</div>
           <div className="mt-2 text-xs text-muted">
-            If you just deployed, run <code>npm run db:push</code> locally to
-            apply schema changes.
+            Try refreshing in a minute. If it keeps happening, contact support.
           </div>
         </div>
       )}
@@ -369,11 +370,12 @@ export default async function DashboardPage() {
         <div className="mt-6 flex items-center justify-between gap-3 rounded-md border border-signal/40 bg-signal/5 px-4 py-3 text-sm">
           <div>
             <span className="text-signal font-medium">
-              ⚠ {insights.staleCount} products haven&apos;t been crawled in 2+ hours
+              ⚠ {insights.staleCount} products haven&apos;t been checked in the
+              last 2 hours
             </span>
             <div className="text-xs text-muted mt-0.5">
-              Crawler may be lagging or some URLs are failing. Click{" "}
-              <strong>Run crawl now</strong> on the products page to drain the queue.
+              Checks are running behind. Click <strong>Check now</strong> on the
+              Watchlist page to catch up.
             </div>
           </div>
         </div>
@@ -455,8 +457,8 @@ export default async function DashboardPage() {
               </h2>
               {data.movers.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-default px-4 py-6 text-center text-xs text-muted">
-                  No price changes in the last 7 days. Run a few crawls to
-                  populate.
+                  No price changes in the last 7 days. As soon as a competitor
+                  changes a price, it shows here.
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-lg border border-default bg-elevated">
@@ -512,8 +514,8 @@ export default async function DashboardPage() {
               </div>
               {data.activity.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-default px-4 py-6 text-center text-xs text-muted">
-                  No recent changes detected. Activity appears here as products
-                  move.
+                  No changes yet. Price and stock changes appear here as they
+                  happen.
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-lg border border-default bg-elevated">

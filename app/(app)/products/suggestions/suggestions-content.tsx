@@ -57,12 +57,12 @@ export async function SuggestionsContent({ inPanel }: { inPanel?: boolean }) {
           <h1
             className={`${inPanel ? "text-xl" : "text-2xl"} font-semibold tracking-tight`}
           >
-            Suggested links
+            Suggested matches
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Pairs of tracked products that look like the same item across
-            different stores. Accept to put them in a shared group; dismiss
-            to suppress.
+            These tracked products look like the same item sold in different
+            stores. Link them to compare prices side by side, or dismiss if
+            they don&apos;t match.
           </p>
         </div>
         <RegenerateButton />
@@ -71,7 +71,8 @@ export async function SuggestionsContent({ inPanel }: { inPanel?: boolean }) {
       <div className="mt-8">
         {suggestions.length === 0 ? (
           <div className="rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
-            No pending suggestions. Add more products and we'll look for matches.
+            No matches waiting for review. Add more products and we&apos;ll
+            keep looking.
           </div>
         ) : (
           <ul className="space-y-3">

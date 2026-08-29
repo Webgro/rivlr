@@ -50,7 +50,7 @@ export const users = pgTable(
      *  bespoke enterprise deals, or fixing post-Stripe-incident drift.
      *  NULL = fall through to subscription-based resolution. */
     compPlan: text("comp_plan", {
-      enum: ["free", "starter", "growth", "pro", "owner", "unlimited"],
+      enum: ["free", "starter", "growth", "pro", "scale", "owner", "unlimited"],
     }),
     /** Free-text rationale shown alongside the comp in /admin and the
      *  audit log. Required when compPlan is set; nulled when removed. */
@@ -707,7 +707,7 @@ export const subscriptions = pgTable(
     stripeSubscriptionId: text("stripe_subscription_id").unique(),
     /** Which paid tier they're on. Mirrors lib/plan.ts Plan minus 'free'
      *  (no row = free) and 'owner' (env var override, never persisted). */
-    plan: text("plan", { enum: ["starter", "growth", "pro"] }).notNull(),
+    plan: text("plan", { enum: ["starter", "growth", "pro", "scale"] }).notNull(),
     /** Stripe subscription status. We treat 'active' and 'trialing' as
      *  entitled; everything else falls back to free until resolved. */
     status: text("status", {

@@ -159,8 +159,8 @@ export default async function ComparePage(props: {
             Compare {products.length} product{products.length === 1 ? "" : "s"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Price history side-by-side. Charts share the same y-axis. Use
-            the legend to spot which competitor is more aggressive.
+            Price history side by side on one chart. Use the colour key to
+            spot which competitor changes prices most.
           </p>
         </div>
         <Link
@@ -173,7 +173,7 @@ export default async function ComparePage(props: {
 
       {droppedInvalid > 0 && (
         <div className="mt-6 rounded-md border border-default bg-elevated px-4 py-3 text-xs text-muted font-mono">
-          {droppedInvalid} invalid product{droppedInvalid === 1 ? "" : "s"} ignored.
+          {droppedInvalid} product{droppedInvalid === 1 ? "" : "s"} couldn&apos;t be found and {droppedInvalid === 1 ? "was" : "were"} left out.
         </div>
       )}
 
@@ -182,16 +182,16 @@ export default async function ComparePage(props: {
           <span className="text-signal font-medium">⚠ Mixed currencies.</span>{" "}
           <span className="text-muted-strong">
             These products use different currencies ({currencies.join(", ")}).
-            The chart shows raw prices. They&apos;re not directly comparable
-            without FX conversion.
+            The chart shows each price as listed, so the lines aren&apos;t
+            directly comparable.
           </span>
         </div>
       )}
 
       {productsWithObs.length === 0 ? (
         <div className="mt-6 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
-          None of the selected products have any price history yet. Wait for
-          the first crawl to populate, then try again.
+          None of the selected products have any price history yet. Give the
+          first check a few minutes, then try again.
         </div>
       ) : (
         <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
@@ -261,8 +261,8 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
     <section className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
       <p className="mt-1 text-sm text-muted">
-        Overlay price history across multiple products on a single chart,
-        spot competitor pricing patterns at a glance.
+        See several products&apos; price history on one chart and spot
+        competitor pricing patterns at a glance.
       </p>
 
       <div className="mt-8 rounded-xl border border-signal/40 bg-signal/[0.03] p-6">
@@ -273,9 +273,9 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
           Compare unlocks on Growth
         </h2>
         <p className="mt-2 text-sm text-muted leading-relaxed">
-          The side-by-side price chart is a Growth-tier feature. Upgrade to
-          plot up to 5 products on one timeline, with currency-normalised
-          prices and stockout markers per series.
+          The side-by-side price chart comes with the Growth plan. Upgrade
+          to see up to 5 products on one timeline, with matching currencies
+          and out-of-stock markers on every line.
         </p>
 
         <ul className="mt-5 space-y-1.5 text-sm text-muted">
@@ -285,11 +285,11 @@ function ComparePaywall({ plan }: { plan: Parameters<typeof suggestNextPlan>[0] 
           </li>
           <li className="flex gap-2">
             <span className="text-signal">✓</span>
-            <span>Stockout markers per series</span>
+            <span>Out-of-stock markers on every line</span>
           </li>
           <li className="flex gap-2">
             <span className="text-signal">✓</span>
-            <span>Currency-normalised price comparison</span>
+            <span>Prices compared in the same currency</span>
           </li>
         </ul>
 
@@ -317,13 +317,12 @@ function EmptyState({ droppedInvalid }: { droppedInvalid: number }) {
     <section className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Compare</h1>
       <p className="mt-1 text-sm text-muted">
-        Select 2–5 products from the products page (tick the checkboxes,
-        then use the &ldquo;Compare&rdquo; bulk action) to overlay their
-        price history.
+        Tick 2 to 5 products on the Watchlist, then press
+        &ldquo;Compare&rdquo; to see their price history together.
       </p>
       <div className="mt-8 rounded-lg border border-dashed border-default px-8 py-12 text-center text-sm text-muted">
         {droppedInvalid > 0
-          ? `${droppedInvalid} invalid product ID${droppedInvalid === 1 ? "" : "s"} in the URL. Pick products from the list instead.`
+          ? `${droppedInvalid} of the chosen products couldn't be found. Pick products from the list instead.`
           : "No products selected."}
         <div className="mt-4">
           <Link

@@ -143,15 +143,15 @@ export default async function MyProductsPage() {
             No products yet on {mine.displayName ?? mine.domain}.
           </div>
           <p className="mt-2 text-xs text-muted max-w-md mx-auto">
-            We auto-import your store&apos;s catalogue on the next 05:00
-            UTC scan. Or trigger a discovery run from the Discover page.
+            Your store&apos;s catalogue imports automatically overnight. If
+            you&apos;d rather not wait, run it now from the Discover page.
           </p>
           <div className="mt-5">
             <Link
               href="/discover"
               className="inline-block rounded-md bg-foreground px-4 py-2 text-sm font-medium text-surface hover:opacity-90"
             >
-              Run discovery now
+              Import my catalogue now
             </Link>
           </div>
         </div>
@@ -162,8 +162,8 @@ export default async function MyProductsPage() {
             <div></div>
             <div>Product</div>
             <div>My price</div>
-            <div>Best competitor</div>
-            <div className="text-right">Δ</div>
+            <div>Cheapest rival</div>
+            <div className="text-right">Gap</div>
             <div className="text-right">Stock</div>
           </div>
           {rows.map((r) => {

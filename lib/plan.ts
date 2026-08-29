@@ -26,6 +26,7 @@ export type Plan =
   | "starter"
   | "growth"
   | "pro"
+  | "scale"
   | "owner"
   | "unlimited";
 export type Cadence = "daily" | "every-6h" | "hourly";
@@ -93,15 +94,29 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     discoverVisible: Infinity,
     compare: true,
     productLimit: 400,
-    maxCadence: "hourly",
-    cadence: "hourly",
+    maxCadence: "every-6h",
+    cadence: "every-6h",
   },
+  // Top self-serve tier for "track every competitor's full catalogue"
+  // buyers. Deliberately capped (not "unlimited") so the crawl cost per
+  // account stays bounded; above this it's a sales conversation.
+  scale: {
+    discoverVisible: Infinity,
+    compare: true,
+    productLimit: 2500,
+    maxCadence: "every-6h",
+    cadence: "every-6h",
+  },
+  // Cadence tops out at every-6h across the whole product. Hourly was
+  // dropped deliberately: it multiplied crawl cost 6x for marginal
+  // value, and one large hourly account could outrun the batch
+  // crawler's daily throughput.
   owner: {
     discoverVisible: Infinity,
     compare: true,
     productLimit: null,
-    maxCadence: "hourly",
-    cadence: "hourly",
+    maxCadence: "every-6h",
+    cadence: "every-6h",
   },
   // Soft-launch / beta tester tier. Same caps as owner (i.e. none) but a
   // distinct identity so the audit log + UI can tell "we comped this
@@ -111,8 +126,8 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     discoverVisible: Infinity,
     compare: true,
     productLimit: null,
-    maxCadence: "hourly",
-    cadence: "hourly",
+    maxCadence: "every-6h",
+    cadence: "every-6h",
   },
 };
 
@@ -263,7 +278,9 @@ export async function getProductQuota(userId: string): Promise<ProductQuota> {
  * CTAs so the link can deep-link directly at the appropriate tier.
  * Owner / Pro return null (no upgrade above them).
  */
-export function suggestNextPlan(plan: Plan): "starter" | "growth" | "pro" | null {
+export function suggestNextPlan(
+  plan: Plan,
+): "starter" | "growth" | "pro" | "scale" | null {
   switch (plan) {
     case "free":
       return "starter";
@@ -271,6 +288,8 @@ export function suggestNextPlan(plan: Plan): "starter" | "growth" | "pro" | null
       return "growth";
     case "growth":
       return "pro";
+    case "pro":
+      return "scale";
     default:
       return null;
   }

@@ -38,10 +38,9 @@ export default async function NewStorePage(props: {
 
       <h1 className="mt-6 text-3xl font-semibold tracking-tight">Add a store</h1>
       <p className="mt-2 text-sm text-muted leading-relaxed">
-        Add a Shopify store to your stores list without tracking products
-        first. Useful for surfacing your own store before importing your
-        catalogue, or for pre-loading a competitor store you&apos;ll
-        explore later.
+        Add a Shopify store to your list without tracking any products yet.
+        Handy for adding your own store before importing your catalogue,
+        or for saving a competitor store to explore later.
       </p>
 
       {error && (
@@ -70,9 +69,8 @@ export default async function NewStorePage(props: {
             className="mt-2 block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground placeholder-muted shadow-sm outline-none font-mono leading-5 focus:border-strong"
           />
           <p className="mt-1 text-xs text-muted">
-            Bare domain, https URL, or path, we&apos;ll normalise it.
-            We do a quick check that it&apos;s a real Shopify store
-            before adding.
+            Any form works: the web address with or without https. We do a
+            quick check that it&apos;s a real Shopify store before adding.
           </p>
         </div>
 
@@ -93,11 +91,11 @@ export default async function NewStorePage(props: {
                 This is my store
               </span>
               <span className="mt-1 block text-xs text-muted leading-relaxed">
-                Marks the store as yours, auto-imports your full catalogue
-                into <strong>My products</strong> (free, doesn&apos;t
-                count toward your plan), and unlocks the bestseller probe
-                + opportunities view. Only one store can be your own at a
-                time per account.
+                Marks the store as yours and imports your full catalogue
+                into <strong>My products</strong> (free, doesn&apos;t count
+                toward your plan). It also unlocks bestseller insights and
+                the Opportunities view. Only one store can be your own at a
+                time.
               </span>
             </span>
           </label>
@@ -130,18 +128,18 @@ function errorCopy(
   switch (code) {
     case "invalid-url":
       return {
-        title: "That doesn't look like a valid URL.",
+        title: "That doesn't look like a web address.",
         body: "Try something like gymshark.com or https://yourstore.myshopify.com.",
       };
     case "unreachable":
       return {
         title: `Couldn't reach ${domain ?? "that store"}.`,
-        body: "Check the URL and try again, the store may be down, geo-restricted, or blocking automated requests.",
+        body: "Check the address and try again. The store may be down, limited to certain countries, or blocking checks.",
       };
     case "not-shopify":
       return {
         title: `${domain ?? "That URL"} doesn't look like a Shopify store.`,
-        body: "We need /products.json to be reachable. Some merchants disable it; if yours has, email hello@rivlr.app and we'll work around it.",
+        body: "Rivlr can only read stores that share their catalogue publicly, which most Shopify stores do. If yours doesn't, email hello@rivlr.app and we'll help.",
       };
     default:
       return null;

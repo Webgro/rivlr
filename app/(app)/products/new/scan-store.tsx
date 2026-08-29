@@ -90,8 +90,8 @@ export function ScanStore({ initialUrl }: { initialUrl?: string }) {
             className="mt-2 block w-full rounded-md border border-default bg-elevated px-3 py-2.5 text-sm text-foreground placeholder-muted shadow-sm outline-none font-mono leading-5 focus:border-strong disabled:opacity-60"
           />
           <p className="mt-1 text-xs text-muted">
-            We&apos;ll fetch the public catalogue and show you what&apos;s
-            inside before tracking anything.
+            We&apos;ll look up the store&apos;s public catalogue and show you
+            what&apos;s inside before tracking anything.
           </p>
           {!result && !scanning && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -141,7 +141,9 @@ export function ScanStore({ initialUrl }: { initialUrl?: string }) {
       {/* Results below the form */}
       {result && !result.ok && (
         <div className="mt-6 rounded-lg border border-signal/40 bg-signal/[0.04] px-5 py-4 text-sm">
-          <div className="text-signal font-medium">Couldn&apos;t scan</div>
+          <div className="text-signal font-medium">
+            Couldn&apos;t scan that store
+          </div>
           <div className="mt-1 text-muted">{result.error}</div>
         </div>
       )}
@@ -244,7 +246,7 @@ function ChooseAction({
           disabled={!canTrackAll || submitting}
           title={
             canTrackAll
-              ? `Adds every product to your watchlist. The first crawl starts immediately.`
+              ? `Adds every product to your watchlist. The first check starts straight away.`
               : `Your plan covers ${remaining ?? 0} products. Upgrade to track all ${total}, or pick from the list.`
           }
           className={`rounded-xl border p-5 text-left transition ${
@@ -261,7 +263,7 @@ function ChooseAction({
           </div>
           <div className="mt-1 text-xs text-muted leading-relaxed">
             {canTrackAll
-              ? `One click. The first crawl starts immediately and prices fill in within a few minutes.`
+              ? `One click. Rivlr checks each product straight away and prices fill in within a few minutes.`
               : `Disabled, your plan only covers ${remaining ?? 0}. Upgrade or pick specific products instead.`}
           </div>
         </button>
@@ -326,8 +328,8 @@ function ResultsHeader({
       </h2>
       <p className="mt-1 text-xs text-muted">
         {capped
-          ? `Showing the first ${total}. Larger catalogues are capped here so the scan stays snappy, split by collection URL if you need to go deeper.`
-          : `We grabbed image + title only, price and stock crawl after you confirm which to track.`}
+          ? `Showing the first ${total}. Very large catalogues are trimmed here to keep the scan quick. To go deeper, paste individual collection links instead.`
+          : `This preview shows images and titles only. Prices and stock fill in after you choose which to track.`}
       </p>
     </div>
   );
@@ -625,8 +627,8 @@ function SelectionGrid({
             Showing the first {visible.length} of {total} products in the
             grid.{" "}
             {canTrackAll
-              ? "To bulk-track everything, use the “Track all” button above the grid."
-              : "Upgrade to a plan that covers more, or use the URLs tab to paste specific handles."}
+              ? "To track everything at once, use the “Track all” button above the grid."
+              : "Upgrade to a plan that covers more, or switch to the Paste URLs tab and add specific products."}
           </div>
         )}
       </div>
@@ -634,7 +636,7 @@ function SelectionGrid({
       {/* Confirm bar */}
       <div className="rounded-b-lg border border-t-0 border-default bg-elevated px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
         <span className="text-xs text-muted">
-          Stock and price crawl starts as soon as you confirm.
+          Rivlr starts checking price and stock as soon as you confirm.
         </span>
         <button
           type="submit"

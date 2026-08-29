@@ -28,6 +28,7 @@ const VALID_COMPS: CompPlan[] = [
   "starter",
   "growth",
   "pro",
+  "scale",
   "owner",
   "unlimited",
 ];

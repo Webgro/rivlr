@@ -190,8 +190,8 @@ export function DetailContent({ data, variant }: DetailContentProps) {
             title="Delete this product?"
             description={
               <>
-                Stops crawling and removes all observations, price history,
-                and stock data for{" "}
+                Stops checking this product and removes all its price and
+                stock history for{" "}
                 <strong className="text-foreground">
                   {product.title ?? product.handle}
                 </strong>
@@ -242,7 +242,8 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         </div>
 
         <p className="mt-3 text-[11px] text-muted font-mono">
-          Emails actually start sending in Phase 5 (Resend). Toggles persist now.
+          Email alerts aren&apos;t live quite yet. Your choices are saved and
+          alerts will start sending as soon as they launch.
         </p>
       </div>
 
@@ -263,7 +264,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
         <Stat
           label={
             latestStock?.quantitySource === "probed"
-              ? "Stock · probed"
+              ? "Stock · exact check"
               : "Stock"
           }
           value={
@@ -286,7 +287,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
           />
         )}
         <Stat
-          label={`Range (${priceData.length} obs)`}
+          label={`Price range (${priceData.length} check${priceData.length === 1 ? "" : "s"})`}
           value={
             minPrice !== null && maxPrice !== null
               ? minPrice === maxPrice
@@ -462,13 +463,13 @@ export function DetailContent({ data, variant }: DetailContentProps) {
 
       <div className="mt-8">
         <h2 className="mb-3 text-sm font-semibold">
-          {hasQuantity ? "Inventory history" : "Stock availability"}
+          {hasQuantity ? "Stock history" : "In and out of stock"}
         </h2>
         <StockChart data={stockData} hasQuantity={hasQuantity} />
         {!hasQuantity && (
           <p className="mt-2 text-xs text-muted">
-            This store doesn't expose inventory quantities in its public data
-            so we're tracking in/out only.
+            This store doesn't share exact stock numbers, so Rivlr tracks
+            whether it's in or out of stock.
           </p>
         )}
       </div>
@@ -477,7 +478,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       {variant === "page" && recent.length > 0 && (
         <div className="mt-8">
           <h2 className="mb-3 text-sm font-semibold">
-            Recent observations
+            Recent price checks
           </h2>
           <div className="overflow-hidden rounded-lg border border-default">
             <table className="w-full text-sm">
@@ -527,10 +528,10 @@ function AcrossMarketsPanel({
     return (
       <div className="mt-6">
         <h2 className="text-sm font-semibold">
-          Other market prices
+          Prices in other countries
         </h2>
         <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-5 text-center text-xs text-muted">
-          No multi-market snapshot yet. Refreshes daily at 05:30 UTC.
+          No prices from other countries yet. Rivlr checks these once a day.
         </div>
       </div>
     );
@@ -581,7 +582,7 @@ function AcrossMarketsPanel({
     <div className="mt-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-sm font-semibold">
-          Other market prices · daily snapshot
+          Prices in other countries · updated daily
         </h2>
         <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
           {groups.length} unique price{groups.length === 1 ? "" : "s"}
@@ -663,8 +664,9 @@ function AcrossMarketsPanel({
         })}
       </div>
       <p className="mt-2 text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-        · Identical prices collapsed. Δ vs primary shown only for the same
-        currency. Configure scanned markets in Settings.
+        · Countries with the same price are grouped. The difference column
+        only shows when currencies match. Choose which countries to check in
+        Settings.
       </p>
     </div>
   );
@@ -689,8 +691,8 @@ function ProductIntelStrip({
     meta.push({ label: "Brand", value: product.brand });
   if (product.productType)
     meta.push({ label: "Type", value: product.productType });
-  if (product.gtin) meta.push({ label: "GTIN", value: product.gtin });
-  if (product.mpn) meta.push({ label: "MPN", value: product.mpn });
+  if (product.gtin) meta.push({ label: "Barcode (GTIN)", value: product.gtin });
+  if (product.mpn) meta.push({ label: "Part no. (MPN)", value: product.mpn });
   if (product.imageCount !== null && product.imageCount > 0)
     meta.push({ label: "Images", value: product.imageCount.toString() });
   if (product.shopifyCreatedAt)
@@ -713,7 +715,7 @@ function ProductIntelStrip({
     });
   if (product.socialProofWidget)
     meta.push({
-      label: "FOMO widget",
+      label: "Sales pop-up",
       value: product.socialProofWidget,
     });
 
@@ -725,7 +727,7 @@ function ProductIntelStrip({
   return (
     <div className="mt-6 rounded-lg border border-default bg-elevated p-4">
       <div className="text-xs font-medium text-muted mb-3">
-        Product intel
+        Product details
       </div>
       {meta.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">

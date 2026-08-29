@@ -48,6 +48,7 @@ export type CompPlan =
   | "starter"
   | "growth"
   | "pro"
+  | "scale"
   | "owner"
   | "unlimited";
 
