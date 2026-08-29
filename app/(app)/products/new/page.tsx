@@ -14,7 +14,9 @@ type SearchParams = Promise<Record<string, string>>;
 export default async function NewProductPage(props: {
   searchParams: SearchParams;
 }) {
-  await props.searchParams;
+  const params = await props.searchParams;
+  const initialTab = params.tab === "store" ? "store" : undefined;
+  const initialScanUrl = params.scan || undefined;
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-12">
@@ -34,7 +36,7 @@ export default async function NewProductPage(props: {
       </p>
 
       <div className="mt-8">
-        <AddTabs />
+        <AddTabs initialTab={initialTab} initialScanUrl={initialScanUrl} />
       </div>
     </section>
   );

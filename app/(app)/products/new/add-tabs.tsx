@@ -10,8 +10,20 @@ import { ScanStore } from "./scan-store";
  * children but only mounts the active one to avoid running the
  * /products.json fetch when the user is on the URL tab.
  */
-export function AddTabs({ inPanel }: { inPanel?: boolean }) {
-  const [tab, setTab] = useState<"urls" | "store">("urls");
+export function AddTabs({
+  inPanel,
+  initialTab,
+  initialScanUrl,
+}: {
+  inPanel?: boolean;
+  /** Deep-link support: /products/new?tab=store opens the scanner. */
+  initialTab?: "urls" | "store";
+  /** With ?scan=<domain>, the scanner opens prefilled and runs. */
+  initialScanUrl?: string;
+}) {
+  const [tab, setTab] = useState<"urls" | "store">(
+    initialScanUrl ? "store" : (initialTab ?? "urls"),
+  );
 
   return (
     <div>
@@ -36,7 +48,11 @@ export function AddTabs({ inPanel }: { inPanel?: boolean }) {
       </div>
 
       <div className="mt-6">
-        {tab === "urls" ? <NewProductForm inPanel={inPanel} /> : <ScanStore />}
+        {tab === "urls" ? (
+          <NewProductForm inPanel={inPanel} />
+        ) : (
+          <ScanStore initialUrl={initialScanUrl} />
+        )}
       </div>
     </div>
   );

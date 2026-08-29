@@ -595,14 +595,37 @@ export default async function DashboardPage(props: {
               : "No products yet."}
           </p>
           <p className="mt-1 text-sm text-muted">
-            Paste one or more Shopify product URLs to start tracking.
+            Paste product URLs, or scan a whole store and pick from its
+            catalogue.
           </p>
-          <Link
-            href="/products/new"
-            className="mt-6 inline-block rounded-md bg-signal px-4 py-2 text-sm font-medium text-white"
-          >
-            Add products
-          </Link>
+          <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+            <Link
+              href="/products/new"
+              className="rounded-md bg-signal px-4 py-2 text-sm font-medium text-white"
+            >
+              Add products
+            </Link>
+            <Link
+              href="/products/new?tab=store"
+              className="rounded-md border border-default bg-elevated px-4 py-2 text-sm font-medium text-foreground hover:border-strong"
+            >
+              Scan a whole store
+            </Link>
+          </div>
+          <p className="mt-5 text-xs text-muted">
+            Just exploring? Try an example:{" "}
+            {["gymshark.com", "allbirds.co.uk", "huel.com"].map((d, i) => (
+              <span key={d}>
+                {i > 0 && " · "}
+                <Link
+                  href={`/products/new?scan=${d}`}
+                  className="font-mono text-foreground underline-offset-4 hover:underline"
+                >
+                  {d}
+                </Link>
+              </span>
+            ))}
+          </p>
         </div>
       ) : (
         <>

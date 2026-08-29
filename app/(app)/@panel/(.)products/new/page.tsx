@@ -12,7 +12,10 @@ export const dynamic = "force-dynamic";
  * Direct URL hits and refreshes still get the full-page route at
  * app/(app)/products/new/page.tsx.
  */
-export default function PanelNewProductPage() {
+export default async function PanelNewProductPage(props: {
+  searchParams: Promise<Record<string, string>>;
+}) {
+  const params = await props.searchParams;
   return (
     <SlideOver>
       <div className="px-6 py-6">
@@ -24,7 +27,11 @@ export default function PanelNewProductPage() {
         </p>
 
         <div className="mt-6">
-          <AddTabs inPanel />
+          <AddTabs
+            inPanel
+            initialTab={params.tab === "store" ? "store" : undefined}
+            initialScanUrl={params.scan || undefined}
+          />
         </div>
       </div>
     </SlideOver>

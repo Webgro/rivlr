@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   scanStoreCatalogue,
@@ -8,6 +8,10 @@ import {
   type ScanProduct,
 } from "./scan-actions";
 import { addProducts } from "./actions";
+
+/** Well-known Shopify stores offered as one-click examples so a fresh
+ *  account can reach a populated screen without knowing any URLs. */
+const EXAMPLE_STORES = ["gymshark.com", "allbirds.co.uk", "huel.com"];
 
 /**
  * "Track a whole store" tab. User pastes a store URL, we hit
@@ -24,18 +28,39 @@ import { addProducts } from "./actions";
  * Preview is image + title only — Stock and price get crawled after
  * the products are accepted into tracked_products by addProducts().
  */
-export function ScanStore() {
-  const [storeUrl, setStoreUrl] = useState("");
+export function ScanStore({ initialUrl }: { initialUrl?: string }) {
+  const [storeUrl, setStoreUrl] = useState(initialUrl ?? "");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, startScan] = useTransition();
+  const autoScanned = useRef(false);
+
+  function runScan(url: string) {
+    if (!url.trim()) return;
+    startScan(async () => {
+      const r = await scanStoreCatalogue(url);
+      setResult(r);
+    });
+  }
+
+  // Deep links like /products/new?scan=gymshark.com land with the field
+  // prefilled; kick the scan off immediately so the user sees results,
+  // not a form. Ref-guarded against React strict-mode double-mount.
+  useEffect(() => {
+    if (initialUrl && !autoScanned.current) {
+      autoScanned.current = true;
+      runScan(initialUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onScan(e: React.FormEvent) {
     e.preventDefault();
-    if (!storeUrl.trim()) return;
-    startScan(async () => {
-      const r = await scanStoreCatalogue(storeUrl);
-      setResult(r);
-    });
+    runScan(storeUrl);
+  }
+
+  function tryExample(domain: string) {
+    setStoreUrl(domain);
+    runScan(domain);
   }
 
   function reset() {
@@ -68,6 +93,21 @@ export function ScanStore() {
             We&apos;ll fetch the public catalogue and show you what&apos;s
             inside before tracking anything.
           </p>
+          {!result && !scanning && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted">Try an example:</span>
+              {EXAMPLE_STORES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => tryExample(d)}
+                  className="rounded-full border border-default bg-surface px-3 py-1 text-xs font-mono text-muted hover:border-strong hover:text-foreground transition"
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 justify-end">
