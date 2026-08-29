@@ -129,40 +129,33 @@ async function getDashboardData(params: {
       FROM oos_runs
       WHERE run_grp = 0 AND available = false
       GROUP BY product_id
+    ),
+    price_24h AS (
+      -- Newest reading in the 23-27-hours-ago band, one bounded scan.
+      -- Was a per-product LATERAL: thousands of index probes per page
+      -- view at current catalogue size.
+      SELECT DISTINCT ON (product_id) product_id, price
+      FROM price_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND observed_at < NOW() - INTERVAL '23 hours'
+        AND observed_at >= NOW() - INTERVAL '27 hours'
+      ORDER BY product_id, observed_at DESC
     )
     SELECT
       p.id, p.url, p.handle, p.store_domain, p.title, p.image_url, p.currency,
       p.active, p.notify_stock_changes, p.notify_price_drops, p.is_favourite, p.tags,
       p.added_at, p.last_crawled_at,
-      lp.price AS latest_price,
-      lp.currency AS latest_currency,
-      ls.available AS latest_available,
-      ls.quantity AS latest_quantity,
+      -- Latest state comes off the denormalised columns; the history
+      -- tables are only touched for the 24h-ago price + 30d windows.
+      p.latest_price,
+      p.currency AS latest_currency,
+      p.latest_available,
+      p.latest_quantity,
       pp.price AS price_24h_ago,
       s.sold_30d,
       oos.oos_since
     FROM tracked_products p
-    LEFT JOIN LATERAL (
-      SELECT price, currency
-      FROM price_observations
-      WHERE product_id = p.id
-      ORDER BY observed_at DESC
-      LIMIT 1
-    ) lp ON true
-    LEFT JOIN LATERAL (
-      SELECT available, quantity
-      FROM stock_observations
-      WHERE product_id = p.id
-      ORDER BY observed_at DESC
-      LIMIT 1
-    ) ls ON true
-    LEFT JOIN LATERAL (
-      SELECT price
-      FROM price_observations
-      WHERE product_id = p.id AND observed_at < NOW() - INTERVAL '23 hours'
-      ORDER BY observed_at DESC
-      LIMIT 1
-    ) pp ON true
+    LEFT JOIN price_24h pp ON pp.product_id = p.id
     LEFT JOIN sold_30d_calc s ON s.product_id = p.id
     LEFT JOIN oos_since_calc oos ON oos.product_id = p.id
     LEFT JOIN user_store_prefs usp ON usp.user_id = ${params.userId}::uuid AND usp.domain = p.store_domain

@@ -322,6 +322,23 @@ export const trackedProducts = pgTable(
      *  unlocks a Favourites filter. Single-account product, so no
      *  per-user scoping needed. */
     isFavourite: boolean("is_favourite").notNull().default(false),
+
+    // ─── Denormalised latest state ─────────────────────────────────
+    // Mirrors of the newest price/stock observation, written by the
+    // crawler alongside each observation insert. Exists because the
+    // observation tables are history (800k+ rows and growing) and every
+    // "current price / in stock right now" question was being answered
+    // with per-product LATERAL probes or DISTINCT ON scans over them —
+    // the dashboard's out-of-stock count alone took ~2s. Hot pages read
+    // these columns; the observation tables stay for charts and trends.
+    /** Newest observed price. NULL until first crawl. */
+    latestPrice: numeric("latest_price", { precision: 12, scale: 2 }),
+    /** Newest observed availability. NULL until first crawl. */
+    latestAvailable: boolean("latest_available"),
+    /** Newest observed quantity (NULL when the store hides inventory). */
+    latestQuantity: integer("latest_quantity"),
+    /** When the latest_* values were last written. */
+    latestObservedAt: timestamp("latest_observed_at", { withTimezone: true }),
   },
   (t) => [
     index("idx_products_store").on(t.storeDomain),

@@ -204,16 +204,23 @@ export async function probeInventoryAcrossActive(): Promise<ProbeBatchResult> {
     }
 
     // Write a fresh stock_observation with the probed quantity.
+    const probedAvailable = anyAvailable || (totalQty !== null && totalQty > 0);
     await db.insert(schema.stockObservations).values({
       productId: p.id,
-      available: anyAvailable || (totalQty !== null && totalQty > 0),
+      available: probedAvailable,
       quantity: totalQty,
       quantitySource: "probed",
     });
 
     await db
       .update(schema.trackedProducts)
-      .set({ lastInventoryProbedAt: new Date() })
+      .set({
+        lastInventoryProbedAt: new Date(),
+        // Keep the denormalised latest state in sync with the probe.
+        latestAvailable: probedAvailable,
+        latestQuantity: totalQty,
+        latestObservedAt: new Date(),
+      })
       .where(eq(schema.trackedProducts.id, p.id));
 
     result.probed += 1;

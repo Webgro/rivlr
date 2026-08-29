@@ -44,34 +44,43 @@ export async function getDashboardInsights(
     stale_count: number;
   };
 
-  const [counts] = await db.execute<R>(sql`
-    WITH price_pairs AS (
+  const countsQuery = db.execute<R>(sql`
+    WITH user_products AS (
+      -- Scope the observation scans to this user's products up front;
+      -- these CTEs previously walked every user's last-24h observations
+      -- with a per-row LATERAL, which crawled as history accumulated.
+      SELECT id FROM tracked_products WHERE user_id = ${userId}::uuid
+    ),
+    price_window AS (
+      -- Single bounded scan + LAG instead of a correlated prev-lookup
+      -- per row. The extra day feeds LAG a prior value for rows near
+      -- the 24h boundary.
       SELECT
-        po.product_id,
-        po.price::numeric AS new_price,
-        prev.price::numeric AS prev_price
-      FROM price_observations po
-      LEFT JOIN LATERAL (
-        SELECT price FROM price_observations
-        WHERE product_id = po.product_id AND observed_at < po.observed_at
-        ORDER BY observed_at DESC LIMIT 1
-      ) prev ON true
-      WHERE po.observed_at >= NOW() - INTERVAL '24 hours'
-        AND prev.price IS NOT NULL
+        product_id, observed_at, price,
+        LAG(price) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_price
+      FROM price_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND observed_at >= NOW() - INTERVAL '48 hours'
+    ),
+    price_pairs AS (
+      SELECT product_id, price::numeric AS new_price, prev_price::numeric AS prev_price
+      FROM price_window
+      WHERE observed_at >= NOW() - INTERVAL '24 hours'
+        AND prev_price IS NOT NULL
+    ),
+    stock_window AS (
+      SELECT
+        product_id, observed_at, available,
+        LAG(available) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_avail
+      FROM stock_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND observed_at >= NOW() - INTERVAL '48 hours'
     ),
     stock_pairs AS (
-      SELECT
-        so.product_id,
-        so.available AS new_avail,
-        prev.available AS prev_avail
-      FROM stock_observations so
-      LEFT JOIN LATERAL (
-        SELECT available FROM stock_observations
-        WHERE product_id = so.product_id AND observed_at < so.observed_at
-        ORDER BY observed_at DESC LIMIT 1
-      ) prev ON true
-      WHERE so.observed_at >= NOW() - INTERVAL '24 hours'
-        AND prev.available IS NOT NULL
+      SELECT product_id, available AS new_avail, prev_avail
+      FROM stock_window
+      WHERE observed_at >= NOW() - INTERVAL '24 hours'
+        AND prev_avail IS NOT NULL
     )
     SELECT
       (SELECT COUNT(DISTINCT pp.product_id)::int FROM price_pairs pp
@@ -104,11 +113,14 @@ export async function getDashboardInsights(
     pct: string;
   };
 
-  const movers = await db.execute<Mover>(sql`
+  const moversQuery = db.execute<Mover>(sql`
     WITH latest AS (
       SELECT DISTINCT ON (po.product_id)
         po.product_id, po.price::numeric AS new_price, po.observed_at
       FROM price_observations po
+      JOIN tracked_products tp
+        ON tp.id = po.product_id AND tp.user_id = ${userId}::uuid
+      WHERE po.observed_at >= NOW() - INTERVAL '24 hours'
       ORDER BY po.product_id, po.observed_at DESC
     ),
     prev AS (
@@ -119,7 +131,6 @@ export async function getDashboardInsights(
          WHERE product_id = l.product_id AND observed_at < l.observed_at
          ORDER BY observed_at DESC LIMIT 1) AS prev_price
       FROM latest l
-      WHERE l.observed_at >= NOW() - INTERVAL '24 hours'
     )
     SELECT
       p.id AS product_id, p.title, p.store_domain, p.currency,
@@ -131,6 +142,8 @@ export async function getDashboardInsights(
     ORDER BY ABS(pr.new_price - pr.prev_price) DESC
     LIMIT 10
   `);
+
+  const [[counts], movers] = await Promise.all([countsQuery, moversQuery]);
 
   const moversArr = Array.from(movers);
   const drops = moversArr

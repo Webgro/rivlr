@@ -62,33 +62,27 @@ export default async function MyProductsPage() {
     SELECT
       p.id, p.title, p.handle, p.store_domain, p.image_url, p.currency,
       p.is_favourite,
-      lp.price AS latest_price,
-      ls.available AS latest_available,
-      ls.quantity AS latest_quantity,
-      bc.price AS best_competitor_price,
+      p.latest_price,
+      p.latest_available,
+      p.latest_quantity,
+      bc.latest_price AS best_competitor_price,
       bc.currency AS best_competitor_currency,
       bc.store_domain AS best_competitor_store,
       (p.group_id IS NOT NULL) AS is_grouped
     FROM tracked_products p
+    -- Cheapest linked competitor by CURRENT price. The old version
+    -- ordered by observed_at first, which returned whichever rival was
+    -- crawled most recently rather than the cheapest one.
     LEFT JOIN LATERAL (
-      SELECT price FROM price_observations
-      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-    ) lp ON true
-    LEFT JOIN LATERAL (
-      SELECT available, quantity FROM stock_observations
-      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-    ) ls ON true
-    LEFT JOIN LATERAL (
-      SELECT c.store_domain, c.currency, cp.price
+      SELECT c.store_domain, c.currency, c.latest_price
       FROM tracked_products c
-      JOIN price_observations cp
-        ON cp.product_id = c.id
       WHERE c.group_id = p.group_id
         AND c.user_id = ${user.id}::uuid
         AND c.id != p.id
         AND c.store_domain != p.store_domain
+        AND c.latest_price IS NOT NULL
         AND p.group_id IS NOT NULL
-      ORDER BY cp.observed_at DESC, cp.price ASC
+      ORDER BY c.latest_price ASC
       LIMIT 1
     ) bc ON true
     WHERE p.user_id = ${user.id}::uuid

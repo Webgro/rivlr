@@ -64,29 +64,25 @@ async function getOverviewData(userId: string) {
     currently_oos: number;
     total_alerts_7d: number;
   };
-  const [summary] = await db.execute<SummaryRow>(sql`
+  // All four dashboard queries are independent; fire them together.
+  // Each one also scopes its observation scans to the user's products
+  // INSIDE the CTEs — previously several of them scanned the whole
+  // observations table (every user, sometimes all time) and filtered
+  // at the end, which is what made the dashboard take multiple seconds.
+  const summaryQuery = db.execute<SummaryRow>(sql`
     SELECT
       (SELECT COUNT(*)::int FROM tracked_products
         WHERE user_id = ${userId}::uuid AND active = true) AS total_active,
       (SELECT COUNT(DISTINCT store_domain)::int FROM tracked_products
         WHERE user_id = ${userId}::uuid AND active = true) AS total_stores,
-      (SELECT COUNT(*)::int FROM (
-        SELECT DISTINCT ON (so.product_id) so.product_id, so.available
-        FROM stock_observations so
-        JOIN tracked_products tp ON tp.id = so.product_id AND tp.user_id = ${userId}::uuid
-        ORDER BY so.product_id, so.observed_at DESC
-      ) latest WHERE latest.available = false) AS currently_oos,
+      (SELECT COUNT(*)::int FROM tracked_products
+        WHERE user_id = ${userId}::uuid
+          AND active = true
+          AND latest_available = false) AS currently_oos,
       (SELECT COUNT(*)::int FROM alert_log al
         JOIN tracked_products tp ON tp.id = al.product_id AND tp.user_id = ${userId}::uuid
         WHERE al.sent_at >= NOW() - INTERVAL '7 days') AS total_alerts_7d
   `);
-
-  const stats: SummaryStats = {
-    totalActive: summary?.total_active ?? 0,
-    totalStores: summary?.total_stores ?? 0,
-    currentlyOOS: summary?.currently_oos ?? 0,
-    totalAlerts7d: summary?.total_alerts_7d ?? 0,
-  };
 
   // Recent activity — combine price changes + stock changes from last 7 days.
   type ActivityRow = {
@@ -100,38 +96,43 @@ async function getOverviewData(userId: string) {
     prev_price: string | null;
     new_price: string | null;
   };
-  const activityRows = await db.execute<ActivityRow>(sql`
-    WITH price_changes AS (
+  const activityQuery = db.execute<ActivityRow>(sql`
+    WITH user_products AS (
+      SELECT id FROM tracked_products WHERE user_id = ${userId}::uuid
+    ),
+    -- One bounded scan + LAG() per table instead of a correlated
+    -- "previous observation" probe per row (tens of thousands of index
+    -- probes at this history size). The extra day on the window feeds
+    -- LAG a prior value for rows near the 7-day boundary.
+    price_window AS (
       SELECT
-        po.product_id,
-        po.observed_at,
-        po.price AS new_price,
-        prev.price AS prev_price
-      FROM price_observations po
-      LEFT JOIN LATERAL (
-        SELECT price FROM price_observations
-        WHERE product_id = po.product_id AND observed_at < po.observed_at
-        ORDER BY observed_at DESC LIMIT 1
-      ) prev ON true
-      WHERE po.observed_at >= NOW() - INTERVAL '7 days'
-        AND prev.price IS NOT NULL
-        AND prev.price::numeric != po.price::numeric
+        product_id, observed_at, price,
+        LAG(price) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_price
+      FROM price_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND observed_at >= NOW() - INTERVAL '8 days'
+    ),
+    price_changes AS (
+      SELECT product_id, observed_at, price AS new_price, prev_price
+      FROM price_window
+      WHERE observed_at >= NOW() - INTERVAL '7 days'
+        AND prev_price IS NOT NULL
+        AND prev_price::numeric != price::numeric
+    ),
+    stock_window AS (
+      SELECT
+        product_id, observed_at, available,
+        LAG(available) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_avail
+      FROM stock_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND observed_at >= NOW() - INTERVAL '8 days'
     ),
     stock_changes AS (
-      SELECT
-        so.product_id,
-        so.observed_at,
-        so.available AS new_avail,
-        prev.available AS prev_avail
-      FROM stock_observations so
-      LEFT JOIN LATERAL (
-        SELECT available FROM stock_observations
-        WHERE product_id = so.product_id AND observed_at < so.observed_at
-        ORDER BY observed_at DESC LIMIT 1
-      ) prev ON true
-      WHERE so.observed_at >= NOW() - INTERVAL '7 days'
-        AND prev.available IS NOT NULL
-        AND prev.available != so.available
+      SELECT product_id, observed_at, available AS new_avail, prev_avail
+      FROM stock_window
+      WHERE observed_at >= NOW() - INTERVAL '7 days'
+        AND prev_avail IS NOT NULL
+        AND prev_avail != available
     )
     SELECT
       pc.product_id, p.title, p.handle, p.store_domain, p.currency,
@@ -154,6 +155,99 @@ async function getOverviewData(userId: string) {
     ORDER BY observed_at DESC
     LIMIT 30
   `);
+
+  // Opportunities — competitors currently out of stock (longest first).
+  type OppRow = {
+    product_id: string;
+    title: string | null;
+    handle: string;
+    store_domain: string;
+    currency: string;
+    oos_since: string;
+    last_price: string | null;
+  };
+  const oppQuery = db.execute<OppRow>(sql`
+    WITH user_products AS (
+      SELECT id FROM tracked_products WHERE user_id = ${userId}::uuid
+    ),
+    oos_runs AS (
+      SELECT
+        product_id, observed_at, available,
+        SUM(CASE WHEN available THEN 1 ELSE 0 END)
+          OVER (PARTITION BY product_id ORDER BY observed_at DESC) AS run_grp
+      FROM stock_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND observed_at >= NOW() - INTERVAL '90 days'
+    ),
+    oos_starts AS (
+      SELECT product_id, MIN(observed_at) AS oos_since
+      FROM oos_runs
+      WHERE run_grp = 0 AND available = false
+      GROUP BY product_id
+    )
+    SELECT
+      p.id AS product_id, p.title, p.handle, p.store_domain, p.currency,
+      o.oos_since,
+      p.latest_price AS last_price
+    FROM oos_starts o
+    JOIN tracked_products p ON p.id = o.product_id AND p.user_id = ${userId}::uuid AND p.active = true
+    WHERE p.latest_available = false
+    ORDER BY o.oos_since ASC
+    LIMIT 8
+  `);
+
+  // Top movers (7d) — biggest absolute price changes.
+  type MoverRow = {
+    product_id: string;
+    title: string | null;
+    handle: string;
+    store_domain: string;
+    currency: string;
+    prev_price: string;
+    new_price: string;
+  };
+  const moverQuery = db.execute<MoverRow>(sql`
+    WITH week_ago_prices AS (
+      -- Newest reading in the 6-8-days-ago band. The band (rather than
+      -- "anything older than 6 days") keeps this off the product's full
+      -- history; a product crawled at least daily always has a row here.
+      SELECT DISTINCT ON (po.product_id)
+        po.product_id, po.price
+      FROM price_observations po
+      JOIN tracked_products tp
+        ON tp.id = po.product_id
+       AND tp.user_id = ${userId}::uuid AND tp.active = true
+      WHERE po.observed_at <= NOW() - INTERVAL '6 days'
+        AND po.observed_at >= NOW() - INTERVAL '8 days'
+      ORDER BY po.product_id, po.observed_at DESC
+    )
+    SELECT
+      p.id AS product_id, p.title, p.handle, p.store_domain, p.currency,
+      w.price::text AS prev_price,
+      p.latest_price::text AS new_price
+    FROM tracked_products p
+    JOIN week_ago_prices w ON w.product_id = p.id
+    WHERE p.user_id = ${userId}::uuid AND p.active = true
+      AND p.latest_price IS NOT NULL
+      AND p.latest_price::numeric != w.price::numeric
+    ORDER BY ABS(p.latest_price::numeric - w.price::numeric) DESC
+    LIMIT 8
+  `);
+
+  const [summaryRows, activityRows, oppRows, moverRows] = await Promise.all([
+    summaryQuery,
+    activityQuery,
+    oppQuery,
+    moverQuery,
+  ]);
+  const [summary] = summaryRows;
+
+  const stats: SummaryStats = {
+    totalActive: summary?.total_active ?? 0,
+    totalStores: summary?.total_stores ?? 0,
+    currentlyOOS: summary?.currently_oos ?? 0,
+    totalAlerts7d: summary?.total_alerts_7d ?? 0,
+  };
 
   const activity: ActivityItem[] = Array.from(activityRows).map((r) => {
     const prev = r.prev_price ? Number(r.prev_price) : undefined;
@@ -178,45 +272,6 @@ async function getOverviewData(userId: string) {
     };
   });
 
-  // Opportunities — competitors currently out of stock (longest first), with
-  // their last known price as benchmark.
-  type OppRow = {
-    product_id: string;
-    title: string | null;
-    handle: string;
-    store_domain: string;
-    currency: string;
-    oos_since: string;
-    last_price: string | null;
-  };
-  const oppRows = await db.execute<OppRow>(sql`
-    WITH oos_runs AS (
-      SELECT
-        product_id, observed_at, available,
-        SUM(CASE WHEN available THEN 1 ELSE 0 END)
-          OVER (PARTITION BY product_id ORDER BY observed_at DESC) AS run_grp
-      FROM stock_observations
-    ),
-    oos_starts AS (
-      SELECT product_id, MIN(observed_at) AS oos_since
-      FROM oos_runs
-      WHERE run_grp = 0 AND available = false
-      GROUP BY product_id
-    )
-    SELECT
-      p.id AS product_id, p.title, p.handle, p.store_domain, p.currency,
-      o.oos_since,
-      lp.price AS last_price
-    FROM oos_starts o
-    JOIN tracked_products p ON p.id = o.product_id AND p.user_id = ${userId}::uuid AND p.active = true
-    LEFT JOIN LATERAL (
-      SELECT price FROM price_observations
-      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-    ) lp ON true
-    ORDER BY o.oos_since ASC
-    LIMIT 8
-  `);
-
   const opportunities: OpportunityItem[] = Array.from(oppRows).map((r) => {
     const since = new Date(r.oos_since);
     return {
@@ -232,42 +287,6 @@ async function getOverviewData(userId: string) {
       lastPrice: r.last_price ? Number(r.last_price) : null,
     };
   });
-
-  // Top movers (7d) — biggest absolute price changes.
-  type MoverRow = {
-    product_id: string;
-    title: string | null;
-    handle: string;
-    store_domain: string;
-    currency: string;
-    prev_price: string;
-    new_price: string;
-  };
-  const moverRows = await db.execute<MoverRow>(sql`
-    WITH latest_prices AS (
-      SELECT DISTINCT ON (product_id)
-        product_id, price, observed_at
-      FROM price_observations
-      ORDER BY product_id, observed_at DESC
-    ),
-    week_ago_prices AS (
-      SELECT DISTINCT ON (product_id)
-        product_id, price
-      FROM price_observations
-      WHERE observed_at <= NOW() - INTERVAL '6 days'
-      ORDER BY product_id, observed_at DESC
-    )
-    SELECT
-      p.id AS product_id, p.title, p.handle, p.store_domain, p.currency,
-      w.price::text AS prev_price,
-      l.price::text AS new_price
-    FROM latest_prices l
-    JOIN week_ago_prices w ON w.product_id = l.product_id
-    JOIN tracked_products p ON p.id = l.product_id AND p.user_id = ${userId}::uuid AND p.active = true
-    WHERE l.price::numeric != w.price::numeric
-    ORDER BY ABS(l.price::numeric - w.price::numeric) DESC
-    LIMIT 8
-  `);
 
   const movers: MoverItem[] = Array.from(moverRows).map((r) => {
     const prev = Number(r.prev_price);
@@ -295,14 +314,24 @@ export default async function DashboardPage() {
   let data: Awaited<ReturnType<typeof getOverviewData>> | null = null;
   let dbError: string | null = null;
 
-  try {
-    data = await getOverviewData(user.id);
-  } catch (err) {
-    dbError = err instanceof Error ? err.message : String(err);
+  // The three data sources are independent — run them together rather
+  // than serially (this alone removes one to two seconds off the page).
+  const [overviewResult, insights, quota] = await Promise.all([
+    getOverviewData(user.id).then(
+      (d) => ({ ok: true as const, d }),
+      (err) => ({
+        ok: false as const,
+        message: err instanceof Error ? err.message : String(err),
+      }),
+    ),
+    getDashboardInsights(user.id).catch(() => null),
+    getProductQuota(user.id),
+  ]);
+  if (overviewResult.ok) {
+    data = overviewResult.d;
+  } else {
+    dbError = overviewResult.message;
   }
-
-  const insights = await getDashboardInsights(user.id).catch(() => null);
-  const quota = await getProductQuota(user.id);
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">

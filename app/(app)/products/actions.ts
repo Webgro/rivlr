@@ -193,7 +193,13 @@ export async function probeInventoryNow(productId: string): Promise<{
     });
     await db
       .update(schema.trackedProducts)
-      .set({ lastInventoryProbedAt: new Date() })
+      .set({
+        lastInventoryProbedAt: new Date(),
+        latestAvailable:
+          anyAvailable || (totalQuantity !== null && totalQuantity > 0),
+        latestQuantity: totalQuantity,
+        latestObservedAt: new Date(),
+      })
       .where(
         and(
           eq(schema.trackedProducts.id, product.id),

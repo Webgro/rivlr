@@ -89,32 +89,24 @@ export default async function OpportunitiesPage() {
       )
       SELECT
         p.id, p.title, p.handle, p.store_domain, p.image_url, p.currency,
-        ls.quantity AS current_qty,
+        p.latest_quantity AS current_qty,
         (s.sold_30d::numeric / 30.0)::text AS daily_rate,
-        (ls.quantity::numeric / NULLIF(s.sold_30d::numeric / 30.0, 0))::text AS days_cover,
-        lp.price AS current_price
+        (p.latest_quantity::numeric / NULLIF(s.sold_30d::numeric / 30.0, 0))::text AS days_cover,
+        p.latest_price AS current_price
       FROM tracked_products p
       LEFT JOIN user_store_prefs usp ON usp.user_id = ${user.id}::uuid AND usp.domain = p.store_domain
       JOIN sold_30d_calc s ON s.product_id = p.id
-      JOIN LATERAL (
-        SELECT quantity, available FROM stock_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) ls ON ls.quantity IS NOT NULL
-      LEFT JOIN LATERAL (
-        SELECT price FROM price_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) lp ON true
       WHERE p.user_id = ${user.id}::uuid
         AND p.active = true
         AND COALESCE(usp.is_my_store, false) = false
         -- Only items still in stock, "going dark" doesn't apply to
         -- products that are already out. Also positive quantity to
         -- avoid divide-by-zero edge cases on stale observations.
-        AND ls.available = true
-        AND ls.quantity > 0
+        AND p.latest_available = true
+        AND p.latest_quantity > 0
         AND s.sold_30d > 0
-        AND (ls.quantity::numeric / (s.sold_30d::numeric / 30.0)) < ${daysCoverThreshold}
-      ORDER BY (ls.quantity::numeric / (s.sold_30d::numeric / 30.0)) ASC
+        AND (p.latest_quantity::numeric / (s.sold_30d::numeric / 30.0)) < ${daysCoverThreshold}
+      ORDER BY (p.latest_quantity::numeric / (s.sold_30d::numeric / 30.0)) ASC
       LIMIT 50
     `),
   );
@@ -145,13 +137,13 @@ export default async function OpportunitiesPage() {
         SELECT
           p.id, p.title, p.handle, p.store_domain, p.image_url, p.currency,
           p.is_bestseller, p.shopify_tags, p.review_count, p.group_id,
+          p.latest_price AS my_price,
           (
-            SELECT price FROM price_observations
-            WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-          ) AS my_price,
-          (
+            -- 90-day bound: enough for the demand-churn signal without
+            -- counting across the product's whole history.
             SELECT COUNT(*)::int FROM stock_observations
             WHERE product_id = p.id AND available = false
+              AND observed_at >= NOW() - INTERVAL '90 days'
           ) AS stockout_count
         FROM tracked_products p
         WHERE p.user_id = ${user.id}::uuid
@@ -162,7 +154,7 @@ export default async function OpportunitiesPage() {
         SELECT
           my.id AS my_id,
           c.id, c.title, c.store_domain, c.currency,
-          cp.price
+          c.latest_price AS price
         FROM my
         JOIN tracked_products c
           ON c.group_id = my.group_id
@@ -170,10 +162,7 @@ export default async function OpportunitiesPage() {
          AND c.id != my.id
          AND c.store_domain != my.store_domain
          AND c.active = true
-        JOIN LATERAL (
-          SELECT price FROM price_observations
-          WHERE product_id = c.id ORDER BY observed_at DESC LIMIT 1
-        ) cp ON true
+         AND c.latest_price IS NOT NULL
         WHERE my.group_id IS NOT NULL
       )
       SELECT

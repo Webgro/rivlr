@@ -226,27 +226,18 @@ async function processBatch(
         ? await scrapePdp(product.storeDomain, product.handle, market)
         : null;
 
-      // Pull the latest existing observations for change detection
-      // (used by alerts further down). Bug fix: was orderBy ascending
-      // which returned the OLDEST observation; flipped to desc.
-      // Both queries fire in parallel — they're independent.
-      const [[prevPrice], [prevStock]] = await Promise.all([
-        db
-          .select({ price: schema.priceObservations.price })
-          .from(schema.priceObservations)
-          .where(eq(schema.priceObservations.productId, product.id))
-          .orderBy(desc(schema.priceObservations.observedAt))
-          .limit(1),
-        db
-          .select({
-            available: schema.stockObservations.available,
-            quantity: schema.stockObservations.quantity,
-          })
-          .from(schema.stockObservations)
-          .where(eq(schema.stockObservations.productId, product.id))
-          .orderBy(desc(schema.stockObservations.observedAt))
-          .limit(1),
-      ]);
+      // Previous values for change detection come straight off the
+      // product row's denormalised latest_* columns — no observation
+      // reads needed (two round trips per product saved).
+      const prevPrice =
+        product.latestPrice !== null ? { price: product.latestPrice } : null;
+      const prevStock =
+        product.latestAvailable !== null
+          ? {
+              available: product.latestAvailable,
+              quantity: product.latestQuantity,
+            }
+          : null;
 
       const newPrice = Number(penceToDecimal(snapshot.price));
 
@@ -303,6 +294,11 @@ async function processBatch(
             variantsSnapshot,
             compareAtPrice,
             lastCrawledAt: new Date(),
+            // Denormalised latest state — what the hot pages read.
+            latestPrice: penceToDecimal(snapshot.price),
+            latestAvailable: snapshot.available,
+            latestQuantity: snapshot.quantity,
+            latestObservedAt: new Date(),
             // Reset failure counter on success.
             consecutiveFailures: 0,
             autoPausedAt: null,

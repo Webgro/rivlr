@@ -169,16 +169,12 @@ async function findLinkedOwnProduct(
     handle: string;
     price: string | null;
   }>(sql`
-    SELECT p.title, p.handle, lp.price
+    SELECT p.title, p.handle, p.latest_price AS price
     FROM tracked_products p
     JOIN user_store_prefs usp
       ON usp.user_id = p.user_id
      AND usp.domain = p.store_domain
      AND usp.is_my_store = true
-    LEFT JOIN LATERAL (
-      SELECT price FROM price_observations
-      WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-    ) lp ON true
     WHERE p.group_id = ${competitor.groupId}::uuid
       AND p.user_id = ${competitor.userId}::uuid
       AND p.id != ${competitor.id}::uuid

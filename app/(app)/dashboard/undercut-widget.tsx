@@ -25,8 +25,8 @@ export async function UndercutWidget({ userId }: { userId: string }) {
     await db.execute<UndercutRow>(sql`
       SELECT
         p.id, p.title, p.handle, p.image_url, p.currency,
-        lp.price AS my_price,
-        bc.price AS their_price,
+        p.latest_price AS my_price,
+        bc.latest_price AS their_price,
         bc.store_domain AS their_store
       FROM tracked_products p
       JOIN user_store_prefs usp
@@ -34,27 +34,21 @@ export async function UndercutWidget({ userId }: { userId: string }) {
        AND usp.domain = p.store_domain
        AND usp.is_my_store = true
       JOIN LATERAL (
-        SELECT price FROM price_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) lp ON true
-      JOIN LATERAL (
-        SELECT c.store_domain, cp.price
+        SELECT c.store_domain, c.latest_price
         FROM tracked_products c
-        JOIN LATERAL (
-          SELECT price FROM price_observations
-          WHERE product_id = c.id ORDER BY observed_at DESC LIMIT 1
-        ) cp ON true
         WHERE c.group_id = p.group_id
           AND c.user_id = ${userId}::uuid
           AND c.id != p.id
           AND c.store_domain != p.store_domain
-        ORDER BY cp.price ASC
+          AND c.latest_price IS NOT NULL
+        ORDER BY c.latest_price ASC
         LIMIT 1
-      ) bc ON bc.price::numeric < lp.price::numeric
+      ) bc ON bc.latest_price::numeric < p.latest_price::numeric
       WHERE p.user_id = ${userId}::uuid
         AND p.active = true
         AND p.group_id IS NOT NULL
-      ORDER BY (lp.price::numeric - bc.price::numeric) DESC
+        AND p.latest_price IS NOT NULL
+      ORDER BY (p.latest_price::numeric - bc.latest_price::numeric) DESC
       LIMIT 5
     `),
   );
