@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { getDashboardInsights } from "@/lib/dashboard-insights";
 import { InsightsRow } from "@/app/(app)/products/insights-row";
 import { OnboardingChecklist } from "./onboarding-checklist";
+import { UndercutWidget } from "./undercut-widget";
 import { FavouritesWidget } from "./favourites-widget";
 import { requireUser } from "@/lib/auth/current-user";
 import { getProductQuota } from "@/lib/plan";
@@ -350,6 +351,10 @@ export default async function DashboardPage() {
       )}
 
       {insights && <InsightsRow insights={insights} />}
+
+      {/* Highest-signal alert: linked competitors priced below the user's
+          own products. Hidden when there are none. */}
+      <UndercutWidget userId={user.id} />
 
       {/* Plan-quota indicator. Surfaces approaching/at the product limit
           so the upgrade prompt arrives BEFORE the user hits the wall. */}

@@ -103,6 +103,46 @@ export function priceDropEmail(
   return { subject, html, text };
 }
 
+// ─── Undercut ──────────────────────────────────────────────────────────
+/**
+ * Fired when a linked competitor's price drops below the user's own
+ * price for the same item. The highest-signal alert we send: it names
+ * both products and both prices so the user can decide on a reprice
+ * without opening the app.
+ */
+export function undercutEmail(opts: {
+  competitor: TrackedProduct;
+  myTitle: string;
+  myPrice: number;
+  theirPrice: number;
+  currency: string;
+}): Built {
+  const { competitor, myTitle, myPrice, theirPrice, currency } = opts;
+  const symbol = currencySymbol(currency);
+  const gap = (myPrice - theirPrice).toFixed(2);
+  const pct = (((myPrice - theirPrice) / myPrice) * 100).toFixed(1);
+  const subject = `You've been undercut: ${myTitle}`;
+  const html = renderShell(
+    `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">You've been undercut</h1>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;"><strong style="color:#f5f3ee;">${escape(competitor.storeDomain)}</strong> just priced the item linked to <strong style="color:#f5f3ee;">${escape(myTitle)}</strong> below yours.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1a1a1a" style="background:#1a1a1a;border-radius:8px;border:1px solid #262626;margin:0 0 20px;">
+  <tr><td style="padding:16px;">
+    <div style="font-size:13px;color:#8a8a8a;margin-bottom:4px;">Your price</div>
+    <div style="font-size:18px;color:#f5f3ee;font-weight:600;margin-bottom:12px;">${symbol}${myPrice.toFixed(2)}</div>
+    <div style="font-size:13px;color:#8a8a8a;margin-bottom:4px;">Their price (${escape(competitor.storeDomain)})</div>
+    <div style="font-size:18px;color:#ff3b30;font-weight:600;">${symbol}${theirPrice.toFixed(2)} <span style="font-size:13px;color:#8a8a8a;font-weight:400;">(${symbol}${gap} / ${pct}% below you)</span></div>
+  </td></tr>
+</table>
+<a href="${competitor.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:500;">See their listing</a>
+<div style="margin-top:16px;font-size:13px;color:#8a8a8a;line-height:1.6;">Hold, match, or ride it out. Whatever you decide, now you know.</div>`,
+    {
+      preheader: `${competitor.storeDomain} is now ${symbol}${gap} below you on ${myTitle}`,
+    },
+  );
+  const text = `You've been undercut: ${myTitle}\n\nYour price: ${symbol}${myPrice.toFixed(2)}\nTheir price (${competitor.storeDomain}): ${symbol}${theirPrice.toFixed(2)} (${pct}% below you)\n\nTheir listing: ${competitor.url}\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  return { subject, html, text };
+}
+
 // ─── Days-cover warning ────────────────────────────────────────────────
 export function daysCoverWarningEmail(
   p: TrackedProduct,

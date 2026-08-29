@@ -617,6 +617,7 @@ export const alertLog = pgTable(
         "price_drop",
         "days_cover_warning",
         "weekly_digest",
+        "undercut",
       ],
     }).notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
