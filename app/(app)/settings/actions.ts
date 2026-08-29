@@ -4,11 +4,6 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { requireUser, getCurrentUser } from "@/lib/auth/current-user";
-import {
-  type Cadence,
-  isCadenceAllowed,
-  getCurrentPlan,
-} from "@/lib/plan";
 import { KNOWN_MARKETS } from "@/lib/crawler/multi-market";
 import { sendEmail } from "@/lib/email/send";
 import { testEmail } from "@/lib/email/templates";
@@ -113,19 +108,6 @@ export async function getSettings() {
     .where(eq(schema.appSettings.id, user.id))
     .limit(1);
   return row ?? null;
-}
-
-const VALID_CADENCES: Cadence[] = ["daily", "every-6h", "hourly"];
-
-export async function updateCrawlCadence(formData: FormData) {
-  const user = await requireUser();
-  const value = String(formData.get("cadence") ?? "");
-  if (!VALID_CADENCES.includes(value as Cadence)) return;
-  const cadence = value as Cadence;
-  const plan = await getCurrentPlan();
-  if (!isCadenceAllowed(cadence, plan)) return;
-  await upsertSettings(user.id, { crawlCadence: cadence });
-  revalidatePath("/settings");
 }
 
 export async function updateDaysCoverThreshold(formData: FormData) {

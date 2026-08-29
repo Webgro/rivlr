@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   saveNotificationEmails,
   getSettings,
-  updateCrawlCadence,
   updateMultiMarketCountries,
   updateCartProbeEnabled,
   updateDaysCoverThreshold,
@@ -11,14 +10,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SendTestEmailButton } from "./send-test-email-button";
-import {
-  PLAN_FEATURES,
-  CADENCE_LABELS,
-  isCadenceAllowed,
-  getCurrentPlan,
-  type Cadence,
-  type Plan,
-} from "@/lib/plan";
+import { PLAN_FEATURES, CADENCE_LABELS, getCurrentPlan } from "@/lib/plan";
 import { KNOWN_MARKETS } from "@/lib/crawler/multi-market";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +24,6 @@ export const metadata = { title: "Settings · Rivlr" };
  *
  * CTA hygiene:
  *  - Toggles auto-save (no button).
- *  - Cadence cards submit on click (no separate save).
  *  - The remaining forms each have a single, identically-styled "Save"
  *    button right-aligned inside the card. Keeps the button count low
  *    and the visual rhythm consistent.
@@ -41,8 +32,8 @@ export default async function SettingsPage() {
   const settings = await getSettings();
   const plan = await getCurrentPlan();
   const current = (settings?.notificationEmails ?? []).join(", ");
-  const currentCadence: Cadence =
-    (settings?.crawlCadence as Cadence) ?? PLAN_FEATURES[plan].cadence;
+  // Cadence is automatic per plan — surfaced read-only for clarity.
+  const cadence = PLAN_FEATURES[plan].cadence;
   const currentCountries = settings?.multiMarketCountries ?? [
     "GB",
     "IE",
@@ -88,23 +79,30 @@ export default async function SettingsPage() {
       {/* ═══ CRAWLING ════════════════════════════════════════════════ */}
       <SectionHeading id="crawling" title="Crawling" />
 
+      {/* Cadence is set automatically by plan — no control, just a
+          statement of fact with an upgrade path. */}
       <Card
-        title="Crawl cadence"
-        description="How often Rivlr re-checks every tracked product for price and stock changes. Faster cadences mean earlier alerts; cost more compute."
+        title="Crawl frequency"
+        description="How often Rivlr re-checks every tracked product. This is set by your plan."
       >
-        <form
-          action={updateCrawlCadence}
-          className="grid gap-3 sm:grid-cols-3"
-        >
-          {(["daily", "every-6h", "hourly"] as Cadence[]).map((c) => (
-            <CadenceCard
-              key={c}
-              cadence={c}
-              current={currentCadence}
-              plan={plan}
-            />
-          ))}
-        </form>
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-md border border-default bg-surface px-4 py-3">
+          <div>
+            <span className="text-sm font-semibold">
+              {CADENCE_LABELS[cadence]}
+            </span>
+            <span className="ml-2 text-xs text-muted">
+              on your {plan} plan
+            </span>
+          </div>
+          {cadence !== "hourly" && (
+            <Link
+              href="/billing"
+              className="text-xs font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Upgrade for faster checks
+            </Link>
+          )}
+        </div>
       </Card>
 
       <Card
@@ -338,67 +336,3 @@ function SaveButton() {
   );
 }
 
-function CadenceCard({
-  cadence,
-  current,
-  plan,
-}: {
-  cadence: Cadence;
-  current: Cadence;
-  plan: Plan;
-}) {
-  const allowed = isCadenceAllowed(cadence, plan);
-  const isSelected = current === cadence;
-  const upgradeTier =
-    cadence === "every-6h" ? "Growth" : cadence === "hourly" ? "Pro" : null;
-
-  return (
-    <button
-      type="submit"
-      name="cadence"
-      value={cadence}
-      disabled={!allowed}
-      className={`relative rounded-lg border p-4 text-left transition ${
-        isSelected
-          ? "border-signal bg-signal/[0.04]"
-          : allowed
-            ? "border-default bg-surface hover:border-strong"
-            : "border-default bg-surface opacity-60 cursor-not-allowed"
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold">{CADENCE_LABELS[cadence]}</div>
-        {isSelected && (
-          <span className="rounded bg-signal px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-white font-mono">
-            Current
-          </span>
-        )}
-        {!allowed && (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-muted"
-            aria-label="locked"
-          >
-            <rect x="4" y="11" width="16" height="10" rx="2" />
-            <path d="M8 11 V7 a4 4 0 0 1 8 0 v4" />
-          </svg>
-        )}
-      </div>
-      <div className="mt-2 text-xs text-muted leading-relaxed">
-        {cadence === "daily" && "Once a day. Cheapest. Good for slow-moving categories."}
-        {cadence === "every-6h" && "Four times a day. Catches same-day price moves."}
-        {cadence === "hourly" && "Every hour. Best for fast-moving SKUs and flash sales."}
-      </div>
-      {!allowed && upgradeTier && (
-        <div className="mt-3 text-xs font-medium text-signal">
-          Upgrade to {upgradeTier}
-        </div>
-      )}
-    </button>
-  );
-}

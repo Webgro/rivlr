@@ -1,5 +1,5 @@
 import { db, schema } from "@/lib/db";
-import { eq, isNull, lt, or, and, inArray, desc } from "drizzle-orm";
+import { eq, isNull, lt, or, and, inArray, sql } from "drizzle-orm";
 import {
   fetchShopifyProduct,
   fetchShopifyCurrency,
@@ -38,7 +38,12 @@ const META_COOLDOWN_MS = 24 * 60 * 60 * 1000;
  * limits, not CPU. Comfortably under the 60s function budget.
  */
 
-import { CADENCE_COOLDOWN_MS, type Cadence } from "@/lib/plan";
+import {
+  CADENCE_COOLDOWN_MS,
+  PLAN_FEATURES,
+  getPlanForUser,
+  type Cadence,
+} from "@/lib/plan";
 
 // Tuned for Vercel Pro (300s function budget, more concurrent invocations).
 // 20 parallel batches × 10 products = 200 products per dispatch invocation.
@@ -70,30 +75,41 @@ export async function dispatchCrawl(opts: {
   const { force = false } = opts;
   const now = new Date();
 
-  // Read cadence from settings — falls back to hourly if no row exists.
-  const [settings] = await db
-    .select({ cadence: schema.appSettings.crawlCadence })
-    .from(schema.appSettings)
-    .limit(1);
-  const cadence: Cadence = (settings?.cadence as Cadence) ?? "hourly";
-  const cooldownMs = CADENCE_COOLDOWN_MS[cadence];
-  const cutoff = new Date(now.getTime() - cooldownMs);
-
-  const due = await db
-    .select({ id: schema.trackedProducts.id })
-    .from(schema.trackedProducts)
-    .where(
-      force
-        ? eq(schema.trackedProducts.active, true)
-        : and(
-            eq(schema.trackedProducts.active, true),
-            or(
-              isNull(schema.trackedProducts.lastCrawledAt),
-              lt(schema.trackedProducts.lastCrawledAt, cutoff),
+  // Cadence is automatic per plan (free/starter daily, growth 6-hourly,
+  // pro hourly) — there is no user-facing setting any more. Resolve each
+  // owner's plan once, then pick up their due products against their
+  // own cooldown. This also fixes a multi-tenant bug where a single
+  // global settings row dictated everyone's cadence.
+  const ownerRows = await db.execute<{ user_id: string }>(sql`
+    SELECT DISTINCT user_id FROM tracked_products WHERE active = true
+  `);
+  const due: Array<{ id: string }> = [];
+  for (const owner of ownerRows) {
+    if (due.length >= MAX_PRODUCTS_PER_DISPATCH) break;
+    const plan = await getPlanForUser(owner.user_id);
+    const cadence: Cadence = PLAN_FEATURES[plan].cadence;
+    const cutoff = new Date(now.getTime() - CADENCE_COOLDOWN_MS[cadence]);
+    const rows = await db
+      .select({ id: schema.trackedProducts.id })
+      .from(schema.trackedProducts)
+      .where(
+        force
+          ? and(
+              eq(schema.trackedProducts.active, true),
+              eq(schema.trackedProducts.userId, owner.user_id),
+            )
+          : and(
+              eq(schema.trackedProducts.active, true),
+              eq(schema.trackedProducts.userId, owner.user_id),
+              or(
+                isNull(schema.trackedProducts.lastCrawledAt),
+                lt(schema.trackedProducts.lastCrawledAt, cutoff),
+              ),
             ),
-          ),
-    )
-    .limit(MAX_PRODUCTS_PER_DISPATCH);
+      )
+      .limit(MAX_PRODUCTS_PER_DISPATCH - due.length);
+    due.push(...rows);
+  }
 
   if (due.length === 0) {
     return { scheduled: 0, processed: 0, ok: 0, failed: 0 };

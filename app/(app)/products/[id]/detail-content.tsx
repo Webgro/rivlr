@@ -306,9 +306,8 @@ export function DetailContent({ data, variant }: DetailContentProps) {
       <div className="mt-4 flex items-center gap-3 flex-wrap">
         <ProbeInventoryButton productId={product.id} />
         <span className="text-[11px] text-muted leading-relaxed">
-          Hits Shopify&apos;s cart endpoint once per variant to read exact
-          stock. Use if the Stock card above shows &quot;In stock&quot;
-          with no number, the panel below will explain why.
+          Showing &quot;In stock&quot; with no number? This checks for the
+          exact quantity.
         </span>
       </div>
 
