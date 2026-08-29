@@ -19,7 +19,7 @@ export default async function ProfilePage() {
         <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
         <p className="mt-1 text-sm text-muted">
           Your account, sign-in access, and team. Anything that affects how
-          Rivlr crawls or alerts lives in{" "}
+          Rivlr checks products or sends alerts lives in{" "}
           <a
             href="/settings"
             className="text-foreground underline-offset-4 hover:underline"
@@ -120,10 +120,10 @@ export default async function ProfilePage() {
       <section className="mt-6 rounded-lg border border-signal/30 bg-signal/[0.03] p-5">
         <h3 className="text-lg font-semibold tracking-tight">Delete account</h3>
         <p className="mt-1.5 text-xs text-muted leading-relaxed">
-          Permanently removes your account, all tracked products, observation
-          history, settings, team-access emails, and Stripe customer record.
-          Active subscriptions are canceled immediately with no refund. There&apos;s
-          no undo.
+          Permanently removes your account, all tracked products, price and
+          stock history, settings, team-access emails, and billing details.
+          Active subscriptions are cancelled immediately with no refund.
+          There&apos;s no undo.
         </p>
         <div className="mt-4">
           <DeleteAccountButton email={user.email} />

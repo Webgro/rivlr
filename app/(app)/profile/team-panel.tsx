@@ -160,7 +160,7 @@ export function TeamPanel({ initial }: { initial: TeamMember[] }) {
         onConfirm={confirmRemove}
         pending={pending}
         title={`Remove ${removeTarget} from your account?`}
-        description="They won't be able to sign in any more. Existing sessions on their device stay valid until they expire (up to 30 days), sign them out remotely from any active session afterward if needed."
+        description="They won't be able to sign in any more. If they're already signed in on a device, that stays active for up to 30 days before it expires on its own."
         confirmLabel="Yes, remove"
         variant="danger"
       />

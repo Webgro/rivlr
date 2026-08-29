@@ -195,7 +195,7 @@ async function loadSteps(userId: string): Promise<Step[]> {
       id: "cadence",
       title: "Review your settings",
       description:
-        "Choose which countries we compare prices in and where to send alerts. Checks run automatically, from daily on Free up to hourly on Pro.",
+        "Choose which countries we compare prices in and where to send alerts. Checks run automatically, daily on Free and Starter, every 6 hours on paid plans.",
       ctaLabel: "Open settings",
       ctaHref: "/settings#crawling",
       // Ticks once the user has saved any setting at all (proxy for

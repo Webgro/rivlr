@@ -39,7 +39,7 @@ export function SendTestEmailButton({
         setFeedback(
           result.skipped > 0
             ? `All ${result.skipped} address${result.skipped === 1 ? "" : "es"} previously unsubscribed. Re-add to send.`
-            : "No emails sent. Check the API key.",
+            : "No emails sent. Please try again in a few minutes.",
         );
         return;
       }

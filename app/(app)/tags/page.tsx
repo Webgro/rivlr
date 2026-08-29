@@ -12,8 +12,9 @@ export default async function TagsPage() {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Tags</h1>
         <p className="mt-1 text-sm text-muted">
-          Organise tracked products with colour-coded labels. Apply tags from
-          the dashboard's bulk action bar.
+          Organise tracked products with colour-coded labels. To apply a
+          tag, tick products on the Watchlist and choose a tag from the bar
+          that appears.
         </p>
       </div>
 

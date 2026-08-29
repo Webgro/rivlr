@@ -162,7 +162,7 @@ export default async function ActivityPage(props: {
           defaultValue={params.kind ?? ""}
           className="rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-strong"
         >
-          <option value="">All events</option>
+          <option value="">All changes</option>
           <option value="stock_out">Out of stock</option>
           <option value="stock_in">Restocked</option>
           <option value="price_drop">Price drop</option>
@@ -195,7 +195,7 @@ export default async function ActivityPage(props: {
           </Link>
         )}
         <span className="ml-auto text-xs text-muted font-mono">
-          {totalCount} event{totalCount === 1 ? "" : "s"}
+          {totalCount} change{totalCount === 1 ? "" : "s"}
         </span>
       </form>
 

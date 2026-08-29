@@ -38,19 +38,19 @@ const PLAN_CARDS: PlanCard[] = [
     name: "Free",
     price: "£0",
     priceNum: 0,
-    cadenceLabel: "Daily crawl",
-    bullets: ["Up to 5 tracked products", "Daily cadence", "All core features"],
+    cadenceLabel: "Checks once a day",
+    bullets: ["Up to 5 tracked products", "Prices checked daily", "All core features"],
   },
   {
     id: "starter",
     name: "Starter",
     price: "£14.99",
     priceNum: 14.99,
-    cadenceLabel: "Daily crawl",
+    cadenceLabel: "Checks once a day",
     bullets: [
       "Up to 50 tracked products",
-      "Daily cadence",
-      "Email alerts + weekly digest",
+      "Prices checked daily",
+      "Email alerts + weekly summary",
     ],
   },
   {
@@ -58,12 +58,12 @@ const PLAN_CARDS: PlanCard[] = [
     name: "Growth",
     price: "£29.99",
     priceNum: 29.99,
-    cadenceLabel: "Every 6 hours",
+    cadenceLabel: "Checks every 6 hours",
     bullets: [
       "Up to 150 tracked products",
-      "6-hourly cadence",
+      "Prices checked every 6 hours",
       "Compare view unlocked",
-      "Multi-market price scan",
+      "Prices in other countries",
     ],
   },
   {
@@ -71,13 +71,26 @@ const PLAN_CARDS: PlanCard[] = [
     name: "Pro",
     price: "£59.99",
     priceNum: 59.99,
-    cadenceLabel: "Hourly crawl",
+    cadenceLabel: "Checks every 6 hours",
     highlight: true,
     bullets: [
       "Up to 400 tracked products",
-      "Hourly cadence",
-      "Compare view + multi-market",
-      `Add overage packs: +${PRODUCTS_PER_OVERAGE_PACK} products for £${PACK_PRICE_GBP}/mo each`,
+      "Prices checked every 6 hours",
+      "Compare view + other countries",
+      `Add extra packs: +${PRODUCTS_PER_OVERAGE_PACK} products for £${PACK_PRICE_GBP}/mo each`,
+    ],
+  },
+  {
+    id: "scale",
+    name: "Scale",
+    price: "£299",
+    priceNum: 299,
+    cadenceLabel: "Checks every 6 hours",
+    bullets: [
+      "Up to 2,500 tracked products",
+      "Track every competitor you have",
+      "Whole-store scans",
+      "Priority support",
     ],
   },
 ];
@@ -151,7 +164,7 @@ export default async function BillingPage({
             You&apos;ve been comped to the unlimited tier.
           </div>
           <p className="mt-1 text-xs text-muted">
-            No product limit, hourly cadence, every feature unlocked. This is
+            No product limit, every feature unlocked. This is
             a soft-launch comp, billing kicks in if it&apos;s removed.
           </p>
         </div>
@@ -159,8 +172,8 @@ export default async function BillingPage({
 
       {!stripeConfigured && (
         <StatusBanner tone="muted">
-          Billing isn&apos;t fully configured on this deployment yet, upgrade
-          buttons are disabled. Add the Stripe env vars in Vercel to enable.
+          Billing isn&apos;t switched on here yet, so the upgrade buttons are
+          disabled.
         </StatusBanner>
       )}
 
@@ -193,8 +206,8 @@ export default async function BillingPage({
 
       {plan === "pro" && !overageConfigured && (
         <StatusBanner tone="muted">
-          Overage packs aren&apos;t configured on this deployment yet. Email
-          support if you need to track more than 400 products on Pro.
+          Extra product packs aren&apos;t available just yet. Email support
+          if you need to track more than 400 products on Pro.
         </StatusBanner>
       )}
 
@@ -209,10 +222,10 @@ export default async function BillingPage({
         </h2>
         <p className="mt-1 text-xs text-muted">
           {hasSubscription
-            ? "Plan changes are prorated and charged immediately. Pro is the only tier that supports overage packs."
-            : "Pick the plan that fits your catalogue. You'll go through Stripe Checkout to enter card details."}
+            ? "Plan changes apply straight away and you only pay the difference. Pro is the only plan that supports extra product packs."
+            : "Pick the plan that fits your catalogue. You'll enter card details on Stripe's secure checkout page."}
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PLAN_CARDS.map((card) => (
             <PlanCardComponent
               key={card.id}
@@ -251,8 +264,8 @@ function Banners({ params }: { params: { [k: string]: string | undefined } }) {
   if (params.status === "plan-updated") {
     return (
       <StatusBanner tone="ok">
-        Plan updated. The change is reflected immediately; your next invoice
-        includes the prorated amount.
+        Plan updated. The change applies straight away and your next invoice
+        only charges the difference.
       </StatusBanner>
     );
   }
@@ -260,9 +273,9 @@ function Banners({ params }: { params: { [k: string]: string | undefined } }) {
     const packs = parseInt(params.packs ?? "0", 10);
     return (
       <StatusBanner tone="ok">
-        Overage updated to {packs} pack{packs === 1 ? "" : "s"} (
-        +{packs * PRODUCTS_PER_OVERAGE_PACK} products). Charged prorated to
-        the rest of this billing period.
+        Extra packs updated to {packs} pack{packs === 1 ? "" : "s"} (
+        +{packs * PRODUCTS_PER_OVERAGE_PACK} products). You only pay for the
+        rest of this billing period.
       </StatusBanner>
     );
   }
@@ -326,8 +339,8 @@ function Banners({ params }: { params: { [k: string]: string | undefined } }) {
   if (params.reason === "overage-failed") {
     return (
       <StatusBanner tone="warning">
-        Overage update failed: {params.message ?? "unknown error"}. The pack
-        count was not changed.
+        Couldn&apos;t update your extra packs:{" "}
+        {params.message ?? "unknown error"}. The pack count was not changed.
       </StatusBanner>
     );
   }

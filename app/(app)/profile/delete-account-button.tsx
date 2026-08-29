@@ -57,23 +57,22 @@ export function DeleteAccountButton({ email }: { email: string }) {
               <li className="flex gap-2">
                 <span className="text-signal">·</span>
                 <span>
-                  Cancel any active Stripe subscription immediately (no
-                  refund for the unused portion of this period).
+                  Cancel any active subscription immediately (no refund for
+                  the unused part of this period).
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-signal">·</span>
                 <span>
-                  Delete every product, store preference, tag, group, alert
-                  history, discovery, and team-access email tied to your
-                  account.
+                  Delete every product, store, tag, link, alert history and
+                  team-access email tied to your account.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-signal">·</span>
                 <span>
-                  Delete your Stripe customer record and sign you out of
-                  every device.
+                  Delete your billing details and sign you out of every
+                  device.
                 </span>
               </li>
               <li className="flex gap-2">

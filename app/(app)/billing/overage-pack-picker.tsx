@@ -49,7 +49,7 @@ export function OveragePackPicker({
       <div className="flex items-baseline justify-between gap-4 flex-wrap">
         <div>
           <div className="text-xs font-medium text-muted">
-            Overage packs
+            Extra product packs
           </div>
           <h2 className="mt-1.5 text-xl font-semibold tracking-tight">
             Track more than 400 products
@@ -63,8 +63,8 @@ export function OveragePackPicker({
 
       <p className="mt-2 text-xs text-muted leading-relaxed">
         Each pack adds {productsPerPack} products to your tracking limit.
-        Charged immediately, prorated to the rest of this billing period;
-        adds to your recurring monthly cost from the next invoice.
+        You pay a part-month charge now, then the full pack price joins
+        your monthly bill from the next invoice.
       </p>
 
       {/* Stepper */}
@@ -105,7 +105,7 @@ export function OveragePackPicker({
 
         {packs >= maxPacks && (
           <span className="text-[11px] text-amber-500">
-            Max reached, email support for higher allowances.
+            That&apos;s the maximum. Email support if you need more.
           </span>
         )}
       </div>
@@ -113,7 +113,7 @@ export function OveragePackPicker({
       {/* Predictive billing display */}
       <div className="mt-5 grid gap-2 rounded-md border border-default bg-surface p-4 text-sm">
         <div className="flex justify-between gap-2">
-          <span className="text-muted">Effective product cap</span>
+          <span className="text-muted">Your new product limit</span>
           <span className="font-mono">{400 + additionalProducts}</span>
         </div>
         <div className="flex justify-between gap-2">
@@ -122,14 +122,14 @@ export function OveragePackPicker({
         </div>
         <div className="flex justify-between gap-2">
           <span className="text-muted">
-            Overage ({packs} × £{packPriceGbp})
+            Extra packs ({packs} × £{packPriceGbp})
           </span>
           <span className="font-mono">
             £{(packs * packPriceGbp).toFixed(2)} / mo
           </span>
         </div>
         <div className="border-t border-default pt-2 flex justify-between gap-2">
-          <span className="font-medium">Total recurring</span>
+          <span className="font-medium">Total per month</span>
           <span className="font-mono font-medium">
             £{(59.99 + monthlyOverage).toFixed(2)} / mo
           </span>
@@ -154,8 +154,8 @@ export function OveragePackPicker({
           <input type="hidden" name="packs" value={packs} />
           <span className="text-xs text-muted">
             {delta > 0
-              ? `Adding ${delta} pack${delta === 1 ? "" : "s"}, prorated charge happens now.`
-              : `Removing ${Math.abs(delta)} pack${Math.abs(delta) === 1 ? "" : "s"}, credit applied to next invoice.`}
+              ? `Adding ${delta} pack${delta === 1 ? "" : "s"}. A part-month charge happens now.`
+              : `Removing ${Math.abs(delta)} pack${Math.abs(delta) === 1 ? "" : "s"}. The credit comes off your next invoice.`}
           </span>
           <button
             type="button"

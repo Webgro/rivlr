@@ -94,7 +94,7 @@ export default async function SettingsPage() {
               on your {plan} plan
             </span>
           </div>
-          {cadence !== "hourly" && (
+          {cadence === "daily" && (
             <Link
               href="/billing"
               className="text-xs font-medium text-foreground underline-offset-4 hover:underline"
@@ -221,15 +221,15 @@ export default async function SettingsPage() {
       </Card>
 
       <Card
-        title="Days-cover warning threshold"
-        description="Surface competitor products on the Opportunities page when their remaining stock divided by their daily sales velocity drops below this many days. Lower = earlier warning, fewer matches."
+        title="Low-stock warning"
+        description="Show competitor products on the Opportunities page when they look like selling out within this many days. A lower number waits until they're closer to selling out, so fewer products appear."
       >
         <form
           action={updateDaysCoverThreshold}
           className="flex items-center gap-3 flex-wrap"
         >
           <label className="text-sm flex items-center gap-2">
-            Warn when days cover &lt;
+            Warn when stock will last under
             <input
               type="number"
               name="threshold"
@@ -251,7 +251,7 @@ export default async function SettingsPage() {
 
       <Card
         title="Theme"
-        description="Choose between light and dark mode. Saved per-browser, applied immediately."
+        description="Choose between light and dark mode. Saved in this browser and applied straight away."
       >
         <ThemeToggle />
       </Card>
@@ -259,7 +259,7 @@ export default async function SettingsPage() {
       <p className="mt-12 text-xs text-muted font-mono">
         {settings
           ? `Last saved ${new Date(settings.updatedAt).toLocaleString()}`
-          : "Not yet configured"}
+          : "No settings saved yet"}
       </p>
     </main>
   );

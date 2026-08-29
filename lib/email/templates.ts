@@ -39,7 +39,7 @@ export function stockOutEmail(p: TrackedProduct): Built {
   </td></tr>
 </table>
 <a href="${p.url}" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:500;">View on competitor's site →</a>
-<div style="margin-top:16px;font-size:13px;color:#8a8a8a;line-height:1.6;">This is your moment, hold prices, run a campaign, or order more from your supplier before they restock.</div>`,
+<div style="margin-top:16px;font-size:13px;color:#8a8a8a;line-height:1.6;">This is your moment: hold your prices, run a promotion, or order more from your supplier before they restock.</div>`,
     {
       preheader: `${p.title ?? p.handle} is sold out at ${p.storeDomain}`,
     },
@@ -150,11 +150,11 @@ export function daysCoverWarningEmail(
   qty: number,
   dailyRate: number,
 ): Built {
-  const subject = `Competitor going dark in ${daysCover.toFixed(1)} days: ${p.title ?? p.handle}`;
+  const subject = `Competitor selling out in ${daysCover.toFixed(1)} days: ${p.title ?? p.handle}`;
   const daysColor = daysCover < 3 ? "#ff3b30" : "#d97706";
   const html = renderShell(
-    `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">Competitor about to go dark</h1>
-<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">A competitor product you track is running low on stock relative to its sales rate. They're likely to go out of stock soon.</p>
+    `<h1 style="margin:0 0 12px;font-size:20px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">Competitor about to sell out</h1>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">A competitor product you track is selling faster than its remaining stock will last. At this rate they'll be out of stock soon.</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1a1a1a" style="background:#1a1a1a;border-radius:8px;border:1px solid #262626;margin:0 0 20px;">
   <tr><td style="padding:16px;">
     <div style="font-weight:600;font-size:15px;color:#f5f3ee;margin-bottom:12px;">${escape(p.title ?? p.handle)}</div>
@@ -168,19 +168,19 @@ export function daysCoverWarningEmail(
         <td style="text-align:right;font-family:ui-monospace,monospace;color:#f5f3ee;">${dailyRate.toFixed(1)}/day</td>
       </tr>
       <tr>
-        <td style="color:#8a8a8a;padding:2px 0;font-weight:600;">Days cover</td>
+        <td style="color:#8a8a8a;padding:2px 0;font-weight:600;">Days left</td>
         <td style="text-align:right;font-family:ui-monospace,monospace;font-weight:600;color:${daysColor};">${daysCover.toFixed(1)} days</td>
       </tr>
     </table>
   </td></tr>
 </table>
-<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">Hold your prices, time a campaign for when they go dark, or order more from your supplier, this is the playbook.</p>
+<p style="margin:0 0 16px;color:#c0c0c0;font-size:14px;line-height:1.6;">Hold your prices, time a promotion for when they sell out, or order more from your supplier. That's the playbook.</p>
 <a href="${p.url}" style="display:inline-block;background:#f5f3ee;color:#0a0a0a;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:500;">View product →</a>`,
     {
       preheader: `${qty} units selling ${dailyRate.toFixed(1)}/day = ${daysCover.toFixed(1)} days left`,
     },
   );
-  const text = `Competitor about to go dark: ${p.title ?? p.handle}\n\n${qty} units in stock, selling ${dailyRate.toFixed(1)}/day = ${daysCover.toFixed(1)} days cover.\n\nView: ${p.url}\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  const text = `Competitor about to sell out: ${p.title ?? p.handle}\n\n${qty} units in stock, selling ${dailyRate.toFixed(1)}/day = ${daysCover.toFixed(1)} days left.\n\nView: ${p.url}\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
   return { subject, html, text };
 }
 
@@ -302,11 +302,11 @@ export function welcomeEmail(opts: { email: string }): Built {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1a1a1a" style="background:#1a1a1a;border-radius:8px;border:1px solid #262626;margin:0 0 20px;">
   <tr><td style="padding:18px;">
     <ul style="margin:0;padding:0 0 0 18px;color:#c0c0c0;font-size:14px;line-height:1.8;">
-      <li>Paste any Shopify product URL, Rivlr starts watching the price &amp; stock</li>
+      <li>Paste any Shopify product link and Rivlr starts watching the price &amp; stock</li>
       <li>Mark your own store to unlock the <strong style="color:#f5f3ee;">Opportunities</strong> view</li>
       <li>Get email alerts the moment competitors drop a price or run out of stock</li>
-      <li>Multi-market price scanning across GB / IE / US / DE and more</li>
-      <li>Cart-probe inventory: the exact stock count even when merchants hide it</li>
+      <li>See competitor prices in other countries: UK, Ireland, US, Germany and more</li>
+      <li>Exact stock counts, even when a store only shows &quot;In stock&quot;</li>
     </ul>
   </td></tr>
 </table>
@@ -318,7 +318,7 @@ export function welcomeEmail(opts: { email: string }): Built {
       preheader: "Your Rivlr account is ready. Here's what's inside.",
     },
   );
-  const text = `Welcome to Rivlr.\n\nYou're in. On the dashboard you can:\n- Paste any Shopify product URL to start tracking price & stock\n- Mark your own store to unlock Opportunities\n- Get email alerts on competitor price drops & stockouts\n- Scan multi-market prices (GB/IE/US/DE+)\n- Probe exact inventory even when merchants hide it\n\nDashboard: https://rivlr.app/dashboard\n\nStuck? Reply to this email, a real person reads it.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  const text = `Welcome to Rivlr.\n\nYou're in. On the dashboard you can:\n- Paste any Shopify product link to start tracking price & stock\n- Mark your own store to unlock Opportunities\n- Get email alerts on competitor price drops & sell-outs\n- See competitor prices in other countries (UK/Ireland/US/Germany and more)\n- Get exact stock counts, even when a store only shows "In stock"\n\nDashboard: https://rivlr.app/dashboard\n\nStuck? Reply to this email, a real person reads it.\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
   return { subject, html, text };
 }
 
