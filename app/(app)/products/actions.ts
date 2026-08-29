@@ -440,6 +440,7 @@ export async function bulkDelete(ids: string[]) {
 
   const doomed = await db
     .select({
+      id: schema.trackedProducts.id,
       url: schema.trackedProducts.url,
       handle: schema.trackedProducts.handle,
       storeDomain: schema.trackedProducts.storeDomain,
@@ -454,14 +455,53 @@ export async function bulkDelete(ids: string[]) {
       ),
     );
 
-  await db
-    .delete(schema.trackedProducts)
-    .where(
-      and(
-        inArray(schema.trackedProducts.id, ids),
-        eq(schema.trackedProducts.userId, user.id),
-      ),
-    );
+  // Deleting a product cascades into price_observations,
+  // stock_observations, crawl_jobs, multi_market_observations, and
+  // alert_log. On hourly-crawled products that's thousands of child
+  // rows each; a single DELETE for 50 products was one giant cascade
+  // that blew the action's time budget and crashed the page. Instead:
+  // small chunks, heavy child tables cleared explicitly per chunk so
+  // every statement stays bounded, and any failure reports partial
+  // progress instead of throwing at the error boundary.
+  const ownedIds = doomed.map((d) => d.id);
+  const CHUNK = 10;
+  let deleted = 0;
+  try {
+    for (let i = 0; i < ownedIds.length; i += CHUNK) {
+      const slice = ownedIds.slice(i, i + CHUNK);
+      await db.execute(
+        sql`DELETE FROM price_observations WHERE product_id = ANY(${slice}::uuid[])`,
+      );
+      await db.execute(
+        sql`DELETE FROM stock_observations WHERE product_id = ANY(${slice}::uuid[])`,
+      );
+      await db.execute(
+        sql`DELETE FROM multi_market_observations WHERE product_id = ANY(${slice}::uuid[])`,
+      );
+      await db.execute(
+        sql`DELETE FROM crawl_jobs WHERE product_id = ANY(${slice}::uuid[])`,
+      );
+      await db.execute(
+        sql`DELETE FROM alert_log WHERE product_id = ANY(${slice}::uuid[])`,
+      );
+      await db
+        .delete(schema.trackedProducts)
+        .where(
+          and(
+            inArray(schema.trackedProducts.id, slice),
+            eq(schema.trackedProducts.userId, user.id),
+          ),
+        );
+      deleted += slice.length;
+    }
+  } catch (err) {
+    revalidatePath("/products");
+    revalidatePath("/dashboard");
+    return {
+      ok: false as const,
+      error: `Deleted ${deleted} of ${ownedIds.length} before a database timeout. Run delete again for the rest. (${err instanceof Error ? err.message.slice(0, 120) : "unknown"})`,
+    };
+  }
 
   if (doomed.length > 0) {
     await db
@@ -486,7 +526,7 @@ export async function bulkDelete(ids: string[]) {
   revalidatePath("/products");
   revalidatePath("/dashboard");
   revalidatePath("/discover");
-  return { ok: true as const, count: ids.length };
+  return { ok: true as const, count: deleted };
 }
 
 export async function bulkSetStockNotify(ids: string[], value: boolean) {

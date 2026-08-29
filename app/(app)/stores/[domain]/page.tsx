@@ -38,14 +38,23 @@ export default async function StoreProfilePage(props: { params: Params }) {
   const { domain: rawDomain } = await props.params;
   const domain = decodeURIComponent(rawDomain).toLowerCase();
 
-  // Confirm the user actually tracks at least one product on this store.
-  const [tracked] = await db.execute<{ c: number }>(sql`
-    SELECT COUNT(*)::int AS c FROM tracked_products
-    WHERE user_id = ${user.id}::uuid
-      AND store_domain = ${domain}
-      AND active = true
+  // The store belongs on this user's radar when they track at least one
+  // product on it OR they explicitly added it (user_store_prefs row, e.g.
+  // via /stores/new). The prefs check matters right after adding a store:
+  // the catalogue import runs in the background, so for a moment there
+  // are zero tracked products; 404ing here made the add-store redirect
+  // land on a dead page for brand-new accounts.
+  const [access] = await db.execute<{ tracked: number; has_pref: boolean }>(sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM tracked_products
+        WHERE user_id = ${user.id}::uuid
+          AND store_domain = ${domain}
+          AND active = true) AS tracked,
+      EXISTS (SELECT 1 FROM user_store_prefs
+        WHERE user_id = ${user.id}::uuid
+          AND domain = ${domain}) AS has_pref
   `);
-  if (!tracked || tracked.c === 0) notFound();
+  if (!access || (access.tracked === 0 && !access.has_pref)) notFound();
 
   // Load global store info + this user's per-store prefs.
   let [store] = await db
@@ -298,7 +307,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
       <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat
           label="Tracked products"
-          value={tracked.c.toString()}
+          value={access.tracked.toString()}
         />
         <Stat
           label="Catalogue size"

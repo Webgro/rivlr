@@ -48,6 +48,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public share links — the unguessable token IS the auth.
+  if (pathname.startsWith("/share/")) {
+    return NextResponse.next();
+  }
+
   // Public auth paths.
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();

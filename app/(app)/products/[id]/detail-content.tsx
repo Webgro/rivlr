@@ -17,6 +17,7 @@ import { TagChip } from "@/components/tag-chip";
 import { LinkProductButton } from "./link-product-button";
 import { NotesEditor } from "./notes-editor";
 import { CrawlNowButton } from "./crawl-now-button";
+import { ShareButton } from "./share-button";
 import { DescriptionSection } from "./description-section";
 
 interface DetailContentProps {
@@ -159,6 +160,7 @@ export function DetailContent({ data, variant }: DetailContentProps) {
 
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           <CrawlNowButton productId={product.id} />
+          <ShareButton productId={product.id} />
           {product.active ? (
             <form action={pauseProduct}>
               <input type="hidden" name="id" value={product.id} />

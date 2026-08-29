@@ -128,14 +128,25 @@ export function ProductsTable({
   function run<T>(label: string, fn: () => Promise<T>) {
     setFeedback(null);
     startTransition(async () => {
-      const result = await fn();
-      const r = result as { ok?: boolean; count?: number; error?: string };
-      if (r.ok) {
-        setFeedback(`✓ ${label} (${r.count ?? 0})`);
-        setSelected(new Set());
+      // try/catch so a thrown server-action error (e.g. a timeout)
+      // surfaces as inline feedback instead of hitting the route error
+      // boundary and replacing the whole page.
+      try {
+        const result = await fn();
+        const r = result as { ok?: boolean; count?: number; error?: string };
+        if (r.ok) {
+          setFeedback(`✓ ${label} (${r.count ?? 0})`);
+          setSelected(new Set());
+          router.refresh();
+        } else {
+          setFeedback(`Error: ${r.error ?? "unknown"}`);
+          router.refresh();
+        }
+      } catch (err) {
+        setFeedback(
+          `Error: the operation didn't complete. Refresh and try again with fewer items. (${err instanceof Error ? err.message.slice(0, 80) : "unknown"})`,
+        );
         router.refresh();
-      } else {
-        setFeedback(`Error: ${r.error ?? "unknown"}`);
       }
     });
   }

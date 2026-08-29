@@ -75,14 +75,22 @@ async function getDashboardData(params: {
   };
 
   const result = await db.execute<Row>(sql`
-    WITH qty_changes AS (
+    WITH user_products AS (
+      -- Scope every downstream CTE to this user's products up front.
+      -- Without this the window-function CTEs scanned the entire
+      -- observations table (all users) on every page view, which is
+      -- what made the Watchlist crawl once history accumulated.
+      SELECT id FROM tracked_products WHERE user_id = ${params.userId}::uuid
+    ),
+    qty_changes AS (
       SELECT
         product_id,
         observed_at,
         quantity,
         LAG(quantity) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_qty
       FROM stock_observations
-      WHERE quantity IS NOT NULL
+      WHERE product_id IN (SELECT id FROM user_products)
+        AND quantity IS NOT NULL
         AND observed_at >= NOW() - INTERVAL '30 days'
     ),
     sold_30d_calc AS (
@@ -111,6 +119,10 @@ async function getDashboardData(params: {
         SUM(CASE WHEN available THEN 1 ELSE 0 END)
           OVER (PARTITION BY product_id ORDER BY observed_at DESC) AS run_grp
       FROM stock_observations
+      WHERE product_id IN (SELECT id FROM user_products)
+        -- 90-day bound: stockouts older than this display the same to
+        -- the user, and it keeps the window function off ancient rows.
+        AND observed_at >= NOW() - INTERVAL '90 days'
     ),
     oos_since_calc AS (
       SELECT product_id, MIN(observed_at) AS oos_since

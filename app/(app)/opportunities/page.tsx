@@ -74,10 +74,12 @@ export default async function OpportunitiesPage() {
   const goingDarkRows = Array.from(
     await db.execute<GoingDarkRow>(sql`
       WITH qty_changes AS (
-        SELECT product_id, observed_at, quantity,
-          LAG(quantity) OVER (PARTITION BY product_id ORDER BY observed_at) AS prev_qty
-        FROM stock_observations
-        WHERE quantity IS NOT NULL AND observed_at >= NOW() - INTERVAL '30 days'
+        SELECT so.product_id, so.observed_at, so.quantity,
+          LAG(so.quantity) OVER (PARTITION BY so.product_id ORDER BY so.observed_at) AS prev_qty
+        FROM stock_observations so
+        JOIN tracked_products tp
+          ON tp.id = so.product_id AND tp.user_id = ${user.id}::uuid
+        WHERE so.quantity IS NOT NULL AND so.observed_at >= NOW() - INTERVAL '30 days'
       ),
       sold_30d_calc AS (
         SELECT product_id,

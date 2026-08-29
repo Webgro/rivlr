@@ -891,6 +891,32 @@ export const discoveredProducts = pgTable(
 );
 
 /**
+ * Public share links. The row id doubles as the unguessable token in
+ * /share/[token]. One active link per (user, product) is enforced in the
+ * action layer, not the schema; revoking sets revoked_at rather than
+ * deleting so a leaked old URL stays dead even if a new link is created.
+ */
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** What the link exposes. Product-only today; store profiles later. */
+    kind: text("kind", { enum: ["product"] }).notNull().default("product"),
+    targetId: uuid("target_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [index("idx_share_links_target").on(t.targetId)],
+);
+
+export type ShareLink = typeof shareLinks.$inferSelect;
+
+/**
  * Pre-launch waitlist. Phase 3 (Stripe billing) replaces this with a real
  * signup flow; until then we just collect email + optional store/URL so
  * we can email people when launch is ready.
