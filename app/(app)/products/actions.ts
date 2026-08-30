@@ -475,21 +475,27 @@ export async function bulkDelete(ids: string[]) {
   try {
     for (let i = 0; i < ownedIds.length; i += CHUNK) {
       const slice = ownedIds.slice(i, i + CHUNK);
-      await db.execute(
-        sql`DELETE FROM price_observations WHERE product_id = ANY(${slice}::uuid[])`,
-      );
-      await db.execute(
-        sql`DELETE FROM stock_observations WHERE product_id = ANY(${slice}::uuid[])`,
-      );
-      await db.execute(
-        sql`DELETE FROM multi_market_observations WHERE product_id = ANY(${slice}::uuid[])`,
-      );
-      await db.execute(
-        sql`DELETE FROM crawl_jobs WHERE product_id = ANY(${slice}::uuid[])`,
-      );
-      await db.execute(
-        sql`DELETE FROM alert_log WHERE product_id = ANY(${slice}::uuid[])`,
-      );
+      // inArray, not `ANY(${slice}::uuid[])`. Drizzle expands a JS
+      // array in a sql`` template into a comma-separated parameter
+      // list, so that form reached Postgres as ANY(($1, $2, …)::uuid[])
+      // — a row constructor rather than an array, which fails to parse.
+      // Every bulk delete errored on its first statement, and the catch
+      // below reported it as a timeout.
+      await db
+        .delete(schema.priceObservations)
+        .where(inArray(schema.priceObservations.productId, slice));
+      await db
+        .delete(schema.stockObservations)
+        .where(inArray(schema.stockObservations.productId, slice));
+      await db
+        .delete(schema.multiMarketObservations)
+        .where(inArray(schema.multiMarketObservations.productId, slice));
+      await db
+        .delete(schema.crawlJobs)
+        .where(inArray(schema.crawlJobs.productId, slice));
+      await db
+        .delete(schema.alertLog)
+        .where(inArray(schema.alertLog.productId, slice));
       await db
         .delete(schema.trackedProducts)
         .where(
@@ -505,7 +511,11 @@ export async function bulkDelete(ids: string[]) {
     revalidatePath("/dashboard");
     return {
       ok: false as const,
-      error: `Deleted ${deleted} of ${ownedIds.length} before a database timeout. Run delete again for the rest. (${err instanceof Error ? err.message.slice(0, 120) : "unknown"})`,
+      // Don't name a cause we haven't established — this said "database
+      // timeout" for every failure, which sent the last one entirely
+      // the wrong way. Partial progress is real and worth reporting;
+      // the reason is whatever the error actually says.
+      error: `Deleted ${deleted} of ${ownedIds.length}, then hit an error. Run delete again for the rest. (${err instanceof Error ? err.message.slice(0, 160) : "unknown error"})`,
     };
   }
 

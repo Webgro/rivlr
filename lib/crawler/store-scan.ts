@@ -1,5 +1,5 @@
 import { db, schema } from "@/lib/db";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and, inArray, notInArray } from "drizzle-orm";
 
 /**
  * Daily store-level scanner — populates the `stores` and `store_snapshots`
@@ -501,19 +501,31 @@ export async function scanBestsellerCollections(domain: string): Promise<{
 
   // Update tracked_products: flag those whose handle is in the set, clear
   // the rest. Two SQL statements — cheap on a few hundred rows.
+  // inArray, not `ANY(${handleArray})`. Drizzle expands a JS array in a
+  // sql`` template into a comma-separated parameter list, so that form
+  // reached Postgres as ANY($1, $2, …), which is a syntax error — ANY
+  // takes one array or subquery. It never surfaced because the only
+  // caller runs this inside a try/catch that swallows failures, and
+  // most stores have no bestseller collection to get this far.
   const handleArray = Array.from(bestsellerHandles);
-  await db.execute(sql`
-    UPDATE tracked_products
-       SET is_bestseller = true
-     WHERE store_domain = ${domain}
-       AND handle = ANY(${handleArray})
-  `);
-  await db.execute(sql`
-    UPDATE tracked_products
-       SET is_bestseller = false
-     WHERE store_domain = ${domain}
-       AND NOT (handle = ANY(${handleArray}))
-  `);
+  await db
+    .update(schema.trackedProducts)
+    .set({ isBestseller: true })
+    .where(
+      and(
+        eq(schema.trackedProducts.storeDomain, domain),
+        inArray(schema.trackedProducts.handle, handleArray),
+      ),
+    );
+  await db
+    .update(schema.trackedProducts)
+    .set({ isBestseller: false })
+    .where(
+      and(
+        eq(schema.trackedProducts.storeDomain, domain),
+        notInArray(schema.trackedProducts.handle, handleArray),
+      ),
+    );
 
   // Count how many of OUR tracked products were marked.
   const [row] = await db.execute<{ c: number }>(sql`
