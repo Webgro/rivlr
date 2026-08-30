@@ -888,6 +888,9 @@ export const onboardingJobs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Claimed by whichever import sends the "setup is ready" email, so
+     *  two imports finishing together don't both send one. */
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.kind] })],
 );

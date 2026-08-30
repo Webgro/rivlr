@@ -71,3 +71,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS discovered_products_user_store_handle_key
 -- plain VACUUM only marks them reusable, and steady state is a few MB,
 -- so that space would otherwise sit idle forever.
 --   VACUUM (FULL, ANALYZE) crawl_jobs;
+
+-- Claim flag for the "setup is ready" email. Both catalogue imports
+-- call the notifier when they finish, and if they land in the same
+-- instant each sees the other as finished, so both would send. The
+-- claim is an UPDATE ... WHERE notified_at IS NULL across the user's
+-- rows, which only one caller can win.
+ALTER TABLE onboarding_jobs ADD COLUMN IF NOT EXISTS notified_at timestamptz;

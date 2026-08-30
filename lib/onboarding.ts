@@ -277,6 +277,21 @@ async function notifyIfSetupReady(userId: string): Promise<void> {
     const state = await getOnboardingState(userId);
     if (state.step !== "link") return;
 
+    // Claim the notification before sending it. Both imports call this
+    // when they finish, and "is anything still running?" is true for
+    // neither of them if they land in the same instant, so both would
+    // otherwise send. The UPDATE is the lock: it touches every row for
+    // this user in one statement, so a second caller either blocks and
+    // then matches nothing, or matches nothing outright.
+    const claimed = await db.execute(sql`
+      UPDATE onboarding_jobs
+         SET notified_at = now()
+       WHERE user_id = ${userId}::uuid
+         AND notified_at IS NULL
+      RETURNING 1
+    `);
+    if (Array.from(claimed).length === 0) return;
+
     const [user] = await db
       .select({ email: schema.users.email })
       .from(schema.users)
