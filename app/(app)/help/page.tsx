@@ -11,7 +11,7 @@ export const dynamic = "force-static"; // help content rarely changes
  *
  * The article list is rendered server-side; the search bar is a
  * client component that takes the full ARTICLES list as a prop and
- * filters it live. With ~13 articles, plain substring matching is
+ * filters it live. With ~16 articles, plain substring matching is
  * sufficient — no Fuse.js dependency.
  */
 export default function HelpIndexPage() {

@@ -10,7 +10,7 @@ type ArticleMeta = Omit<Article, "content">;
 
 /**
  * Client-side help search. Substring match against title + summary +
- * category. Sufficient for ~13 articles — Fuse.js would be overkill
+ * category. Sufficient for ~16 articles — Fuse.js would be overkill
  * and ship 50KB extra. When the catalogue grows past 50, swap in
  * fuzzy matching.
  */
