@@ -61,7 +61,11 @@ export async function getVelocity(
           PARTITION BY so.product_id ORDER BY so.observed_at
         ) AS prev
       FROM stock_observations so
-      WHERE so.product_id = ANY(${productIds}::uuid[])
+      -- sql.param, not a bare interpolation: drizzle expands a plain JS
+      -- array into a parenthesised placeholder list, which Postgres reads
+      -- as a record and refuses to cast to uuid[]. sql.param binds the
+      -- whole array as one parameter, which is what ANY() wants.
+      WHERE so.product_id = ANY(${sql.param(productIds)}::uuid[])
         AND so.quantity IS NOT NULL
         AND so.observed_at > now() - MAKE_INTERVAL(days => ${days})
     )
