@@ -90,7 +90,7 @@ function etaLabel(jobs: JobProgress[]): string {
   if (running.length === 0) return "Finishing up.";
   // Both imports run at once, so the wait is the larger of the two.
   if (running.some((j) => j.expected <= 0)) {
-    return "Still counting — a big catalogue can take a few minutes.";
+    return "Still counting. A big catalogue can take a few minutes.";
   }
   const remaining = Math.max(
     ...running.map((j) => Math.max(0, j.expected - j.imported)),
@@ -250,8 +250,8 @@ export function ImportingStep({ initial }: { initial: OnboardingState }) {
             {etaLabel(jobs)}
           </p>
           <p>
-            You can close this tab if you like — we&apos;ll email you the
-            moment it&apos;s ready.
+            You can close this tab if you like. We&apos;ll email you the moment
+            it&apos;s ready.
           </p>
         </div>
       )}

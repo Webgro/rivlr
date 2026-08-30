@@ -136,15 +136,25 @@ export default async function WelcomePage(props: {
     );
   }
 
-  // Show no more than the plan allows, so the step can't offer products
-  // the next screen would refuse to track.
+  // Deliberately more matches than the plan allows anyone to track.
+  //
+  // Showing exactly the plan's allowance made the limit invisible: five
+  // rows, all of them tickable, and no sense that a choice was being
+  // made. Fifteen shows the overlap that was actually found, lets the
+  // user pick the five that matter to them rather than the five we
+  // happened to rank first, and makes the ceiling something they meet
+  // honestly rather than something we hide.
+  const SHOWN_MATCHES = 15;
   const quota = await getProductQuota(user.id);
-  const room = quota.limit === null ? 25 : Math.max(0, quota.remaining ?? 0);
   const matches = await findCatalogueMatches({
     userId: user.id,
     competitorDomain,
-    limit: Math.min(room, 25),
+    limit: SHOWN_MATCHES,
   });
+  const maxSelectable =
+    quota.limit === null
+      ? SHOWN_MATCHES
+      : Math.max(0, quota.remaining ?? 0);
 
   if (matches.length === 0) {
     return (
@@ -173,9 +183,18 @@ export default async function WelcomePage(props: {
     <SetupShell
       current="link"
       title={`${matches.length} of your products are on ${competitorDomain}`}
-      subtitle="Pick the ones to watch. We'll email you when their price or stock changes."
+      subtitle={
+        maxSelectable > 0
+          ? `Choose up to ${maxSelectable} to watch. We'll email you when their price or stock changes.`
+          : "You're at your plan's limit, so there's nothing to add right now."
+      }
     >
-      <LinkStep matches={matches} competitorDomain={competitorDomain} />
+      <LinkStep
+        matches={matches}
+        competitorDomain={competitorDomain}
+        maxSelectable={maxSelectable}
+        isFreePlan={quota.plan === "free"}
+      />
     </SetupShell>
   );
 }

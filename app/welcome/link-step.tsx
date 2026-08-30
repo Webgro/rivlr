@@ -27,10 +27,12 @@ const CONFIDENCE_LABEL: Record<MatchConfidence, string> = {
 function MatchRow({
   match,
   checked,
+  disabled,
   onToggle,
 }: {
   match: CatalogueMatch;
   checked: boolean;
+  disabled: boolean;
   onToggle: () => void;
 }) {
   const gap = match.priceGap;
@@ -38,12 +40,20 @@ function MatchRow({
 
   return (
     <li>
-      <label className="flex cursor-pointer items-start gap-3 rounded-md border border-neutral-800 bg-[#111] p-3 hover:border-neutral-700">
+      <label
+        className={
+          "flex items-start gap-3 rounded-md border p-3 " +
+          (disabled
+            ? "cursor-not-allowed border-neutral-900 opacity-40"
+            : "cursor-pointer border-neutral-800 bg-[#111] hover:border-neutral-700")
+        }
+      >
         <input
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={onToggle}
-          className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-signal,#e5484d)]"
+          className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-signal,#e5484d)] disabled:cursor-not-allowed"
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-paper">{match.myTitle}</p>
@@ -67,7 +77,7 @@ function MatchRow({
           </p>
           {!match.priceComparable ? (
             <p className="mt-0.5 text-[11px] text-neutral-500">
-              different sizes — check before comparing
+              different sizes, so check before comparing
             </p>
           ) : (
             gap !== null &&
@@ -101,29 +111,36 @@ function MatchRow({
 export function LinkStep({
   matches,
   competitorDomain,
+  maxSelectable,
+  isFreePlan,
 }: {
   matches: CatalogueMatch[];
   competitorDomain: string;
+  /** How many the current plan still has room for. */
+  maxSelectable: number;
+  isFreePlan: boolean;
 }) {
-  // Pre-tick only what we can stand behind. A match whose two prices
-  // cover different variants is probably the right product but its gap
-  // is meaningless, so the user opts in to that one deliberately.
-  const [selected, setSelected] = useState<Set<string>>(
-    () =>
-      new Set(
-        matches
-          .filter((m) => m.priceComparable)
-          .map((m) => m.discoveredId),
-      ),
-  );
+  // Nothing pre-ticked. More matches are shown than any plan allows, so
+  // pre-ticking would either exceed the allowance or silently choose
+  // for the user which five of fifteen matter. Which five is the one
+  // judgement here that is genuinely theirs.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const atLimit = selected.size >= maxSelectable;
 
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        // Guard the cap here as well as on the input's disabled state,
+        // so it holds however the toggle was reached.
+        if (next.size >= maxSelectable) return prev;
+        next.add(id);
+      }
       return next;
     });
   };
@@ -155,15 +172,31 @@ export function LinkStep({
   return (
     <div className="space-y-5">
       <ul className="space-y-2">
-        {matches.map((m) => (
-          <MatchRow
-            key={m.discoveredId}
-            match={m}
-            checked={selected.has(m.discoveredId)}
-            onToggle={() => toggle(m.discoveredId)}
-          />
-        ))}
+        {matches.map((m) => {
+          const checked = selected.has(m.discoveredId);
+          return (
+            <MatchRow
+              key={m.discoveredId}
+              match={m}
+              checked={checked}
+              // Only the unpicked rows lock, so a choice can always be
+              // changed without having to clear the whole list first.
+              disabled={!checked && atLimit}
+              onToggle={() => toggle(m.discoveredId)}
+            />
+          );
+        })}
       </ul>
+
+      {atLimit && (
+        <p className="rounded-md border border-neutral-800 bg-[#111] px-3 py-2.5 text-sm text-neutral-400">
+          That&apos;s {maxSelectable} of {maxSelectable}, the most your plan
+          tracks.{" "}
+          {isFreePlan
+            ? "You can add more once you move to a paid plan."
+            : "Untick one to swap it for another."}
+        </p>
+      )}
 
       {error && (
         <p className="text-sm text-signal" role="alert">
