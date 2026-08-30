@@ -8,6 +8,7 @@ import { eq, inArray, and, sql } from "drizzle-orm";
 import { requireUser, getCurrentUser } from "@/lib/auth/current-user";
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { probeVariantInventory } from "@/lib/crawler/cart-probe";
+import { trackMatchedProducts } from "./track-matched";
 
 /**
  * All product-level server actions. Per-Phase-3-part-3 every action is
@@ -708,11 +709,61 @@ export async function bulkRemoveTag(ids: string[], tag: string) {
 
 // ─── Linking products ──────────────────────────────────────────────────
 
-export async function linkProducts(formData: FormData) {
+/**
+ * Put two products in the same comparison group.
+ *
+ * `b` isn't necessarily tracked: the picker also offers rows straight out of
+ * the discovery queue, and `source` says which table its id belongs to. An
+ * untracked candidate is promoted through trackMatchedProducts first, so the
+ * plan limit, the group wiring and the initial crawl all behave exactly as
+ * they do in the discovery flow.
+ */
+export async function linkProducts(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const aId = String(formData.get("a") ?? "");
   const bId = String(formData.get("b") ?? "");
-  if (!aId || !bId || aId === bId) return;
+  const source = String(formData.get("source") ?? "tracked");
+  if (!aId || !bId || aId === bId) {
+    return { ok: false, error: "Nothing to link." };
+  }
+
+  if (source === "discovered") {
+    // Check ownership before promoting. The id comes from the client, and
+    // trackMatchedProducts would silently no-op on another user's row rather
+    // than telling us it refused.
+    const [candidate] = await db
+      .select({ id: schema.discoveredProducts.id })
+      .from(schema.discoveredProducts)
+      .where(
+        and(
+          eq(schema.discoveredProducts.id, bId),
+          eq(schema.discoveredProducts.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (!candidate) {
+      return { ok: false, error: "That product is no longer available to link." };
+    }
+
+    // This tracks the product AND puts it in aId's group, so there's no
+    // separate link step to run afterwards.
+    const result = await trackMatchedProducts([
+      { discoveredId: bId, myProductId: aId },
+    ]);
+    if (!result.ok) {
+      return {
+        ok: false,
+        error: result.error ?? "Couldn't track that product just now.",
+      };
+    }
+    if (result.tracked === 0) {
+      return { ok: false, error: "Couldn't link that product. Try again." };
+    }
+    revalidatePath(`/products/${aId}`);
+    return { ok: true };
+  }
 
   const both = await db
     .select()
@@ -725,7 +776,9 @@ export async function linkProducts(formData: FormData) {
     );
   const a = both.find((p) => p.id === aId);
   const b = both.find((p) => p.id === bId);
-  if (!a || !b) return;
+  if (!a || !b) {
+    return { ok: false, error: "That product is no longer available to link." };
+  }
 
   let groupId = a.groupId ?? b.groupId;
   if (!groupId) {
@@ -750,6 +803,7 @@ export async function linkProducts(formData: FormData) {
   revalidatePath(`/products/${bId}`);
   revalidatePath("/products");
   revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 export async function unlinkProduct(formData: FormData) {

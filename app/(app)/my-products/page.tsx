@@ -228,7 +228,7 @@ export default async function MyProductsPage() {
                   ) : (
                     <LinkProductButton
                       productId={r.id}
-                      excludeOwnStore
+                      browseAllByDefault
                       modalTitle={`Link "${r.title ?? r.handle}" to a competitor`}
                       myPrice={myPrice}
                       myCurrency={r.currency}

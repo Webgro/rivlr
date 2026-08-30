@@ -14,7 +14,6 @@ export async function GET(request: Request) {
   const q = url.searchParams.get("q") ?? undefined;
   const store = url.searchParams.get("store") ?? undefined;
   const browseAll = url.searchParams.get("browseAll") === "1";
-  const excludeOwnStore = url.searchParams.get("excludeOwnStore") === "1";
 
   if (!id) {
     return NextResponse.json({ error: "missing id" }, { status: 400 });
@@ -24,7 +23,6 @@ export async function GET(request: Request) {
     query: q,
     store,
     browseAll,
-    excludeOwnStore,
   });
   return NextResponse.json({ candidates });
 }

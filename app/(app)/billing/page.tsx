@@ -589,12 +589,28 @@ function PlanCardComponent({
             Reference only
           </div>
         ) : !isPaid ? (
-          // Free tier — only reachable via cancellation, can't be
-          // "switched to" since there's no Stripe transition.
+          // Free is reached by cancelling rather than by a Stripe plan
+          // change, but this is where someone looks for it, so the card
+          // carries the actual control. It previously said "Cancel to
+          // drop to Free" as plain text, with the real button further up
+          // the page in the subscription card, which reads as there
+          // being no way to cancel at all.
           hasSubscription ? (
-            <div className="text-center text-[11px] text-muted py-2">
-              Cancel to drop to Free
-            </div>
+            cancelAtPeriodEnd ? (
+              <div className="text-center text-[11px] text-muted py-2">
+                Your plan already ends at the period end.
+              </div>
+            ) : (
+              <form action="/api/billing/cancel" method="post">
+                <button
+                  type="submit"
+                  disabled={!stripeConfigured}
+                  className="w-full rounded-md border border-default bg-surface px-4 py-2 text-xs font-medium text-muted hover:text-signal hover:border-signal/50 transition disabled:opacity-50"
+                >
+                  Cancel and drop to Free
+                </button>
+              </form>
+            )
           ) : (
             <div className="text-center text-[11px] text-muted py-2">
               Default plan

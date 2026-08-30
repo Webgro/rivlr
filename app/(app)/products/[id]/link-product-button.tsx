@@ -12,20 +12,22 @@ interface Candidate {
   price: string | null;
   currency: string;
   available: boolean | null;
-  is_my_store: boolean;
+  /** "discovered" = not tracked yet, so linking it starts tracking it. */
+  source: "tracked" | "discovered";
 }
 
 interface LinkProductButtonProps {
   productId: string;
-  /** When true, hide own-store products from results (use from /my-products
-   *  where you're trying to link YOUR product to a competitor). */
-  excludeOwnStore?: boolean;
+  /** When true, open straight into the full competitor list instead of the
+   *  fuzzy suggestions. /my-products uses this: from there you already know
+   *  which of your products you're linking, you just need to find the rival. */
+  browseAllByDefault?: boolean;
   /** Optional override for the trigger button's label / className. Useful
    *  when this button sits inline in a row vs. as a primary CTA. */
   triggerLabel?: React.ReactNode;
   triggerClassName?: string;
-  /** Optional override for the modal title — defaults to "Link to another
-   *  tracked product", but /my-products uses "Link to a competitor". */
+  /** Optional override for the modal title — defaults to "Link to a
+   *  competitor product", but /my-products names the product being linked. */
   modalTitle?: string;
   /** Reference price for the my-product, so the modal can show a
    *  Δ% column next to each candidate. */
@@ -35,19 +37,20 @@ interface LinkProductButtonProps {
 
 export function LinkProductButton({
   productId,
-  excludeOwnStore = false,
+  browseAllByDefault = false,
   triggerLabel,
   triggerClassName,
-  modalTitle = "Link to another tracked product",
+  modalTitle = "Link to a competitor product",
   myPrice = null,
   myCurrency,
 }: LinkProductButtonProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [storeFilter, setStoreFilter] = useState("");
-  const [browseAll, setBrowseAll] = useState(excludeOwnStore); // /my-products browse all by default
+  const [browseAll, setBrowseAll] = useState(browseAllByDefault);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -62,7 +65,6 @@ export function LinkProductButton({
       if (q) params.set("q", q);
       if (storeFilter) params.set("store", storeFilter);
       if (browseAll) params.set("browseAll", "1");
-      if (excludeOwnStore) params.set("excludeOwnStore", "1");
       fetch(`/api/products/link-candidates?${params}`, {
         cache: "no-store",
         signal: controller.signal,
@@ -80,7 +82,7 @@ export function LinkProductButton({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, productId, query, storeFilter, browseAll, excludeOwnStore]);
+  }, [open, productId, query, storeFilter, browseAll]);
 
   // Distinct store list for the filter dropdown — derived client-side
   // from the current candidate set so it stays in sync with the search.
@@ -88,14 +90,27 @@ export function LinkProductButton({
     new Set(candidates.map((c) => c.store_domain)),
   ).sort();
 
-  function handleLink(otherId: string) {
+  function handleLink(candidate: Candidate) {
     const fd = new FormData();
     fd.set("a", productId);
-    fd.set("b", otherId);
+    fd.set("b", candidate.id);
+    // Tells the action which table the id lives in. A discovered candidate
+    // has to be tracked before it can be linked, and that can fail on the
+    // plan limit, so the modal stays open to show why.
+    fd.set("source", candidate.source);
+    setError(null);
     startTransition(async () => {
-      await linkProducts(fd);
-      setOpen(false);
-      router.refresh();
+      try {
+        const result = await linkProducts(fd);
+        if (!result.ok) {
+          setError(result.error ?? "Couldn't link that product. Try again.");
+          return;
+        }
+        setOpen(false);
+        router.refresh();
+      } catch {
+        setError("That didn't go through. Nothing was changed, so try again.");
+      }
     });
   }
 
@@ -103,7 +118,10 @@ export function LinkProductButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
         className={
           triggerClassName ??
           "rounded-md border border-default bg-elevated px-2.5 py-1 text-xs hover:border-strong"
@@ -174,7 +192,7 @@ export function LinkProductButton({
                   </select>
                 )}
               </div>
-              {!excludeOwnStore && (
+              {!browseAllByDefault && (
                 <label className="inline-flex items-center gap-2 text-[11px] text-muted cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -187,6 +205,14 @@ export function LinkProductButton({
               )}
             </div>
 
+            {error && (
+              <div className="border-b border-default px-4 py-2.5 flex-shrink-0">
+                <p className="text-sm text-signal" role="alert">
+                  {error}
+                </p>
+              </div>
+            )}
+
             {/* Candidates */}
             <div className="overflow-y-auto flex-1 min-h-[200px]">
               {loading ? (
@@ -198,8 +224,8 @@ export function LinkProductButton({
                   {query
                     ? `No matches for "${query}".`
                     : browseAll
-                      ? "No competitor products tracked yet."
-                      : "No similar products found. Tick 'Browse everything' above to search all your tracked products."}
+                      ? "No competitor products found yet."
+                      : "No similar products found. Tick 'Browse everything' above to search every competitor product."}
                 </div>
               ) : (
                 <div className="divide-y divide-default">
@@ -216,7 +242,7 @@ export function LinkProductButton({
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => handleLink(c.id)}
+                        onClick={() => handleLink(c)}
                         disabled={pending}
                         className="grid grid-cols-[40px_minmax(0,1.6fr)_1fr_auto] items-start gap-3 w-full px-4 py-3 text-left hover:bg-elevated disabled:opacity-50 transition group"
                       >
@@ -236,9 +262,9 @@ export function LinkProductButton({
                           </div>
                           <div className="text-[11px] text-muted font-mono flex items-center gap-1.5 mt-0.5 break-all">
                             {c.store_domain}
-                            {c.is_my_store && (
-                              <span className="text-green-500 whitespace-nowrap">
-                                · yours
+                            {c.source === "discovered" && (
+                              <span className="text-muted/80 whitespace-nowrap font-sans">
+                                · not tracked yet
                               </span>
                             )}
                           </div>
@@ -278,7 +304,8 @@ export function LinkProductButton({
 
             {/* Footer hint */}
             <div className="border-t border-default px-4 py-2.5 text-[11px] text-muted leading-relaxed flex-shrink-0">
-              Click any product to link.{" "}
+              Click any product to link. Anything marked &quot;not tracked
+              yet&quot; starts being tracked when you link it.{" "}
               {myPrice !== null
                 ? "The percentage shows how much cheaper (green) or dearer (red) you are than the competitor."
                 : "Linked products show their prices side by side on each product page."}
