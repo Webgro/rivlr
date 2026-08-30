@@ -108,20 +108,32 @@ export default async function MyProductsPage() {
             Your catalogue
           </div>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            My products
+            Prices
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted leading-relaxed">
-            Products on{" "}
+            What competitors charge for the things you sell on{" "}
             <Link
               href={`/stores/${encodeURIComponent(mine.domain)}`}
               className="text-foreground underline-offset-4 hover:underline"
             >
               {mine.displayName ?? mine.domain}
             </Link>
-            . Auto-imported, free, and don&apos;t count toward your tracking
-            limit. Linked competitor prices appear here so you can spot
-            where you&apos;re winning, matching, or losing.
+            . Your own products are free and never count toward your plan.
           </p>
+          <div className="mt-4 flex items-center gap-4">
+            {/* A plain link, not fetch: the browser downloads it and the
+                Content-Disposition header names the file. */}
+            <a
+              href="/api/prices/export"
+              className="inline-flex items-center gap-2 rounded-md border border-default bg-surface px-3.5 py-2 text-sm font-medium text-foreground hover:border-strong transition"
+            >
+              Export prices to a spreadsheet
+            </a>
+            <span className="text-xs text-muted">
+              Your price, theirs, and the gap, with a column to write new
+              prices in.
+            </span>
+          </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Stat label="Products" value={total.toString()} />

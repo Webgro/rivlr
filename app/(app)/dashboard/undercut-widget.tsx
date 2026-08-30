@@ -69,7 +69,7 @@ export async function UndercutWidget({ userId }: { userId: string }) {
           You&apos;ve been undercut
         </h2>
         <Link
-          href="/my-products"
+          href="/products"
           className="text-xs text-muted hover:text-foreground"
         >
           All my products

@@ -122,7 +122,7 @@ export async function markStoreAsMine(formData: FormData) {
       // 10-min cron will pick up regardless.
     }
     revalidatePath("/opportunities");
-    revalidatePath("/my-products");
+    revalidatePath("/products");
     revalidatePath(`/stores/${domain}`);
   });
 
@@ -229,7 +229,7 @@ export async function bulkTrackStoreDiscoveries(formData: FormData) {
 
   revalidatePath(`/stores/${domain}`);
   revalidatePath("/products");
-  revalidatePath("/discover");
+  revalidatePath("/discovery");
   revalidatePath("/dashboard");
 }
 

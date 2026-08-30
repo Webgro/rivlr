@@ -131,7 +131,7 @@ export default async function WelcomePage(props: {
         }
         exitLabel="Go to dashboard"
       >
-        <FinishButton label="Pick products to track" href="/discover" />
+        <FinishButton label="Pick products to track" href="/discovery" />
       </SetupShell>
     );
   }

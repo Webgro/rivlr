@@ -369,7 +369,7 @@ export async function deleteProduct(formData: FormData) {
 
   revalidatePath("/products");
   revalidatePath("/dashboard");
-  revalidatePath("/discover");
+  revalidatePath("/discovery");
   redirect("/products");
 }
 
@@ -560,7 +560,7 @@ export async function bulkDelete(ids: string[]) {
 
   revalidatePath("/products");
   revalidatePath("/dashboard");
-  revalidatePath("/discover");
+  revalidatePath("/discovery");
   return { ok: true as const, count: deleted };
 }
 

@@ -24,25 +24,44 @@ export interface NavItem {
 }
 
 /**
- * One flat list, six destinations. Activity, Suggestions, and Tags were
- * pulled from the nav deliberately: Activity is linked from the
- * dashboard's Recent activity section, Suggestions from the insights
- * row and products page, Tags from the products filter bar. Fewer
- * top-level choices makes the product feel smaller than it is.
+ * One entry per thing the product actually does.
  *
  * Exported so the mobile drawer (components/mobile-nav.tsx) renders the
- * exact same set; there is one source of truth for what the nav contains.
+ * exact same set; there is one source of truth for what the nav holds.
+ *
+ * This used to be six entries, five of which were the same two nouns
+ * seen from different angles: Watchlist and My products were both
+ * products with prices, Discover was products not yet followed,
+ * Opportunities was products filtered by a rule, Stores was where
+ * products came from. That is a map of the database, and it made the
+ * user learn the schema before they could get anywhere.
+ *
+ * These four are the three jobs the product exists to do, plus the
+ * overview:
+ *   Prices     what competitors charge for what I sell
+ *   Stock      when a competitor runs out of something I sell
+ *   Discovery  what they sell that I don't, and what moves
+ *
+ * Stores moved to Settings: choosing which shops to watch is setup you
+ * do rarely, not a place you visit. Tags live in the Prices filter bar.
+ *
+ * Prices points at /my-products because that page already is what
+ * Prices means: your product beside the cheapest competitor selling the
+ * same thing. The old Watchlist at /products is the raw table of
+ * everything being watched. It keeps its bulk editing and stays
+ * reachable from Prices, but it is a tool rather than a destination,
+ * so it is no longer a top-level choice.
  */
 export const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/opportunities", label: "Opportunities", Icon: OpportunitiesIcon },
-  { href: "/products", label: "Watchlist", Icon: ProductsIcon },
-  { href: "/my-products", label: "My products", Icon: MyProductsIcon },
-  { href: "/discover", label: "Discover", Icon: DiscoverIcon },
-  { href: "/stores", label: "Stores", Icon: StoresIcon },
+  { href: "/my-products", label: "Prices", Icon: ProductsIcon },
+  { href: "/stock", label: "Stock", Icon: MyProductsIcon },
+  { href: "/discovery", label: "Discovery", Icon: DiscoverIcon },
 ];
 
 export const SECONDARY_NAV: NavItem[] = [
+  { href: "/stores", label: "Competitors", Icon: StoresIcon },
   { href: "/profile", label: "Profile", Icon: ProfileIcon },
   { href: "/billing", label: "Billing", Icon: BillingIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },

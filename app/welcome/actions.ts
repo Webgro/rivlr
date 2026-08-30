@@ -145,7 +145,7 @@ export async function completeSetupOnly(): Promise<void> {
 /** Where finishSetupAndGo is allowed to land. */
 const EXIT_DESTINATIONS = new Set([
   "/dashboard",
-  "/discover",
+  "/discovery",
   "/products/new",
   "/stores",
 ]);

@@ -163,9 +163,9 @@ export async function trackMatchedProducts(
   });
 
   revalidatePath("/products");
-  revalidatePath("/my-products");
+  revalidatePath("/products");
   revalidatePath("/dashboard");
-  revalidatePath("/discover");
+  revalidatePath("/discovery");
 
   return { ok: true, tracked: rows.length };
 }

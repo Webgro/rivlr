@@ -27,6 +27,30 @@ const nextConfig: NextConfig = {
       { source: "/profile", headers: NO_STORE },
       { source: "/settings", headers: NO_STORE },
       { source: "/dashboard", headers: NO_STORE },
+      // Guided setup advances by re-rendering the same URL as the
+      // background imports finish. Missing from this list, it was
+      // served from cache: both catalogues completed in about forty
+      // seconds and the progress screen stayed up for five minutes.
+      // The client also force-navigates as a backstop, but this is the
+      // actual cause.
+      { source: "/welcome", headers: NO_STORE },
+    ];
+  },
+
+  /**
+   * The navigation went from six entries that mirrored the database to
+   * four that mirror the job. These keep old links, bookmarks and
+   * emails working. Permanent, because the old names are not coming
+   * back.
+   *
+   * Only /discover actually moved. /activity, /tags and the full
+   * watchlist left the nav but still exist and are still linked to
+   * from the pages that replaced them, so redirecting those would
+   * bounce the links straight back where they came from.
+   */
+  async redirects() {
+    return [
+      { source: "/discover", destination: "/discovery", permanent: true },
     ];
   },
 };
