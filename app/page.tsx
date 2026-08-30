@@ -169,10 +169,10 @@ export default async function MarketingPage() {
       <section className="mx-auto max-w-6xl px-6 py-8">
         <FeatureBlock
           title="Every price change, on the record"
-          body="Rivlr keeps a full price history for every product you track. See when a rival dropped, by how much, and whether they put it back up. React in hours, not weeks."
+          body="Rivlr keeps the full price history for every product you watch. See when a rival dropped, by how much, and whether they put it back up. Export the lot to a spreadsheet, decide your new prices, and update your shop."
           points={[
-            "Full price history kept forever on paid plans",
-            "Compare up to 5 rivals on one chart",
+            "Your price beside theirs, with the gap worked out",
+            "Export to a spreadsheet with a column for new prices",
             "Sale and compare-at prices captured too",
           ]}
         >
@@ -181,24 +181,24 @@ export default async function MarketingPage() {
 
         <FeatureBlock
           reverse
-          title="Stock levels, down to the unit"
-          body="Most trackers tell you in stock or out. Rivlr goes further: where stores expose inventory we read it, and where they hide it we probe for the exact quantity. Watch a rival sell down to zero in real time."
+          title="How many they actually sold"
+          body="Shopify shops do not publish sales figures. Rivlr works them out. Where a shop exposes its stock count we read it, and every drop is a sale, so you get numbers like 87 sold in the last 7 days rather than a guess. You also see the moment a rival runs out."
           points={[
-            "Exact quantities, not just in or out",
-            "Sales velocity worked out from stock movement",
-            "Out-of-stock alerts the hour it happens",
+            "Units sold, not just in stock or out",
+            "Exact quantities where the shop exposes them",
+            "Know the hour a rival sells out and hold your price",
           ]}
         >
           <StockMockup />
         </FeatureBlock>
 
         <FeatureBlock
-          title="See how their store really runs"
-          body="Every check also reads the signals stores leave in public: the apps and review widgets they run, their merchandising tags, bestseller flags, and quietly added new products."
+          title="Find the products you should be stocking"
+          body="Rivlr reads your rival's whole catalogue, not just the products you already share. Sort it by how many units are moving and you are looking at a shortlist of what to stock next, built from what is actually selling rather than what looks popular."
           points={[
-            "Review counts and scores per product",
-            "Bestseller and social-proof detection",
-            "Daily scan catches new launches",
+            "Everything they sell that you do not",
+            "Ranked by units sold, not by guesswork",
+            "New launches picked up automatically",
           ]}
         >
           <IntelMockup />
@@ -207,11 +207,11 @@ export default async function MarketingPage() {
         <FeatureBlock
           reverse
           title="Alerts that respect your inbox"
-          body="Opt in per product, per change type. Rivlr dedupes within 24 hours so one price drop means one email. Pro adds a weekly digest of everything that moved."
+          body="Opt in per product, per change type. Rivlr dedupes within 24 hours so one price drop means one email, and a weekly summary rounds up everything that moved."
           points={[
             "Per-product, per-type opt-in",
             "Deduplicated within 24 hours",
-            "Weekly digest on Pro",
+            "Weekly summary from Starter up",
           ]}
         >
           <AlertMockup />
@@ -235,7 +235,12 @@ export default async function MarketingPage() {
             name="Free"
             price="£0"
             blurb="Try it properly"
-            features={["5 tracked products", "Daily checks", "Email alerts", "30-day history"]}
+            features={[
+              "5 products",
+              "1 competitor shop",
+              "Daily checks",
+              "Email alerts",
+            ]}
             cta="Start free"
             href="/signup?source=pricing-free"
           />
@@ -244,11 +249,11 @@ export default async function MarketingPage() {
             price="£19"
             blurb="For a focused watchlist"
             features={[
-              "50 tracked products",
+              "50 products",
+              "Up to 3 competitor shops",
               "Daily checks",
-              "Email alerts",
-              "Full history kept",
-              "Tags and linked products",
+              "Email alerts and weekly summary",
+              "Export prices to a spreadsheet",
             ]}
             cta="Try for free"
             href="/signup?source=pricing-starter"
@@ -258,11 +263,11 @@ export default async function MarketingPage() {
             price="£29"
             blurb="For serious operators"
             features={[
-              "100 tracked products",
+              "100 products",
+              "Up to 10 competitor shops",
               "Checks every 6 hours",
               "Compare view",
-              "CSV import",
-              "Full history kept",
+              "Prices in other countries",
             ]}
             cta="Try for free"
             href="/signup?source=pricing-growth"
@@ -275,7 +280,7 @@ export default async function MarketingPage() {
             features={[
               "250 products included",
               "Add more for £10 per 100",
-              "Up to 2,500 products",
+              "Up to 25 competitor shops",
               "Everything in Growth",
               "Priority support",
             ]}
@@ -659,15 +664,15 @@ function StockMockup() {
 
 function IntelMockup() {
   const facts = [
-    { label: "Reviews", value: "1,204 · 4.6" },
-    { label: "Widget", value: "Judge.me" },
-    { label: "Demand", value: "Bestseller" },
-    { label: "Listed", value: "2024" },
-    { label: "Variants", value: "12" },
-    { label: "Images", value: "8" },
+    { label: "Sold in 7 days", value: "87" },
+    { label: "Their price", value: "£1.73" },
+    { label: "In stock", value: "1,262" },
+    { label: "You stock it", value: "No" },
+    { label: "Variants", value: "3" },
+    { label: "First seen", value: "Mar" },
   ];
   return (
-    <MockupFrame label="Store intel · aero-trainer-02">
+    <MockupFrame label="Products you don't sell · 11oz black patch mug">
       <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
         {facts.map((f) => (
           <div key={f.label}>
