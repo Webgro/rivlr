@@ -41,6 +41,13 @@ export async function UndercutWidget({ userId }: { userId: string }) {
           AND c.id != p.id
           AND c.store_domain != p.store_domain
           AND c.latest_price IS NOT NULL
+          -- Compare like with like. A product with several variants
+          -- stores its cheapest, so its price is a "from"; setting that
+          -- against a single-variant listing is not a comparison. A 2kg
+          -- bag matched to a 12kg-only listing reported a EUR 53
+          -- undercut that was only a smaller bag.
+          AND (COALESCE(array_length(c.skus, 1), 1) > 1)
+              = (COALESCE(array_length(p.skus, 1), 1) > 1)
         ORDER BY c.latest_price ASC
         LIMIT 1
       ) bc ON bc.latest_price::numeric < p.latest_price::numeric

@@ -56,21 +56,32 @@ function MatchRow({
         </div>
         <div className="shrink-0 text-right">
           <p className="font-mono text-sm text-paper">
+            {match.theirVariantCount > 1 && (
+              <span className="text-neutral-500">from </span>
+            )}
             {money(match.theirPrice, match.currency)}
           </p>
           <p className="font-mono text-[11px] text-neutral-500">
-            you: {money(match.myPrice, match.currency)}
+            you: {match.myVariantCount > 1 && "from "}
+            {money(match.myPrice, match.currency)}
           </p>
-          {gap !== null && gap !== 0 && (
-            <p
-              className={
-                "mt-0.5 text-[11px] " +
-                (cheaper ? "text-signal" : "text-neutral-500")
-              }
-            >
-              {cheaper ? "undercuts you by " : "above you by "}
-              {money(Math.abs(gap), match.currency)}
+          {!match.priceComparable ? (
+            <p className="mt-0.5 text-[11px] text-neutral-500">
+              different sizes — check before comparing
             </p>
+          ) : (
+            gap !== null &&
+            gap !== 0 && (
+              <p
+                className={
+                  "mt-0.5 text-[11px] " +
+                  (cheaper ? "text-signal" : "text-neutral-500")
+                }
+              >
+                {cheaper ? "undercuts you by " : "above you by "}
+                {money(Math.abs(gap), match.currency)}
+              </p>
+            )
           )}
         </div>
       </label>
@@ -94,8 +105,16 @@ export function LinkStep({
   matches: CatalogueMatch[];
   competitorDomain: string;
 }) {
+  // Pre-tick only what we can stand behind. A match whose two prices
+  // cover different variants is probably the right product but its gap
+  // is meaningless, so the user opts in to that one deliberately.
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(matches.map((m) => m.discoveredId)),
+    () =>
+      new Set(
+        matches
+          .filter((m) => m.priceComparable)
+          .map((m) => m.discoveredId),
+      ),
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

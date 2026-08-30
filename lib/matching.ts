@@ -144,8 +144,24 @@ export interface CatalogueMatch {
   currency: string;
   method: MatchMethod;
   confidence: MatchConfidence;
-  /** Their price minus yours. Negative means they undercut you. */
+  /** Their price minus yours. Negative means they undercut you. Null
+   *  when the two prices are not like-for-like — see priceComparable. */
   priceGap: number | null;
+  /** Variants behind each price, from the catalogue's SKU list. */
+  myVariantCount: number;
+  theirVariantCount: number;
+  /**
+   * Whether the two prices describe the same thing.
+   *
+   * A multi-variant product's stored price is its cheapest variant — a
+   * "from" price. Comparing that against a single-variant product's
+   * actual price is not a comparison at all: a 2kg and a 12kg bag of
+   * the same food matched on title, and the gap read as a £53 undercut
+   * that did not exist. When the variant counts differ we still show
+   * the match, because it is usually the right product, but we refuse
+   * to state a gap.
+   */
+  priceComparable: boolean;
 }
 
 type Row = {
@@ -160,6 +176,8 @@ type Row = {
   my_title: string | null;
   my_handle: string;
   my_price: string | null;
+  my_variants: number;
+  their_variants: number;
   my_image_url: string | null;
   currency: string;
   method: MatchMethod;
@@ -256,6 +274,8 @@ export async function findCatalogueMatches(opts: {
       m.title AS my_title, m.handle AS my_handle,
       m.image_url AS my_image_url,
       m.latest_price::text AS my_price,
+      COALESCE(array_length(m.skus, 1), 1) AS my_variants,
+      COALESCE(array_length(t.skus, 1), 1) AS their_variants,
       m.currency
     FROM ranked r
     JOIN theirs t ON t.id = r.discovered_id
@@ -293,12 +313,28 @@ export async function findCatalogueMatches(opts: {
 
     const theirPrice = r.their_price !== null ? Number(r.their_price) : null;
     const myPrice = r.my_price !== null ? Number(r.my_price) : null;
-    const confidence: MatchConfidence =
+
+    // A product with several variants stores its cheapest one, so its
+    // price is a "from". Two of those compare fine against each other,
+    // and one against a single-variant product does not: the 2kg bag of
+    // a food sold in 2kg and 12kg matched the 12kg-only listing on the
+    // other store and reported a £53 undercut that was really just a
+    // smaller bag.
+    const myVariantCount = Number(r.my_variants) || 1;
+    const theirVariantCount = Number(r.their_variants) || 1;
+    const priceComparable =
+      (myVariantCount > 1) === (theirVariantCount > 1);
+
+    let confidence: MatchConfidence =
       r.method !== "title"
         ? "exact"
         : sim >= TITLE_SIMILARITY_HIGH
           ? "high"
           : "likely";
+    // The product is probably right; the price isn't. Cap the
+    // confidence so the UI doesn't pre-tick it as a settled match.
+    if (!priceComparable && confidence === "exact") confidence = "high";
+    if (!priceComparable && confidence === "high") confidence = "likely";
 
     out.push({
       discoveredId: r.discovered_id,
@@ -316,8 +352,12 @@ export async function findCatalogueMatches(opts: {
       currency: r.currency,
       method: r.method,
       confidence,
+      myVariantCount,
+      theirVariantCount,
+      priceComparable,
+      // No gap rather than a wrong gap.
       priceGap:
-        theirPrice !== null && myPrice !== null
+        priceComparable && theirPrice !== null && myPrice !== null
           ? Number((theirPrice - myPrice).toFixed(2))
           : null,
     });
