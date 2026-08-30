@@ -179,17 +179,16 @@ export default async function StoreProfilePage(props: {
         SELECT t.id AS product_id, t.handle
         FROM tracked_products t
         WHERE t.store_domain = ${domain}
-          -- Scoped to this user on purpose. Without the filter, stock
-          -- readings collected by OTHER customers watching the same
-          -- shop leak into this page, so a figure appears or doesn't
-          -- depending on who else happens to be a customer. The number
-          -- is public shop data and identifies nobody, but pooling
-          -- customers' collected data is a product decision and not one
-          -- to make silently. Consequence: nobody is watching these
-          -- rows by definition, so this column stays blank here, and
-          -- the sales figures live on /discovery where they come from
-          -- the user's own watching.
-          AND t.user_id = ${user.id}::uuid
+          -- Deliberately NOT scoped to this user. Stock readings are a
+          -- fact about the shop, not about whoever collected them, so
+          -- they are pooled across customers: if anyone is watching a
+          -- product, everyone sees how it is selling. Nobody is
+          -- watching these particular rows by definition, so without
+          -- pooling this column could only ever be blank.
+          --
+          -- Nothing here identifies who collected a reading, and the
+          -- rows listed are still only ever this user's own. Only the
+          -- public quantity history is shared.
           AND t.active = true
           AND EXISTS (SELECT 1 FROM candidates c WHERE c.handle = t.handle)
       ),
