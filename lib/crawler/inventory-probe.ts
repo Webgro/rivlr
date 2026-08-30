@@ -74,16 +74,54 @@ export async function probeInventoryAcrossActive(): Promise<ProbeBatchResult> {
     market_country: string | null;
     market_currency: string | null;
   }>(sql`
+    WITH matched_groups AS (
+      -- Groups that contain one of the user's own products, i.e. the
+      -- competitor products in them are things the user already stocks.
+      SELECT DISTINCT tp.user_id, tp.group_id
+      FROM tracked_products tp
+      JOIN user_store_prefs usp
+        ON usp.user_id = tp.user_id
+       AND usp.domain = tp.store_domain
+       AND usp.is_my_store = true
+      WHERE tp.group_id IS NOT NULL
+    )
     SELECT
       p.id, p.store_domain, p.variants_snapshot,
       p.market_country, p.market_currency
     FROM tracked_products p
     LEFT JOIN stores s ON s.domain = p.store_domain
+    LEFT JOIN user_store_prefs own
+      ON own.user_id = p.user_id
+     AND own.domain = p.store_domain
+     AND own.is_my_store = true
     WHERE p.active = true
       AND jsonb_array_length(p.variants_snapshot) > 0
       AND (p.last_inventory_probed_at IS NULL OR p.last_inventory_probed_at < ${cooldownCutoff})
       AND (s.cart_probe_blocked_at IS NULL OR s.cart_probe_blocked_at < ${blockCutoff})
-    ORDER BY p.last_inventory_probed_at ASC NULLS FIRST
+    -- Probing costs one cart request per variant, so the daily budget
+    -- never covers everything and the order decides what we actually
+    -- learn. Round-robin spread it evenly and told us little about
+    -- anything.
+    --
+    -- Exact counts are what turn stock readings into units sold, which
+    -- is the whole of the discovery feature: "they sell 87 of these a
+    -- week and you don't stock it". So competitor products the user
+    -- does NOT stock go first, since that number is the only thing
+    -- those products are for. Rivals' versions of products the user
+    -- does stock come next, for sell-out alerts. The user's own
+    -- catalogue is last: they can already see their own stock in
+    -- Shopify.
+    ORDER BY
+      CASE
+        WHEN own.domain IS NOT NULL THEN 3
+        WHEN p.group_id IS NULL THEN 1
+        WHEN NOT EXISTS (
+          SELECT 1 FROM matched_groups mg
+          WHERE mg.user_id = p.user_id AND mg.group_id = p.group_id
+        ) THEN 1
+        ELSE 2
+      END,
+      p.last_inventory_probed_at ASC NULLS FIRST
   `);
 
   const list = Array.from(candidates);
