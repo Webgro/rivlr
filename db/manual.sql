@@ -62,3 +62,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS tracked_products_user_store_handle_key
   ON tracked_products (user_id, store_domain, handle);
 CREATE UNIQUE INDEX IF NOT EXISTS discovered_products_user_store_handle_key
   ON discovered_products (user_id, store_domain, handle);
+
+-- crawl_jobs has no long-term value and now has a retention sweep
+-- (lib/crawler/retention.ts, run at the end of each dispatch). The
+-- table had never been pruned and had reached 585,000 rows / 145 MB —
+-- larger than the price history it was bookkeeping for. After the
+-- initial prune it needs a one-off rewrite to hand the pages back;
+-- plain VACUUM only marks them reusable, and steady state is a few MB,
+-- so that space would otherwise sit idle forever.
+--   VACUUM (FULL, ANALYZE) crawl_jobs;

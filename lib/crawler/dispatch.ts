@@ -13,6 +13,7 @@ import {
 } from "./shopify";
 import { sendAlertsForChange } from "./alerts";
 import { importOwnStoreCatalogue } from "@/lib/catalogue-import";
+import { pruneCrawlJobs } from "./retention";
 
 /**
  * 24h cooldown for the richer-but-less-time-sensitive endpoints (meta JSON
@@ -73,6 +74,8 @@ interface DispatchResult {
   processed: number;
   ok: number;
   failed: number;
+  /** Expired crawl_jobs rows removed by the retention sweep. */
+  pruned: number;
 }
 
 /**
@@ -170,7 +173,14 @@ export async function dispatchCrawl(opts: {
   }
 
   if (due.length === 0) {
-    return { scheduled: 0, processed: 0, ok: 0, failed: 0 };
+    // Nothing to crawl is exactly when there is time to tidy up.
+    let pruned = 0;
+    try {
+      pruned = await pruneCrawlJobs();
+    } catch {
+      // Best effort — retried next hour.
+    }
+    return { scheduled: 0, processed: 0, ok: 0, failed: 0, pruned };
   }
 
   const jobs = await db
@@ -194,7 +204,16 @@ export async function dispatchCrawl(opts: {
   const ok = results.reduce((s, r) => s + r.ok, 0);
   const failed = results.reduce((s, r) => s + r.failed, 0);
 
-  return { scheduled: jobs.length, processed: ok + failed, ok, failed };
+  // Last, so a slow crawl never loses its results to a housekeeping
+  // step, and a failure here can't take the dispatch down with it.
+  let pruned = 0;
+  try {
+    pruned = await pruneCrawlJobs();
+  } catch {
+    // Next hour's dispatch will pick the backlog up.
+  }
+
+  return { scheduled: jobs.length, processed: ok + failed, ok, failed, pruned };
 }
 
 /**
