@@ -352,7 +352,16 @@ export async function deleteProduct(formData: FormData) {
         status: "dismissed" as const,
       })
       .onConflictDoUpdate({
-        target: schema.discoveredProducts.url,
+        // (user, store, handle), not url: there is no unique index on url,
+        // so this threw "no unique or exclusion constraint matching the ON
+        // CONFLICT specification" every time — after the products had
+        // already been deleted, so the rows vanished while the UI
+        // reported a failure.
+        target: [
+          schema.discoveredProducts.userId,
+          schema.discoveredProducts.storeDomain,
+          schema.discoveredProducts.handle,
+        ],
         set: { status: "dismissed" as const },
       });
   }
@@ -534,7 +543,16 @@ export async function bulkDelete(ids: string[]) {
         })),
       )
       .onConflictDoUpdate({
-        target: schema.discoveredProducts.url,
+        // (user, store, handle), not url: there is no unique index on url,
+        // so this threw "no unique or exclusion constraint matching the ON
+        // CONFLICT specification" every time — after the products had
+        // already been deleted, so the rows vanished while the UI
+        // reported a failure.
+        target: [
+          schema.discoveredProducts.userId,
+          schema.discoveredProducts.storeDomain,
+          schema.discoveredProducts.handle,
+        ],
         set: { status: "dismissed" as const },
       });
   }
