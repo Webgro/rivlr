@@ -73,47 +73,68 @@ body {
  * Old code uses bg-ink / text-paper / bg-neutral-900 etc. directly. In light
  * mode we want those to remap to the theme's equivalents so the dashboard
  * doesn't stay black-on-black when toggled.
+ *
+ * Every rule here is excluded inside a nested `[data-theme="dark"]`.
+ * Some screens are deliberately dark whatever the app theme — the
+ * sign-in and sign-up pages, guided setup — and they express that by
+ * setting data-theme="dark" on their own wrapper. Without the
+ * exclusion, a descendant selector starting at a light <html> reaches
+ * straight through that wrapper and remaps the classes anyway: on the
+ * login page it painted .text-paper (the wordmark, the heading, the
+ * email input's own text) in --ink, black on a black card, so the page
+ * looked empty apart from its button.
+ *
+ * The exclusion has two halves and needs both. `[data-theme="dark"] *`
+ * covers descendants of a dark scope; the bare `[data-theme="dark"]`
+ * covers the element that declares it, because these pages put the
+ * class and the attribute on the same wrapper. With the descendant
+ * half alone the wrapper itself stayed remapped, and any child that
+ * sets no colour of its own — the sign-up heading, for one —
+ * inherited black from it.
+ *
+ * Together they read as "not inside, and not itself, a scope that has
+ * declared itself dark".
  */
-[data-theme="light"] .bg-ink {
+[data-theme="light"] .bg-ink:not([data-theme="dark"] *):not([data-theme="dark"]) {
   background-color: var(--paper);
 }
-[data-theme="light"] .text-paper {
+[data-theme="light"] .text-paper:not([data-theme="dark"] *):not([data-theme="dark"]) {
   color: var(--ink);
 }
-[data-theme="light"] .bg-neutral-900,
-[data-theme="light"] .bg-neutral-900\/50,
-[data-theme="light"] .bg-neutral-900\/40,
-[data-theme="light"] .bg-neutral-900\/70 {
+[data-theme="light"] .bg-neutral-900:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .bg-neutral-900\/50:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .bg-neutral-900\/40:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .bg-neutral-900\/70:not([data-theme="dark"] *):not([data-theme="dark"]) {
   background-color: rgba(0, 0, 0, 0.04);
 }
-[data-theme="light"] .border-neutral-800,
-[data-theme="light"] .border-neutral-700 {
+[data-theme="light"] .border-neutral-800:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .border-neutral-700:not([data-theme="dark"] *):not([data-theme="dark"]) {
   border-color: var(--default-border);
 }
-[data-theme="light"] .text-neutral-400,
-[data-theme="light"] .text-neutral-500 {
+[data-theme="light"] .text-neutral-400:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .text-neutral-500:not([data-theme="dark"] *):not([data-theme="dark"]) {
   color: var(--muted);
 }
-[data-theme="light"] .text-neutral-300 {
+[data-theme="light"] .text-neutral-300:not([data-theme="dark"] *):not([data-theme="dark"]) {
   color: var(--muted-strong);
 }
-[data-theme="light"] .bg-neutral-800,
-[data-theme="light"] .hover\:bg-neutral-800:hover {
+[data-theme="light"] .bg-neutral-800:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .hover\:bg-neutral-800:hover:not([data-theme="dark"] *):not([data-theme="dark"]) {
   background-color: rgba(0, 0, 0, 0.06);
 }
 
 /* Hover-state overrides for light theme — Tailwind generates separate
    selectors for hover: variants, so we have to override them explicitly. */
-[data-theme="light"] .hover\:bg-neutral-900:hover,
-[data-theme="light"] .hover\:bg-neutral-900\/50:hover,
-[data-theme="light"] .hover\:bg-neutral-900\/70:hover {
+[data-theme="light"] .hover\:bg-neutral-900:hover:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .hover\:bg-neutral-900\/50:hover:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .hover\:bg-neutral-900\/70:hover:not([data-theme="dark"] *):not([data-theme="dark"]) {
   background-color: rgba(0, 0, 0, 0.06);
 }
-[data-theme="light"] .hover\:border-neutral-500:hover,
-[data-theme="light"] .hover\:border-neutral-700:hover {
+[data-theme="light"] .hover\:border-neutral-500:hover:not([data-theme="dark"] *):not([data-theme="dark"]),
+[data-theme="light"] .hover\:border-neutral-700:hover:not([data-theme="dark"] *):not([data-theme="dark"]) {
   border-color: var(--strong-border);
 }
-[data-theme="light"] .hover\:text-paper:hover {
+[data-theme="light"] .hover\:text-paper:hover:not([data-theme="dark"] *):not([data-theme="dark"]) {
   color: var(--ink);
 }
 
