@@ -41,9 +41,9 @@ export function SignupForm({ initialStoreUrl }: { initialStoreUrl: string }) {
         <input
           id="email"
           name="email"
-          type="email"
+          type="text"
+          inputMode="email"
           autoComplete="email"
-          required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@store.com"

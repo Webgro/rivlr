@@ -41,6 +41,10 @@ export function StoreForm({
   /** Carried from signup when the address was given on the way in. */
   initialValue?: string;
 }) {
+  // No `required` on the input: the browser's own validation bubble is
+  // an unstyled tooltip that lands in the middle of a dark page looking
+  // like a rendering fault, and it sits next to the styled error we
+  // already show for every other rejection. One error treatment, ours.
   const [state, formAction] = useActionState(action, null);
   // Controlled, so a rejected address survives the re-render. An
   // uncontrolled input is reset by the action's response, and making
@@ -66,7 +70,6 @@ export function StoreForm({
           autoCapitalize="off"
           spellCheck={false}
           autoFocus
-          required
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}

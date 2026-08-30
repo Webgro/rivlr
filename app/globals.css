@@ -69,6 +69,49 @@ body {
 }
 
 /*
+ * Guided-setup progress motion.
+ *
+ * Both imports can sit on the same number for a long stretch — a
+ * catalogue page is fetched every second and nothing lands until a
+ * whole chunk is written — so a bar that only moves on data looks
+ * broken. These keep it visibly alive without misreporting progress:
+ * `rivlr-slide` is the indeterminate state, used before any total is
+ * known, and `rivlr-sheen` sweeps across whatever has genuinely been
+ * completed.
+ */
+@keyframes rivlr-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+@keyframes rivlr-sheen {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.rivlr-indeterminate {
+  animation: rivlr-slide 1.6s ease-in-out infinite;
+}
+.rivlr-sheen {
+  animation: rivlr-sheen 1.8s ease-in-out infinite;
+}
+
+/* Respect a reduced-motion preference: the counts and the bar width
+   still carry the information, so the movement is decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .rivlr-indeterminate,
+  .rivlr-sheen {
+    animation: none;
+  }
+}
+
+/*
  * Theme override for the legacy hardcoded brand classes.
  * Old code uses bg-ink / text-paper / bg-neutral-900 etc. directly. In light
  * mode we want those to remap to the theme's equivalents so the dashboard

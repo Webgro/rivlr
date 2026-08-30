@@ -35,29 +35,32 @@ export function SetupShell({
 
   return (
     <main
-      className="min-h-screen bg-[#0a0a0a] text-paper flex flex-col items-center px-6 py-12 sm:py-20"
+      className="min-h-screen bg-[#0a0a0a] text-paper flex flex-col items-center justify-center px-6 py-12 sm:py-16"
       data-theme="dark"
     >
-      <div className="w-full max-w-xl">
+      <div className="w-full max-w-3xl">
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-baseline gap-1.5 text-xl font-semibold tracking-tight text-paper">
+          <span className="inline-flex items-baseline gap-2 text-2xl font-semibold tracking-tight text-paper">
             rivlr
             <span
-              className="h-2 w-2 rounded-full bg-signal inline-block translate-y-[-1px]"
+              className="h-2.5 w-2.5 rounded-full bg-signal inline-block translate-y-[-1px]"
               aria-hidden
             />
           </span>
           <form action={finishSetup}>
             <button
               type="submit"
-              className="text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-4"
+              className="text-sm text-neutral-500 hover:text-neutral-300 underline underline-offset-4"
             >
               {exitLabel}
             </button>
           </form>
         </div>
 
-        <ol className="mt-10 flex items-center gap-2" aria-label="Setup progress">
+        <ol
+          className="mt-12 flex items-center gap-3"
+          aria-label="Setup progress"
+        >
           {STEPS.map((step, i) => {
             const state =
               i < currentIndex ? "done" : i === currentIndex ? "current" : "todo";
@@ -65,14 +68,14 @@ export function SetupShell({
               <li key={step.key} className="flex-1">
                 <div
                   className={
-                    "h-1 rounded-full " +
+                    "h-1.5 rounded-full " +
                     (state === "todo" ? "bg-neutral-800" : "bg-signal")
                   }
                   aria-hidden
                 />
                 <span
                   className={
-                    "mt-2 block text-[11px] " +
+                    "mt-3 block text-xs sm:text-sm " +
                     (state === "current"
                       ? "text-paper"
                       : state === "done"
@@ -87,16 +90,18 @@ export function SetupShell({
           })}
         </ol>
 
-        <h1 className="mt-10 text-3xl font-semibold tracking-tight text-paper">
+        <h1 className="mt-14 text-4xl sm:text-5xl font-semibold tracking-tight text-paper text-balance">
           {title}
         </h1>
         {subtitle && (
-          <div className="mt-2 text-sm text-neutral-400">{subtitle}</div>
+          <div className="mt-4 text-base sm:text-lg text-neutral-400 text-pretty">
+            {subtitle}
+          </div>
         )}
 
-        <div className="mt-8">{children}</div>
+        <div className="mt-10">{children}</div>
 
-        <p className="mt-16 text-xs text-neutral-600 font-mono">
+        <p className="mt-20 text-xs text-neutral-600 font-mono">
           rivlr · a Webgro product
         </p>
       </div>

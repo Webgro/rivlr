@@ -4,6 +4,9 @@ import {
   importOwnStoreCatalogue,
   importCompetitorCatalogue,
 } from "@/lib/catalogue-import";
+import { findCatalogueMatches } from "@/lib/matching";
+import { sendEmail } from "@/lib/email/send";
+import { setupReadyEmail } from "@/lib/email/templates";
 
 /**
  * Guided setup state.
@@ -253,6 +256,56 @@ export async function runImportJob(
       `We couldn't read the catalogue at ${domain}. You can carry on and add products later.`,
     );
   }
+
+  await notifyIfSetupReady(userId);
+}
+
+/**
+ * Email the user once both imports have landed.
+ *
+ * The setup screen tells people they can close the tab, so this is what
+ * makes that true. Whichever job finishes second sends it — they run
+ * concurrently and neither knows about the other, so the check is
+ * "is anything still running?" rather than "am I last?".
+ *
+ * Best effort throughout: a failed send must not fail the import that
+ * triggered it, and the setup screen still works for anyone who kept
+ * the tab open.
+ */
+async function notifyIfSetupReady(userId: string): Promise<void> {
+  try {
+    const state = await getOnboardingState(userId);
+    if (state.step !== "link") return;
+
+    const [user] = await db
+      .select({ email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    if (!user?.email) return;
+
+    let matchCount = 0;
+    if (state.myDomain && state.competitorDomain) {
+      const matches = await findCatalogueMatches({
+        userId,
+        competitorDomain: state.competitorDomain,
+        limit: 25,
+      });
+      matchCount = matches.length;
+    }
+
+    const built = setupReadyEmail({
+      matchCount,
+      competitorDomain: state.competitorDomain,
+    });
+    await sendEmail({
+      to: [user.email],
+      subject: built.subject,
+      html: built.html,
+      text: built.text,
+    });
+  } catch {
+    // Never let the notification take down the import.
+  }
 }
 
 /** Mark setup complete so the user is never sent back to /welcome. */
@@ -287,6 +340,9 @@ export function parseStoreDomain(input: string): string | null {
 export async function validateShopifyStore(
   rawUrl: string,
 ): Promise<{ ok: true; domain: string } | { ok: false; error: string }> {
+  if (!rawUrl.trim()) {
+    return { ok: false, error: "Enter a store address to continue." };
+  }
   const domain = parseStoreDomain(rawUrl);
   if (!domain) {
     return {

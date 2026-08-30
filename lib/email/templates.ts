@@ -322,6 +322,47 @@ export function welcomeEmail(opts: { email: string }): Built {
   return { subject, html, text };
 }
 
+// ─── Guided setup finished ─────────────────────────────────────────────
+
+/**
+ * Sent when both catalogue imports finish, so the setup screen can
+ * honestly tell people to close the tab. A big pair of catalogues takes
+ * minutes, and sitting on a progress bar is a poor use of anyone's
+ * afternoon.
+ */
+export function setupReadyEmail(opts: {
+  matchCount: number;
+  competitorDomain: string | null;
+}): Built {
+  const { matchCount, competitorDomain } = opts;
+  const hasMatches = matchCount > 0;
+  const subject = hasMatches
+    ? `Your ${matchCount} matched product${matchCount === 1 ? "" : "s"} are ready`
+    : "Your Rivlr setup is ready";
+
+  const headline = hasMatches
+    ? `We found ${matchCount} product${matchCount === 1 ? "" : "s"} you both sell`
+    : "Your catalogue is ready";
+  const body = hasMatches
+    ? `We've finished reading both catalogues${
+        competitorDomain ? ` and compared yours against ${escape(competitorDomain)}` : ""
+      }. Pick which ones to watch and we'll email you whenever their price or stock moves.`
+    : "We've finished reading the catalogue. Choose the products you'd like to keep an eye on and we'll take it from there.";
+
+  const html = renderShell(
+    `<h1 style="margin:0 0 12px;font-size:22px;letter-spacing:-0.01em;color:#f5f3ee;font-weight:600;">${escape(headline)}</h1>
+<p style="margin:0 0 20px;color:#c0c0c0;font-size:14px;line-height:1.6;">${body}</p>
+
+<a href="https://rivlr.app/welcome" style="display:inline-block;background:#ff3b30;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Finish setting up →</a>
+
+<p style="margin:20px 0 0;color:#8a8a8a;font-size:12px;line-height:1.6;">This picks up exactly where you left off.</p>`,
+    { preheader: hasMatches ? `${matchCount} products matched and ready to track.` : "Your catalogue import has finished." },
+  );
+
+  const text = `${headline}\n\n${body.replace(/<[^>]+>/g, "")}\n\nFinish setting up: https://rivlr.app/welcome\n\nUnsubscribe: {{UNSUBSCRIBE_URL}}`;
+  return { subject, html, text };
+}
+
 // ─── Team invite ───────────────────────────────────────────────────────
 export function teamInviteEmail(opts: {
   inviterEmail: string;
