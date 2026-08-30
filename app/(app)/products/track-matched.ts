@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireUser } from "@/lib/auth/current-user";
 import { getProductQuota } from "@/lib/plan";
-import { dispatchCrawl } from "@/lib/crawler/dispatch";
+import { crawlProductOnce } from "@/lib/crawler/dispatch";
 import { inferMarketFromDomain } from "@/lib/crawler/shopify";
 
 /**
@@ -129,7 +129,11 @@ export async function trackMatchedProducts(
 
   if (rows.length === 0) return { ok: true, tracked: 0 };
 
-  await db.insert(schema.trackedProducts).values(rows).onConflictDoNothing();
+  const inserted = await db
+    .insert(schema.trackedProducts)
+    .values(rows)
+    .onConflictDoNothing()
+    .returning({ id: schema.trackedProducts.id });
 
   // Clear them out of the discovery queue so they don't get offered again.
   await db.delete(schema.discoveredProducts).where(
@@ -143,10 +147,18 @@ export async function trackMatchedProducts(
   );
 
   after(async () => {
-    try {
-      await dispatchCrawl({});
-    } catch {
-      // The hourly cron picks them up regardless.
+    // Crawl exactly what was just added, rather than running a global
+    // dispatch. A dispatch sweeps every tenant's due products, up to
+    // 450 of them at a second apiece, which is wildly out of proportion
+    // to a click that added five and kept the whole flow waiting on it.
+    // These rows already carry a price from the catalogue scan, so this
+    // is topping up stock detail, not filling a blank.
+    for (const row of inserted) {
+      try {
+        await crawlProductOnce(row.id);
+      } catch {
+        // The hourly cron picks up anything missed.
+      }
     }
   });
 

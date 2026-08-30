@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import type { CatalogueMatch, MatchConfidence } from "@/lib/matching";
 import { trackMatchedProducts } from "../(app)/products/track-matched";
-import { finishSetup } from "./actions";
+import { completeSetupOnly } from "./actions";
+import { Spinner } from "./spinner";
 
 function money(value: number | null, currency: string): string {
   if (value === null) return "—";
@@ -145,6 +146,12 @@ export function LinkStep({
     });
   };
 
+  const leaveSetup = async () => {
+    await completeSetupOnly();
+    // Ours to do, not the action's. See completeSetupOnly.
+    window.location.replace("/dashboard?setup=done");
+  };
+
   const track = () => {
     setError(null);
     startTransition(async () => {
@@ -154,18 +161,28 @@ export function LinkStep({
           discoveredId: m.discoveredId,
           myProductId: m.myProductId,
         }));
-      const result = await trackMatchedProducts(pairs);
-      if (!result.ok) {
-        setError(result.error ?? "Something went wrong. Try again.");
-        return;
+      try {
+        const result = await trackMatchedProducts(pairs);
+        if (!result.ok) {
+          setError(result.error ?? "Something went wrong. Try again.");
+          return;
+        }
+        await leaveSetup();
+      } catch {
+        setError(
+          "That didn't go through. Your products weren't added, so it's safe to try again.",
+        );
       }
-      await finishSetup();
     });
   };
 
   const skip = () => {
     startTransition(async () => {
-      await finishSetup();
+      try {
+        await leaveSetup();
+      } catch {
+        setError("Couldn't finish setup just now. Try again.");
+      }
     });
   };
 
@@ -179,9 +196,10 @@ export function LinkStep({
               key={m.discoveredId}
               match={m}
               checked={checked}
-              // Only the unpicked rows lock, so a choice can always be
-              // changed without having to clear the whole list first.
-              disabled={!checked && atLimit}
+              // Only the unpicked rows lock at the cap, so a choice can
+              // always be changed without clearing the list first. Once
+              // the work starts, everything locks.
+              disabled={pending || (!checked && atLimit)}
               onToggle={() => toggle(m.discoveredId)}
             />
           );
@@ -209,10 +227,13 @@ export function LinkStep({
           type="button"
           onClick={track}
           disabled={pending || selected.size === 0}
-          className="rounded-md bg-signal px-4 py-2.5 text-sm font-medium text-black hover:bg-signal/90 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-md bg-signal px-4 py-2.5 text-sm font-medium text-black hover:bg-signal/90 disabled:opacity-60"
         >
+          {pending && (
+            <Spinner className="h-3.5 w-3.5 border-black/30 border-t-black" />
+          )}
           {pending
-            ? "Setting up…"
+            ? "Setting up your watchlist"
             : `Track ${selected.size} product${selected.size === 1 ? "" : "s"}`}
         </button>
         <button

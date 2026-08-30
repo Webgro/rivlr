@@ -18,6 +18,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const force = new URL(request.url).searchParams.get("force") === "1";
-  const result = await dispatchCrawl({ force });
+  // The cron is the only caller that does the cross-tenant own-store
+  // refresh; interactive actions must stay cheap.
+  const result = await dispatchCrawl({ force, includeOwnStores: true });
   return NextResponse.json(result);
 }

@@ -127,8 +127,19 @@ async function refreshOwnStores(now: Date, force: boolean): Promise<number> {
 
 export async function dispatchCrawl(opts: {
   force?: boolean;
+  /**
+   * Also refresh every user's own catalogue in bulk before crawling.
+   *
+   * Cron only, and off by default. This is scheduled maintenance across
+   * all tenants: it re-reads thousands of products over HTTP and takes
+   * tens of seconds. Eight interactive actions call dispatchCrawl in
+   * after() when a user adds or tracks something, and having it do this
+   * work left the setup flow's "Setting up" button spinning for three
+   * minutes on a click that should have cost a few seconds.
+   */
+  includeOwnStores?: boolean;
 }): Promise<DispatchResult> {
-  const { force = false } = opts;
+  const { force = false, includeOwnStores = false } = opts;
   const now = new Date();
 
   // Cadence is automatic per plan (free/starter daily, growth 6-hourly,
@@ -136,7 +147,9 @@ export async function dispatchCrawl(opts: {
   // owner's plan once, then pick up their due products against their
   // own cooldown. This also fixes a multi-tenant bug where a single
   // global settings row dictated everyone's cadence.
-  await refreshOwnStores(now, force);
+  if (includeOwnStores) {
+    await refreshOwnStores(now, force);
+  }
 
   const ownerRows = await db.execute<{ user_id: string }>(sql`
     SELECT DISTINCT user_id FROM tracked_products WHERE active = true

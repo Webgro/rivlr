@@ -3,10 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JobProgress, OnboardingState } from "@/lib/onboarding";
+import { Spinner } from "./spinner";
 
 const POLL_MS = 2000;
-/** How long to give router.refresh() before forcing a real navigation. */
-const ESCAPE_MS = 4000;
+/**
+ * How long to give router.refresh() before forcing a real navigation.
+ * Short, because the refresh usually does not take effect here anyway,
+ * and every second spent waiting on it is a second before the real
+ * page load even starts.
+ */
+const ESCAPE_MS = 2000;
 
 /**
  * The bar has two modes on purpose.
@@ -57,16 +63,6 @@ function Bar({
         )}
       </div>
     </div>
-  );
-}
-
-/** Spinner shown against a job that is still reading. */
-function Spinner() {
-  return (
-    <span
-      className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-neutral-600 border-t-signal align-middle"
-      aria-hidden
-    />
   );
 }
 
@@ -148,6 +144,12 @@ function JobLine({
 export function ImportingStep({ initial }: { initial: OnboardingState }) {
   const router = useRouter();
   const [state, setState] = useState<OnboardingState>(initial);
+  // Both imports are finished and we are waiting on the next screen.
+  // This is its own state because it is the one stretch where nothing
+  // is running, so without it the bar sits full and motionless during
+  // the slowest part of the whole flow: matching the two catalogues
+  // against each other, then rendering the page.
+  const [handingOff, setHandingOff] = useState(false);
   const escapeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -164,6 +166,8 @@ export function ImportingStep({ initial }: { initial: OnboardingState }) {
         setState(next);
 
         if (next.step === "importing") return;
+
+        setHandingOff(true);
 
         // The server decides when setup moves on. router.refresh() is
         // the cheap way to ask for the new step, but it cannot be
@@ -211,8 +215,10 @@ export function ImportingStep({ initial }: { initial: OnboardingState }) {
     <div className="space-y-7">
       <Bar
         percent={state.percent}
-        indeterminate={noTotalsYet}
-        active={stillRunning}
+        // Handing off has no measurable progress of its own, so it
+        // shows movement rather than a full bar that has stopped.
+        indeterminate={noTotalsYet || handingOff}
+        active={stillRunning || handingOff}
       />
 
       <ul className="divide-y divide-neutral-900">
@@ -242,6 +248,11 @@ export function ImportingStep({ initial }: { initial: OnboardingState }) {
         <p className="text-sm text-neutral-500">
           One of the stores couldn&apos;t be read. You can carry on and add
           products by hand.
+        </p>
+      ) : handingOff ? (
+        <p className="flex items-center gap-2.5 text-sm text-paper">
+          <Spinner />
+          Comparing the two catalogues to find products you both sell.
         </p>
       ) : (
         <div className="space-y-2 text-sm text-neutral-500">

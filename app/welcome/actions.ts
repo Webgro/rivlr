@@ -125,6 +125,23 @@ export async function finishSetup(): Promise<void> {
   redirect("/dashboard?setup=done");
 }
 
+/**
+ * Mark setup complete and return, leaving the caller to navigate.
+ *
+ * For the client components. A server action that redirects, awaited
+ * inside a transition, keeps that transition pending until the router
+ * has finished fetching the destination, so the button it belongs to
+ * goes on saying "Setting up" through the whole of the next page's
+ * render, and says nothing at all if the navigation quietly fails.
+ * Doing the navigation ourselves makes the button's state mean only
+ * what it says.
+ */
+export async function completeSetupOnly(): Promise<void> {
+  const user = await requireUser();
+  await completeOnboarding(user.id);
+  revalidatePath("/dashboard");
+}
+
 /** Where finishSetupAndGo is allowed to land. */
 const EXIT_DESTINATIONS = new Set([
   "/dashboard",
