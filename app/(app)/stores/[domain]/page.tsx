@@ -9,19 +9,32 @@ import { SubmitButton } from "@/components/submit-button";
 import { UntrackedList, type UntrackedItem } from "./untracked-list";
 import { StoreBulkControls } from "./store-bulk-controls";
 import { requireUser } from "@/lib/auth/current-user";
+import { getProductQuota } from "@/lib/plan";
+import { getVelocity, velocityLabel } from "@/lib/velocity";
 
 export const dynamic = "force-dynamic";
 
-type Params = Promise<{ domain: string }>;
+/** Rows per page of the not-yet-watched list. A big shop has thousands. */
+const PAGE_SIZE = 50;
+const WINDOW_DAYS = 7;
+/** Mirrors MIN_READINGS in lib/velocity.ts - keep the two in step. */
+const MIN_READINGS = 3;
 
-type ProductRow = {
+type Params = Promise<{ domain: string }>;
+type SearchParams = Promise<{ q?: string; page?: string }>;
+
+type NotWatchedRow = {
   id: string;
-  title: string | null;
   handle: string;
+  title: string | null;
   image_url: string | null;
+  url: string;
   price: string | null;
-  compare_at_price: string | null;
   available: boolean | null;
+  /** A watched product on this shop with the same handle, whoever is
+   *  watching it. Null when nobody has stock readings for it. */
+  rep_id: string | null;
+  total_count: number;
 };
 
 /**
@@ -33,10 +46,17 @@ type ProductRow = {
  * If the store has never been scanned (just-added), runs scanStoreNow()
  * inline so the user sees a populated page on first navigation.
  */
-export default async function StoreProfilePage(props: { params: Params }) {
+export default async function StoreProfilePage(props: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const user = await requireUser();
   const { domain: rawDomain } = await props.params;
   const domain = decodeURIComponent(rawDomain).toLowerCase();
+  const search = await props.searchParams;
+  const q = (search.q ?? "").trim().toLowerCase();
+  const page = Math.max(1, Number(search.page ?? 1) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
 
   // The store belongs on this user's radar when they track at least one
   // product on it OR they explicitly added it (user_store_prefs row, e.g.
@@ -125,56 +145,131 @@ export default async function StoreProfilePage(props: { params: Params }) {
     }
   }
 
-  // Pull tracked products + their latest price/stock for the table.
-  const products = Array.from(
-    await db.execute<ProductRow>(sql`
-      SELECT p.id, p.title, p.handle, p.image_url,
-             p.compare_at_price,
-             lp.price,
-             ls.available
-      FROM tracked_products p
-      LEFT JOIN LATERAL (
-        SELECT price FROM price_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) lp ON true
-      LEFT JOIN LATERAL (
-        SELECT available FROM stock_observations
-        WHERE product_id = p.id ORDER BY observed_at DESC LIMIT 1
-      ) ls ON true
-      WHERE p.user_id = ${user.id}::uuid
-        AND p.store_domain = ${domain}
-        AND p.active = true
-      ORDER BY p.added_at DESC
-      LIMIT 50
+  // Products on this shop the reader is NOT watching yet.
+  //
+  // Ordered by units sold in SQL rather than in JS: sorting one page would
+  // only sort within that page, and the whole point of the order is that
+  // the busiest products are on page one. The units-sold expression
+  // deliberately mirrors lib/velocity.ts (downward moves only, three
+  // readings minimum) so the order matches the figures printed below.
+  //
+  // Stock readings hang off watched products, and by definition the reader
+  // is not watching these. The readings are a fact about the SHOP, not
+  // about whoever happens to be watching, so a product is matched to any
+  // watched copy of itself on the same shop by handle, and the best
+  // evidenced one is used. Rows the reader sees are still only ever their
+  // own.
+  const notWatchedRows = Array.from(
+    await db.execute<NotWatchedRow>(sql`
+      WITH candidates AS (
+        SELECT d.id, d.handle, d.title, d.image_url, d.url,
+               d.price, d.available, d.first_seen
+        FROM discovered_products d
+        WHERE d.user_id = ${user.id}::uuid
+          AND d.store_domain = ${domain}
+          AND d.status = 'new'
+          ${
+            q
+              ? sql`AND (LOWER(COALESCE(d.title, '')) LIKE ${"%" + q + "%"}
+                     OR LOWER(d.handle) LIKE ${"%" + q + "%"})`
+              : sql``
+          }
+      ),
+      watched AS (
+        SELECT t.id AS product_id, t.handle
+        FROM tracked_products t
+        WHERE t.store_domain = ${domain}
+          -- Scoped to this user on purpose. Without the filter, stock
+          -- readings collected by OTHER customers watching the same
+          -- shop leak into this page, so a figure appears or doesn't
+          -- depending on who else happens to be a customer. The number
+          -- is public shop data and identifies nobody, but pooling
+          -- customers' collected data is a product decision and not one
+          -- to make silently. Consequence: nobody is watching these
+          -- rows by definition, so this column stays blank here, and
+          -- the sales figures live on /discovery where they come from
+          -- the user's own watching.
+          AND t.user_id = ${user.id}::uuid
+          AND t.active = true
+          AND EXISTS (SELECT 1 FROM candidates c WHERE c.handle = t.handle)
+      ),
+      deltas AS (
+        SELECT
+          w.handle,
+          w.product_id,
+          so.quantity,
+          LAG(so.quantity) OVER (
+            PARTITION BY w.product_id ORDER BY so.observed_at
+          ) AS prev
+        FROM watched w
+        JOIN stock_observations so ON so.product_id = w.product_id
+        WHERE so.quantity IS NOT NULL
+          AND so.observed_at > now() - MAKE_INTERVAL(days => ${WINDOW_DAYS})
+      ),
+      per_product AS (
+        SELECT
+          handle,
+          product_id,
+          COALESCE(SUM(GREATEST(prev - quantity, 0)), 0)::int AS units_sold,
+          COUNT(*)::int AS readings
+        FROM deltas
+        WHERE prev IS NOT NULL
+        GROUP BY handle, product_id
+      ),
+      best AS (
+        SELECT DISTINCT ON (handle)
+          handle, product_id, units_sold
+        FROM per_product
+        WHERE readings >= ${MIN_READINGS}
+        ORDER BY handle, units_sold DESC, readings DESC, product_id
+      )
+      SELECT
+        c.id, c.handle, c.title, c.image_url, c.url, c.price, c.available,
+        b.product_id AS rep_id,
+        (COUNT(*) OVER ())::int AS total_count
+      FROM candidates c
+      LEFT JOIN best b ON b.handle = c.handle
+      ORDER BY COALESCE(b.units_sold, 0) DESC, c.first_seen DESC, c.id
+      LIMIT ${PAGE_SIZE} OFFSET ${offset}
     `),
   );
 
-  // Pull untracked discoveries on this store for the "not tracked" panel.
-  const untrackedRows = Array.from(
-    await db.execute<{
-      id: string;
-      handle: string;
-      title: string | null;
-      image_url: string | null;
-      url: string;
-      first_seen: string;
-    }>(sql`
-      SELECT id, handle, title, image_url, url, first_seen
-      FROM discovered_products
-      WHERE user_id = ${user.id}::uuid
-        AND store_domain = ${domain}
-        AND status = 'new'
-      ORDER BY first_seen DESC
-      LIMIT 50
-    `),
+  const matchingCount = notWatchedRows[0]?.total_count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
+
+  // Unfiltered total, so the heading and the "add them all" button do not
+  // change meaning while someone is searching.
+  const [notWatchedTotalRow] = await db.execute<{ n: number }>(sql`
+    SELECT COUNT(*)::int AS n
+    FROM discovered_products
+    WHERE user_id = ${user.id}::uuid
+      AND store_domain = ${domain}
+      AND status = 'new'
+  `);
+  const notWatchedTotal = notWatchedTotalRow?.n ?? 0;
+
+  // One velocity call for this page's rows, never one per row.
+  const velocity = await getVelocity(
+    notWatchedRows
+      .map((r) => r.rep_id)
+      .filter((id): id is string => id !== null),
+    WINDOW_DAYS,
   );
-  const untracked: UntrackedItem[] = untrackedRows.map((r) => ({
+
+  const quota = await getProductQuota(user.id);
+
+  const untracked: UntrackedItem[] = notWatchedRows.map((r) => ({
     id: r.id,
     handle: r.handle,
     title: r.title,
     imageUrl: r.image_url,
     url: r.url,
-    firstSeen: r.first_seen,
+    price: r.price,
+    available: r.available,
+    sold: velocityLabel(
+      r.rep_id ? velocity.get(r.rep_id) : undefined,
+      WINDOW_DAYS,
+    ),
   }));
 
   // Pull last 30 days of snapshots for trend charts.
@@ -306,7 +401,7 @@ export default async function StoreProfilePage(props: { params: Params }) {
       {/* Top stats */}
       <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat
-          label="Tracked products"
+          label="Products you watch"
           value={access.tracked.toString()}
         />
         <Stat
@@ -397,98 +492,104 @@ export default async function StoreProfilePage(props: { params: Params }) {
         </div>
       )}
 
-      {/* Tracked products on this store */}
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold">
-          Tracked here ({products.length})
-        </h2>
-        {products.length === 0 ? (
-          <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-6 text-center text-xs text-muted">
-            Nothing tracked on this store.
-          </div>
-        ) : (
-          <div className="mt-3 overflow-hidden rounded-lg border border-default">
-            {products.map((p) => {
-              const onSale =
-                p.compare_at_price &&
-                p.price &&
-                Number(p.compare_at_price) > Number(p.price);
-              const discount = onSale
-                ? Math.round(
-                    (1 - Number(p.price) / Number(p.compare_at_price!)) * 100,
-                  )
-                : null;
-              return (
-                <Link
-                  key={p.id}
-                  href={`/products/${p.id}`}
-                  className="flex items-center gap-3 border-b border-default px-4 py-3 last:border-b-0 hover:bg-elevated transition"
-                >
-                  {p.image_url ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={p.image_url}
-                      alt=""
-                      className="h-9 w-9 rounded-md bg-elevated object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="h-9 w-9 rounded-md bg-elevated flex-shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">
-                      {p.title ?? p.handle}
-                    </div>
-                  </div>
-                  {p.price && (
-                    <div className="font-mono text-sm flex-shrink-0">
-                      {symbol}
-                      {Number(p.price).toFixed(2)}
-                    </div>
-                  )}
-                  {discount !== null && (
-                    <span className="rounded bg-signal/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-signal font-mono flex-shrink-0">
-                      −{discount}%
-                    </span>
-                  )}
-                  <div className="text-xs flex-shrink-0 w-20 text-right">
-                    {p.available !== null ? (
-                      <span
-                        className={`inline-flex items-center gap-1.5 ${p.available ? "" : "text-signal"}`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${p.available ? "bg-green-500" : "bg-signal"}`}
-                        />
-                        {p.available ? "In" : "Out"}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Untracked discoveries on this store */}
+      {/* Products on this shop the reader is not watching yet */}
       <section className="mt-10">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-sm font-semibold">
-              Not tracked yet ({untracked.length})
+              Their products you are not watching ({notWatchedTotal.toLocaleString()})
             </h2>
             <span className="text-[10px] text-muted/80 font-mono uppercase tracking-[0.15em]">
-              Newest first · updates daily
+              Busiest first · updates daily
             </span>
           </div>
           <StoreBulkControls
             domain={domain}
-            untrackedCount={untracked.length}
+            untrackedCount={notWatchedTotal}
             autoTrackEnabled={store?.autoTrackNew ?? false}
           />
         </div>
-        <UntrackedList items={untracked} />
+
+        {(notWatchedTotal > 0 || q) && (
+          <form
+            method="get"
+            key={q}
+            className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated px-4 py-3"
+          >
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder="Search by product name…"
+              className="flex-1 min-w-[200px] rounded-md border border-default bg-surface px-3 py-1.5 text-sm text-foreground placeholder-muted outline-none focus:border-strong"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-surface"
+            >
+              Search
+            </button>
+            {q && (
+              <Link
+                href={`/stores/${encodeURIComponent(domain)}`}
+                className="text-xs text-muted hover:text-foreground"
+              >
+                Clear
+              </Link>
+            )}
+            <span className="ml-auto text-xs text-muted font-mono">
+              {untracked.length > 0
+                ? `Showing ${(offset + 1).toLocaleString()} to ${(
+                    offset + untracked.length
+                  ).toLocaleString()} of ${matchingCount.toLocaleString()}`
+                : `0 of ${matchingCount.toLocaleString()}`}
+            </span>
+          </form>
+        )}
+
+        {untracked.length === 0 ? (
+          <div className="mt-3 rounded-lg border border-dashed border-default px-5 py-8 text-center text-xs text-muted">
+            {q
+              ? "Nothing on this shop matches that search."
+              : "You are watching everything Rivlr has found on this shop. New ones show up here as they are added."}
+          </div>
+        ) : (
+          <>
+            <UntrackedList
+              items={untracked}
+              currencySymbol={symbol}
+              canAdd={!quota.full}
+              remaining={quota.remaining}
+              limitMessage={
+                quota.limit === null
+                  ? ""
+                  : `You are watching ${quota.current.toLocaleString()} products, the most your plan allows. Remove one, or move up a plan, to add more from this shop.`
+              }
+            />
+
+            {totalPages > 1 && (
+              <nav className="mt-4 flex items-center justify-between gap-4 rounded-lg border border-default bg-elevated px-4 py-3">
+                <Link
+                  href={pageHref(domain, page - 1, q)}
+                  aria-disabled={page === 1}
+                  className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page === 1 ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
+                >
+                  ← Previous
+                </Link>
+                <span className="text-xs text-muted font-mono">
+                  Page {page} of {totalPages}
+                </span>
+                <Link
+                  href={pageHref(domain, page + 1, q)}
+                  aria-disabled={page >= totalPages}
+                  className={`rounded-md border border-default px-3 py-1.5 text-sm transition ${page >= totalPages ? "opacity-40 pointer-events-none" : "hover:border-strong"}`}
+                >
+                  Next
+                </Link>
+              </nav>
+            )}
+          </>
+        )}
       </section>
 
       {/* Footer meta */}
@@ -574,6 +675,14 @@ function kindLabel(kind: string): string {
     default:
       return kind.charAt(0).toUpperCase() + kind.slice(1);
   }
+}
+
+function pageHref(domain: string, page: number, q: string): string {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return `/stores/${encodeURIComponent(domain)}${qs ? `?${qs}` : ""}`;
 }
 
 function prettyDomain(domain: string): string {

@@ -1,15 +1,19 @@
-import { db } from "@/lib/db";
-import { sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getMyShop, getPriceRows } from "@/app/(app)/my-products/data";
 
 export const dynamic = "force-dynamic";
 
 /**
  * The pricing working sheet.
  *
- * One row per product the user sells that has at least one competitor
- * attached, with their price, the cheapest competitor's price, the gap,
- * and an empty "New price" column to fill in.
+ * One row per product the user sells, with the cheapest rival's price,
+ * the gap, and an empty "New price" column to fill in.
+ *
+ * Rows come from the same getPriceRows the Prices page uses, and the
+ * page's filters (q, match, shop) are passed straight through, so the
+ * sheet is always exactly what was on screen when the button was
+ * pressed. Products with no rival yet are included and carry a note
+ * saying so.
  *
  * Deliberately NOT a Shopify import file. Shopify only accepts its own
  * columns, which would mean dropping the competitor prices, and the
@@ -19,82 +23,45 @@ export const dynamic = "force-dynamic";
  * Handle and SKU are included so rows can be matched back to Shopify.
  */
 
-type Row = {
-  handle: string;
-  sku: string | null;
-  title: string | null;
-  currency: string;
-  my_price: string | null;
-  my_variants: number;
-  their_store: string | null;
-  their_price: string | null;
-  their_variants: number | null;
-  competitor_count: number | null;
-};
-
 /** RFC 4180: quote everything, double any inner quotes. */
 function cell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '""';
   return `"${String(value).replace(/"/g, '""')}"`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return new Response("unauthorized", { status: 401 });
 
-  const rows = await db.execute<Row>(sql`
-    WITH mine AS (
-      SELECT p.id, p.title, p.handle, p.currency, p.latest_price, p.skus,
-             p.group_id,
-             COALESCE(array_length(p.skus, 1), 1) AS variants
-      FROM tracked_products p
-      JOIN user_store_prefs usp
-        ON usp.user_id = p.user_id
-       AND usp.domain = p.store_domain
-       AND usp.is_my_store = true
-      WHERE p.user_id = ${user.id}::uuid
-        AND p.active = true
-        AND p.group_id IS NOT NULL
-    ),
-    competitors AS (
-      SELECT
-        c.group_id, c.store_domain, c.latest_price,
-        COALESCE(array_length(c.skus, 1), 1) AS variants,
-        ROW_NUMBER() OVER (
-          PARTITION BY c.group_id ORDER BY c.latest_price ASC
-        ) AS rn,
-        COUNT(*) OVER (PARTITION BY c.group_id) AS total
-      FROM tracked_products c
-      LEFT JOIN user_store_prefs own
-        ON own.user_id = c.user_id
-       AND own.domain = c.store_domain
-       AND own.is_my_store = true
-      WHERE c.user_id = ${user.id}::uuid
-        AND c.active = true
-        AND c.latest_price IS NOT NULL
-        AND own.domain IS NULL
-        AND c.group_id IN (SELECT group_id FROM mine)
-    )
-    SELECT
-      m.handle,
-      m.skus[1] AS sku,
-      m.title,
-      m.currency,
-      m.latest_price::text AS my_price,
-      m.variants AS my_variants,
-      c.store_domain AS their_store,
-      c.latest_price::text AS their_price,
-      c.variants AS their_variants,
-      c.total::int AS competitor_count
-    FROM mine m
-    LEFT JOIN competitors c ON c.group_id = m.group_id AND c.rn = 1
-    ORDER BY
-      -- Biggest undercut first: the rows most likely to need a decision.
-      CASE
-        WHEN c.latest_price IS NULL OR m.latest_price IS NULL THEN 1 ELSE 0
-      END,
-      (c.latest_price - m.latest_price) ASC
-  `);
+  const mine = await getMyShop(user.id);
+
+  const url = new URL(request.url);
+  const rows = mine
+    ? (
+        await getPriceRows(user.id, mine.domain, {
+          q: url.searchParams.get("q") ?? undefined,
+          match: url.searchParams.get("match") ?? undefined,
+          shop: url.searchParams.get("shop") ?? undefined,
+        })
+      ).rows
+    : [];
+
+  // Biggest undercut first: the rows most likely to need a decision.
+  // The screen sorts favourites first, but this is a working sheet.
+  const ordered = [...rows].sort((a, b) => {
+    const aGap =
+      a.bestPrice !== null && a.myPrice !== null
+        ? a.bestPrice - a.myPrice
+        : null;
+    const bGap =
+      b.bestPrice !== null && b.myPrice !== null
+        ? b.bestPrice - b.myPrice
+        : null;
+    if (aGap === null && bGap === null) return 0;
+    if (aGap === null) return 1;
+    if (bGap === null) return -1;
+    return aGap - bGap;
+  });
 
   const header = [
     "Handle",
@@ -106,23 +73,22 @@ export async function GET() {
     "Their price",
     "Difference",
     "Difference %",
-    "Competitors tracked",
+    "Competitors watched",
     "Note",
     "New price",
   ];
 
   const lines = [header.map(cell).join(",")];
 
-  for (const r of Array.from(rows)) {
-    const mine = r.my_price !== null ? Number(r.my_price) : null;
-    const theirs = r.their_price !== null ? Number(r.their_price) : null;
+  for (const r of ordered) {
+    const mineP = r.myPrice;
+    const theirs = r.bestPrice;
 
     // Same rule the app uses on screen: a product with several variants
     // stores its cheapest, so comparing that against a single-variant
     // listing is not a comparison. Leave the gap blank and say why,
     // rather than exporting a number someone might reprice against.
-    const comparable =
-      (Number(r.my_variants) > 1) === (Number(r.their_variants ?? 1) > 1);
+    const comparable = r.myVariants > 1 === (r.bestVariants ?? 1) > 1;
 
     let difference = "";
     let differencePct = "";
@@ -132,10 +98,10 @@ export async function GET() {
       note = "No competitor price yet";
     } else if (!comparable) {
       note = "Different sizes or options, check before comparing";
-    } else if (mine !== null) {
-      const delta = theirs - mine;
+    } else if (mineP !== null) {
+      const delta = theirs - mineP;
       difference = delta.toFixed(2);
-      differencePct = mine !== 0 ? ((delta / mine) * 100).toFixed(1) : "";
+      differencePct = mineP !== 0 ? ((delta / mineP) * 100).toFixed(1) : "";
       if (delta < 0) note = "They are cheaper";
       else if (delta > 0) note = "You are cheaper";
       else note = "Same price";
@@ -147,12 +113,12 @@ export async function GET() {
         cell(r.sku),
         cell(r.title),
         cell(r.currency),
-        cell(mine !== null ? mine.toFixed(2) : ""),
-        cell(r.their_store),
+        cell(mineP !== null ? mineP.toFixed(2) : ""),
+        cell(r.bestShop),
         cell(theirs !== null ? theirs.toFixed(2) : ""),
         cell(difference),
         cell(differencePct),
-        cell(r.competitor_count ?? 0),
+        cell(r.rivalShops.length),
         cell(note),
         cell(""),
       ].join(","),

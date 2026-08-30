@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { linkProducts } from "../actions";
 
@@ -220,12 +221,15 @@ export function LinkProductButton({
                   Loading…
                 </div>
               ) : candidates.length === 0 ? (
-                <div className="px-4 py-8 text-center text-sm text-muted">
-                  {query
-                    ? `No matches for "${query}".`
-                    : browseAll
-                      ? "No competitor products found yet."
-                      : "No similar products found. Tick 'Browse everything' above to search every competitor product."}
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm text-muted">
+                    {query
+                      ? `No matches for "${query}".`
+                      : browseAll
+                        ? "No competitor products found yet."
+                        : "No similar products found. Tick 'Browse everything' above to search every competitor product."}
+                  </p>
+                  <AddShopCta prominent />
                 </div>
               ) : (
                 <div className="divide-y divide-default">
@@ -298,6 +302,11 @@ export function LinkProductButton({
                       </button>
                     );
                   })}
+                  {candidates.length <= 3 && (
+                    <div className="px-4 py-5 text-center">
+                      <AddShopCta prominent />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -309,11 +318,45 @@ export function LinkProductButton({
               {myPrice !== null
                 ? "The percentage shows how much cheaper (green) or dearer (red) you are than the competitor."
                 : "Linked products show their prices side by side on each product page."}
+              <div className="mt-2">
+                <AddShopCta />
+              </div>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Way out of a thin list. With only a shop or two on the account there is
+ * often nothing here worth picking, and without this the reader is stuck
+ * looking at an empty modal with no idea what to do next.
+ */
+function AddShopCta({ prominent = false }: { prominent?: boolean }) {
+  if (prominent) {
+    return (
+      <div className="mt-4">
+        <p className="text-xs text-muted leading-relaxed max-w-sm mx-auto">
+          There is more to choose from once you are watching more shops.
+        </p>
+        <Link
+          href="/stores/new"
+          className="mt-3 inline-block rounded-md border border-default bg-elevated px-4 py-2 text-sm font-medium text-foreground hover:border-strong transition"
+        >
+          Add a competitor shop
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <Link
+      href="/stores/new"
+      className="text-[11px] font-medium text-signal hover:underline"
+    >
+      Add a competitor shop
+    </Link>
   );
 }
 

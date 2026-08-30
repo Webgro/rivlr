@@ -10,14 +10,14 @@ import { ConfirmDialog } from "@/components/confirm-action-button";
 import { ToggleSwitch } from "@/components/toggle-switch";
 
 /**
- * Header controls above the "Not tracked yet" panel on a store profile.
+ * Header controls above the not-yet-watched panel on a store profile.
  *
  *   [ + Track all (N) ]   [ Auto-track new ●○ ]
  *
  * "Track all" runs the bulk action with a confirmation dialog (because
  * it can be hundreds of products and triggers a wave of crawls).
  * "Auto-track new" is a toggle that flips the per-store flag, drives the
- * daily discovery cron's behaviour from then on.
+ * daily catalogue read's behaviour from then on.
  */
 export function StoreBulkControls({
   domain,
@@ -61,7 +61,7 @@ export function StoreBulkControls({
           disabled={pending}
           className="rounded-md bg-signal text-white px-3 py-1.5 text-xs font-medium hover:bg-red-600 transition disabled:opacity-50"
         >
-          + Track all ({untrackedCount})
+          + Track all ({untrackedCount.toLocaleString()})
         </button>
       )}
 
@@ -89,10 +89,10 @@ export function StoreBulkControls({
         onClose={() => setConfirmOpen(false)}
         onConfirm={trackAll}
         pending={pending}
-        title={`Track all ${untrackedCount} products from this store?`}
+        title={`Start watching all ${untrackedCount.toLocaleString()} products from this shop?`}
         description={
           <>
-            Adds every untracked product on this store to your watchlist.
+            Adds every product on this shop that you are not watching yet.
             Rivlr starts checking them within a few seconds. You can remove
             any of them later.{" "}
             <strong className="text-foreground">

@@ -10,7 +10,7 @@ import { scanBestsellerCollections, scanStoreNow } from "@/lib/crawler/store-sca
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { inferMarketFromDomain } from "@/lib/crawler/shopify";
 import { importOwnStoreCatalogue } from "@/lib/catalogue-import";
-import { getCompetitorQuota } from "@/lib/plan";
+import { getCompetitorQuota, getProductQuota } from "@/lib/plan";
 
 /**
  * Per-user store actions. Per-user attributes (is_my_store, auto_track_new)
@@ -169,6 +169,90 @@ export async function toggleAutoTrackNew(formData: FormData) {
     });
   revalidatePath(`/stores/${domain}`);
   revalidatePath("/stores");
+}
+
+/**
+ * Start watching one product from a shop's not-yet-watched list.
+ *
+ * Returns a result instead of redirecting or revalidating the store page
+ * on purpose: the list is meant to be worked down with repeated clicks,
+ * and re-rendering the route under the reader would move the row they
+ * were about to click next. The caller marks the row as added itself.
+ */
+export async function trackStoreProduct(id: string): Promise<
+  | { ok: true; remaining: number | null }
+  | { ok: false; error: string; atLimit: boolean }
+> {
+  const user = await requireUser();
+  if (!id) return { ok: false, error: "Nothing to add.", atLimit: false };
+
+  const [found] = await db
+    .select()
+    .from(schema.discoveredProducts)
+    .where(
+      and(
+        eq(schema.discoveredProducts.id, id),
+        eq(schema.discoveredProducts.userId, user.id),
+      ),
+    )
+    .limit(1);
+  if (!found) {
+    return {
+      ok: false,
+      error: "That product is no longer on this list.",
+      atLimit: false,
+    };
+  }
+
+  // Plan cap, checked before the insert so someone at their limit is told
+  // plainly rather than seeing the click fail.
+  const quota = await getProductQuota(user.id);
+  if (quota.full) {
+    return {
+      ok: false,
+      atLimit: true,
+      error: `You are watching ${quota.current} products, the most your plan allows. Remove one, or move up a plan, to add more.`,
+    };
+  }
+
+  const market = inferMarketFromDomain(found.storeDomain);
+
+  await db
+    .insert(schema.trackedProducts)
+    .values({
+      userId: user.id,
+      url: found.url,
+      handle: found.handle,
+      storeDomain: found.storeDomain,
+      title: found.title,
+      imageUrl: found.imageUrl,
+      currency: market.currency,
+      marketCountry: market.country,
+      marketCurrency: market.currency,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .delete(schema.discoveredProducts)
+    .where(
+      and(
+        eq(schema.discoveredProducts.id, id),
+        eq(schema.discoveredProducts.userId, user.id),
+      ),
+    );
+
+  after(async () => {
+    try {
+      await dispatchCrawl({});
+    } catch {
+      // the 10-minute cron picks it up regardless
+    }
+  });
+
+  return {
+    ok: true,
+    remaining: quota.remaining === null ? null : Math.max(0, quota.remaining - 1),
+  };
 }
 
 export async function bulkTrackStoreDiscoveries(formData: FormData) {
