@@ -165,12 +165,6 @@ function SignInForm({
             Too many sign-in requests. Wait a moment, then try again.
           </p>
         )}
-        {error === "not-invited" && (
-          <p className="text-sm text-signal">
-            That email isn&apos;t on any Rivlr account. Ask the account
-            owner to invite you from their Profile page.
-          </p>
-        )}
         {(error === "expired" || error === "used" || error === "invalid") && (
           <p className="text-sm text-signal">
             {error === "expired"

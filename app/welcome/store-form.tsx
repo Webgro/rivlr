@@ -30,6 +30,7 @@ export function StoreForm({
   action,
   label,
   placeholder,
+  initialValue = "",
 }: {
   action: (
     prev: StepResult | null,
@@ -37,13 +38,15 @@ export function StoreForm({
   ) => Promise<StepResult>;
   label: string;
   placeholder: string;
+  /** Carried from signup when the address was given on the way in. */
+  initialValue?: string;
 }) {
   const [state, formAction] = useActionState(action, null);
   // Controlled, so a rejected address survives the re-render. An
   // uncontrolled input is reset by the action's response, and making
   // someone retype the address they just typed is the worst possible
   // reply to "we couldn't reach that store".
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
 
   return (
     <form action={formAction} className="space-y-4">

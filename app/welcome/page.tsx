@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth/current-user";
-import { getOnboardingState } from "@/lib/onboarding";
+import { getOnboardingState, parseStoreDomain } from "@/lib/onboarding";
 import { findCatalogueMatches } from "@/lib/matching";
 import { getProductQuota } from "@/lib/plan";
 import { SetupShell } from "./setup-shell";
@@ -29,9 +29,17 @@ export const dynamic = "force-dynamic";
  * (see lib/onboarding.ts) rather than carried in the URL, so refreshing,
  * going back, or returning tomorrow all land in the right place.
  */
-export default async function WelcomePage() {
+export default async function WelcomePage(props: {
+  searchParams: Promise<{ store?: string }>;
+}) {
   const user = await requireUser();
-  const state = await getOnboardingState(user.id);
+  const [state, { store }] = await Promise.all([
+    getOnboardingState(user.id),
+    props.searchParams,
+  ]);
+  // Re-parsed rather than trusted: it arrives via the magic link's
+  // redirect and is about to be rendered into an input.
+  const prefilledStore = parseStoreDomain(store ?? "") ?? "";
 
   if (state.step === "done") redirect("/dashboard");
 
@@ -46,6 +54,7 @@ export default async function WelcomePage() {
           action={submitOwnStore}
           label="Continue"
           placeholder="mystore.com"
+          initialValue={prefilledStore}
         />
         <form action={skipStoreStep} className="mt-4">
           <button

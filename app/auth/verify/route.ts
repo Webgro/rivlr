@@ -49,43 +49,44 @@ export async function GET(request: Request) {
   // 1. Resolve the email → user via union of users.email + user_emails.email.
   let user = await resolveUserByEmail(email);
 
-  // 2. No user yet for this email. Two sub-cases:
+  // 2. No user yet for this email — this is a new signup.
+  //
+  // This used to reject anyone who wasn't already on the single
+  // account, a holdover from before Phase 3 made the app multi-tenant.
+  // It meant nobody but the very first person could ever sign up.
   if (!user) {
     const [{ count: existingUserCount }] = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int AS count FROM users
     `);
+    const isFirstEverUser = existingUserCount === 0;
 
-    if (existingUserCount === 0) {
-      // First-ever signup — create the user AND adopt all NULL-userId rows.
-      [user] = await db
-        .insert(schema.users)
-        .values({
-          email,
-          emailVerifiedAt: new Date(),
-          lastLoginAt: new Date(),
-        })
-        .returning();
+    [user] = await db
+      .insert(schema.users)
+      .values({
+        email,
+        emailVerifiedAt: new Date(),
+        lastLoginAt: new Date(),
+      })
+      .returning();
+
+    // Adoption is a one-time migration that claims the pre-auth rows
+    // with no owner. It must only ever run for the very first account,
+    // or the second person to sign up inherits the first one's data.
+    if (isFirstEverUser) {
       await adoptAllExistingData(user.id);
+    }
 
-      // Fire welcome email — best effort, don't block the redirect.
-      try {
-        const built = welcomeEmail({ email });
-        await sendEmail({
-          to: [email],
-          subject: built.subject,
-          html: built.html,
-          text: built.text,
-        });
-      } catch {
-        // best effort
-      }
-    } else {
-      // Single-account-mode: an account exists but this email isn't on it.
-      // Reject with a clear message rather than silently creating a competing
-      // tenant that would see no data.
-      return NextResponse.redirect(
-        new URL("/login?error=not-invited", url),
-      );
+    // Fire welcome email — best effort, don't block the redirect.
+    try {
+      const built = welcomeEmail({ email });
+      await sendEmail({
+        to: [email],
+        subject: built.subject,
+        html: built.html,
+        text: built.text,
+      });
+    } catch {
+      // best effort
     }
   } else {
     // Existing user (or authorised secondary email). Bump lastLogin /
@@ -119,11 +120,19 @@ export async function GET(request: Request) {
     userAgent: h.get("user-agent") ?? null,
   });
 
-  // Resolve safe redirect — only allow same-origin paths.
-  const redirectTo =
-    result.redirectTo && result.redirectTo.startsWith("/")
-      ? result.redirectTo
-      : "/dashboard";
+  // Resolve safe redirect — same-origin paths only.
+  //
+  // A leading "/" on its own is not enough: "//evil.com" is a valid
+  // protocol-relative URL, so new URL() resolves it to another origin
+  // entirely and the magic link becomes an open redirect. Backslashes
+  // are rejected for the same reason, since browsers normalise
+  // "/\evil.com" the same way.
+  const candidate = result.redirectTo ?? "";
+  const sameOrigin =
+    candidate.startsWith("/") &&
+    !candidate.startsWith("//") &&
+    !candidate.startsWith("/\\");
+  const redirectTo = sameOrigin ? candidate : "/dashboard";
 
   return NextResponse.redirect(new URL(redirectTo, url));
 }
