@@ -34,6 +34,20 @@ interface PlanCard {
   highlight?: boolean;
 }
 
+/**
+ * Competitor shops allowed, worded for the pricing cards.
+ *
+ * A second limit alongside products, because products alone never
+ * capped the expensive part: adding a shop imports its whole catalogue
+ * and keeps re-reading it, so twenty shops on a free account costs real
+ * money while tracking five products.
+ */
+function competitorsLabel(plan: "free" | "starter" | "growth" | "scale"): string {
+  const n = PLAN_FEATURES[plan].competitorLimit;
+  if (n === null) return "Unlimited competitor shops";
+  return n === 1 ? "1 competitor shop" : `Up to ${n} competitor shops`;
+}
+
 const PLAN_CARDS: PlanCard[] = [
   {
     id: "free",
@@ -42,9 +56,9 @@ const PLAN_CARDS: PlanCard[] = [
     priceNum: PLAN_PRICE_GBP.free,
     cadenceLabel: "Checks once a day",
     bullets: [
-      "Up to 5 tracked products",
+      "Up to 5 products",
+      `${competitorsLabel("free")}`,
       "Prices checked daily",
-      "All core features",
     ],
   },
   {
@@ -54,9 +68,10 @@ const PLAN_CARDS: PlanCard[] = [
     priceNum: PLAN_PRICE_GBP.starter,
     cadenceLabel: "Checks once a day",
     bullets: [
-      "Up to 50 tracked products",
+      "Up to 50 products",
+      `${competitorsLabel("starter")}`,
       "Prices checked daily",
-      "Email alerts + weekly summary",
+      "Email alerts and a weekly summary",
     ],
   },
   {
@@ -66,7 +81,8 @@ const PLAN_CARDS: PlanCard[] = [
     priceNum: PLAN_PRICE_GBP.growth,
     cadenceLabel: "Checks every 6 hours",
     bullets: [
-      "Up to 100 tracked products",
+      "Up to 100 products",
+      `${competitorsLabel("growth")}`,
       "Prices checked every 6 hours",
       "Compare view unlocked",
       "Prices in other countries",
@@ -80,8 +96,9 @@ const PLAN_CARDS: PlanCard[] = [
     cadenceLabel: "Checks every 6 hours",
     highlight: true,
     bullets: [
-      `${SCALE_BASE_PRODUCTS} tracked products included`,
+      `${SCALE_BASE_PRODUCTS} products included`,
       `Add more for £${PACK_PRICE_GBP} per 100, up to ${SCALE_ADVERTISED_MAX.toLocaleString()}`,
+      `${competitorsLabel("scale")}`,
       "Everything in Growth",
       "Priority support",
     ],

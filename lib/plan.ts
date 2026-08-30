@@ -59,6 +59,16 @@ interface PlanFeatures {
   maxCadence: Cadence;
   /** Default cadence used when settings haven't been initialised. */
   cadence: Cadence;
+  /**
+   * Competitor shops the plan allows, null for no limit.
+   *
+   * A second limit, because products alone never capped the expensive
+   * part. Adding a competitor imports their whole catalogue and keeps
+   * re-reading it, so a free account with twenty shops costs real money
+   * on imports and storage while tracking five products and paying
+   * nothing. Own store excluded: it is reference data, not a rival.
+   */
+  competitorLimit: number | null;
 }
 
 /** Cooldown (ms) corresponding to each cadence. Drives lib/crawler/dispatch.ts.
@@ -90,6 +100,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: 5,
     maxCadence: "daily",
     cadence: "daily",
+    competitorLimit: 1,
   },
   starter: {
     discoverVisible: 25,
@@ -97,6 +108,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: 50,
     maxCadence: "daily",
     cadence: "daily",
+    competitorLimit: 3,
   },
   growth: {
     discoverVisible: 100,
@@ -104,6 +116,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: 100,
     maxCadence: "every-6h",
     cadence: "every-6h",
+    competitorLimit: 10,
   },
   // LEGACY. Pro was retired when Scale absorbed it. Kept only so a
   // subscriptions row still carrying 'pro' resolves to sensible
@@ -115,6 +128,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: 400,
     maxCadence: "every-6h",
     cadence: "every-6h",
+    competitorLimit: 10,
   },
   // Top self-serve tier. The base covers 250 products and the customer
   // adds 100-product packs from the billing page, up to the advertised
@@ -126,6 +140,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: 250,
     maxCadence: "every-6h",
     cadence: "every-6h",
+    competitorLimit: 25,
   },
   // Cadence tops out at every-6h across the whole product. Hourly was
   // dropped deliberately: it multiplied crawl cost 6x for marginal
@@ -137,6 +152,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: null,
     maxCadence: "every-6h",
     cadence: "every-6h",
+    competitorLimit: null,
   },
   // Soft-launch / beta tester tier. Same caps as owner (i.e. none) but a
   // distinct identity so the audit log + UI can tell "we comped this
@@ -148,6 +164,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     productLimit: null,
     maxCadence: "every-6h",
     cadence: "every-6h",
+    competitorLimit: null,
   },
 };
 
@@ -334,4 +351,57 @@ export function suggestNextPlan(
     default:
       return null;
   }
+}
+
+/* ─── Competitor quota ──────────────────────────────────────────── */
+
+export interface CompetitorQuota {
+  /** Competitor shops the user currently watches. */
+  current: number;
+  /** Plan cap; null = unlimited. */
+  limit: number | null;
+  /** How many more they can add. null = unlimited. */
+  remaining: number | null;
+  /** True when no further shops can be added. */
+  full: boolean;
+  plan: Plan;
+}
+
+/**
+ * How many competitor shops the user watches, against their plan's cap.
+ *
+ * The user's own store is excluded: it is the thing being compared
+ * against, not a rival, and charging someone a competitor slot for
+ * their own shop would be indefensible.
+ *
+ * Counted from user_store_prefs rather than from distinct store_domain
+ * on tracked_products, because a shop counts from the moment it is
+ * added. That is when its catalogue is imported, which is the cost this
+ * limit exists to bound, and it stops "add ten shops, track nothing"
+ * from being free.
+ */
+export async function getCompetitorQuota(
+  userId: string,
+): Promise<CompetitorQuota> {
+  const plan = await getPlanForUser(userId);
+  const limit = PLAN_FEATURES[plan].competitorLimit;
+
+  const [row] = await db.execute<{ n: number }>(sql`
+    SELECT COUNT(*)::int AS n
+    FROM user_store_prefs
+    WHERE user_id = ${userId}::uuid
+      AND COALESCE(is_my_store, false) = false
+  `);
+  const current = row?.n ?? 0;
+
+  if (limit === null) {
+    return { current, limit: null, remaining: null, full: false, plan };
+  }
+  return {
+    current,
+    limit,
+    remaining: Math.max(0, limit - current),
+    full: current >= limit,
+    plan,
+  };
 }

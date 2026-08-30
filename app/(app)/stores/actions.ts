@@ -10,6 +10,7 @@ import { scanBestsellerCollections, scanStoreNow } from "@/lib/crawler/store-sca
 import { dispatchCrawl } from "@/lib/crawler/dispatch";
 import { inferMarketFromDomain } from "@/lib/crawler/shopify";
 import { importOwnStoreCatalogue } from "@/lib/catalogue-import";
+import { getCompetitorQuota } from "@/lib/plan";
 
 /**
  * Per-user store actions. Per-user attributes (is_my_store, auto_track_new)
@@ -261,6 +262,30 @@ export async function addStore(formData: FormData): Promise<void> {
   const domain = parseStoreDomain(rawDomain);
   if (!domain) {
     redirect(`/stores/new?error=invalid-url`);
+  }
+
+  // Competitor cap. Checked before the reachability probe so someone at
+  // their limit is told so immediately rather than after a round trip to
+  // a shop they are not allowed to add. Marking your own store is exempt:
+  // it is the thing being compared against, not a rival.
+  if (!isMyStore) {
+    const existing = await db
+      .select({ domain: schema.userStorePrefs.domain })
+      .from(schema.userStorePrefs)
+      .where(
+        and(
+          eq(schema.userStorePrefs.userId, user.id),
+          eq(schema.userStorePrefs.domain, domain),
+        ),
+      )
+      .limit(1);
+    // Re-adding a shop already on the list is not a new slot.
+    if (existing.length === 0) {
+      const quota = await getCompetitorQuota(user.id);
+      if (quota.full) {
+        redirect(`/stores/new?error=competitor-limit&limit=${quota.limit}`);
+      }
+    }
   }
 
   // Verify it's a real, reachable Shopify store. Cheap probe — one
